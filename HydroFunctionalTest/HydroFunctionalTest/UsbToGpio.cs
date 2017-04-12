@@ -23,8 +23,8 @@ namespace HydroFunctionalTest
 
         #region Member Methods
 
-        #region InitializeGpio Method - Intialization of GPIO adapter.  Find attached gpio devices, ignore all others
-        public bool InitializeGpio()
+        #region ScanForDevs Method - Intialization of GPIO adapter.  Find attached gpio devices, ignore all others
+        public bool ScanForDevs()
         {
             bool requestSuccessful = false;
             gpioReturnData.Clear();
@@ -65,7 +65,7 @@ namespace HydroFunctionalTest
             
             return requestSuccessful;
         }
-        #endregion InitializeGpio Method
+        #endregion ScanForDevs Method
 
         #region GpioWrite Method - (string devName, UInt32 portNum, UInt32 setClearBits, UInt32 pinNum(optional))
         /*set/clear pins, parameters must include the desired device (gpioDeviceIds) as well as port/pin numbers to be set/cleared.
