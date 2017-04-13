@@ -1239,14 +1239,12 @@ namespace HydroFunctionalTest
 
         #region Crane Test Members
 
+        public UInt16 DevHandle { get; set; }
+        public UInt16 DevID { get; set; }
         /// <summary>
         /// store method operation results for the Main UI to view
         /// </summary>
         public List<string> pcanReturnData = new List<string>();
-        /// <summary>
-        /// stores info about attached device ID and handle value for the main UI to use
-        /// </summary>
-        public Dictionary<DeviceId, TPCANHandle>  pcanDevInfo = new Dictionary<DeviceId, TPCANHandle>();
         /// <summary>
         /// global variable set using predefined values from the enumerations section(region)
         /// </summary>
@@ -1266,18 +1264,16 @@ namespace HydroFunctionalTest
         #region Crane Test Methods
 
         /// <summary>
-        /// Will scan specifically for the PCAN-USB type device.
-        /// When found it will query the device for its ID and store it
-        /// in the dictionary "pcanDevInfo" as the key and the value will be the device handle 
+        /// Will scan specifically for the PCAN-USB type devices.
+        /// When found it will query the device for its ID and compare it to the device ID in the method parameter.
+        /// Devices that don't match the parameter device ID will need to call the SetDevId() method 
         /// </summary>
-        /// <param name="devId"></param>
         /// <returns></returns>
         //scan for devices and save the device ID into the 
         public bool ScanForDev(UInt16 devId)
         {
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
-            pcanDevInfo.Clear();          //This list is only cleared in the ScanForDev() method
 
             TPCANStatus stsResult;  //holds return info from returning methods - applies to native PCAN code not Crane test code methods
             UInt32 iBuffer;           //holds data that is worked on after calling method returns -  applies to native PCAN code not Crane test code methods
@@ -1288,21 +1284,32 @@ namespace HydroFunctionalTest
                 // to the pcanDeviceIds List.
                 //
                 //search for maximum of 8 devices.  the loop count is arbitrary, just need to find one that matches the device ID passed to the method
-                for (ushort i = 0x51; i < 0x58; i++) //0x51 represents the first value given to the PCAN-USB type adapters in the handles definition section(region)
+                for (System.UInt16 i = 0x51; i < 0x58; i++) //0x51 represents the first value given to the PCAN-USB type adapters in the handles definition section(region)
                 {
-                    stsResult = Pcan.GetValue(i, TPCANParameter.PCAN_CHANNEL_CONDITION, out iBuffer, sizeof(UInt32));
+                    stsResult = Pcan.GetValue(i, TPCANParameter.PCAN_CHANNEL_CONDITION, out iBuffer, sizeof(UInt32));                    
                     if ((stsResult == TPCANStatus.PCAN_ERROR_OK) && ((iBuffer & Pcan.PCAN_CHANNEL_AVAILABLE) == Pcan.PCAN_CHANNEL_AVAILABLE))
                     {
+                        DevHandle = i;
                         // carried over from PCAN example code, may not be needed... --> stsResult = Pcan.GetValue(m_HandlesArray[i], TPCANParameter.PCAN_CHANNEL_FEATURES, out iBuffer, sizeof(UInt32));
-                                               
-                        //get the device ID and handle value and save it in the pcanDeviceId List
-                        stsResult = GetValue(i, TPCANParameter.PCAN_DEVICE_NUMBER, out iBuffer, sizeof(UInt32));
-                        pcanDevInfo.Add((UInt16)iBuffer, i);//holds the associated values, devId & the device handle
-                        returnValue = true;                            
+                        if (ActivateDevice())
+                        {                            
+                            stsResult = GetValue(i, TPCANParameter.PCAN_DEVICE_NUMBER, out iBuffer, sizeof(UInt32)); //get the device ID and compare to method parameter
+                            //if no devices match then the device needs to be configured to have its device ID equal to the method parameter
+                            UInt32 tempDevID = (UInt16)iBuffer;
+                            DeactivateDevice();
+                            if (tempDevID == devId)
+                            {
+                                pcanReturnData.Add("Found PCAN-USB device with the device ID: " + devId.ToString());
+                                return true;
+                            }                                                       
+                        }
+                        else
+                            pcanReturnData.Add("Failed to Initialize device.  Handle ID: " + DevHandle.ToString());
                     }
                 }
-                if (pcanDevInfo.Count < 1)
-                    pcanReturnData.Add("No PCAN-USB device(s) found.");
+                if (!returnValue)
+                    pcanReturnData.Add("No PCAN-USB device found with the device ID: " + devId.ToString());
+                    
             }
             catch (Exception ex)
             {
@@ -1317,7 +1324,6 @@ namespace HydroFunctionalTest
         /// Only a value of 1 or 2 are accepted as device IDs
         /// device ID #1 is for fixture #1, ID #2 for fixture #2
         /// </summary>
-        /// <param name="devNum"></param>
         /// <returns></returns>
         public bool SetDevId(UInt16 devNum)
         {
@@ -1328,25 +1334,26 @@ namespace HydroFunctionalTest
 
             try
             {
-                if (ScanForDev(devNum))
+                ScanForDev(devNum);  //the return value and parameter doesn't matter here since we are manually setting the device ID.  Only one device should be connected or the ID could be assigned to another device.
+                if (ActivateDevice())
                 {
-                    if (pcanDevInfo.Count > 0)
+                    if ((devNum == 1) || (devNum == 2))
                     {
-                        if (pcanDevInfo.ContainsKey(devNum))
-                        {
-                            stsResult = SetValue(pcanDevInfo[devNum], TPCANParameter.PCAN_DEVICE_NUMBER, ref tempDevNum, sizeof(UInt32));
-                            if (stsResult == TPCANStatus.PCAN_ERROR_OK)
-                                returnValue = true;
-                            else
-                                pcanReturnData.Add("PCAN Error returned while attempting to assign ID to PCAN-USB adapter:" + Environment.NewLine + stsResult.ToString());
-                        }
+                        stsResult = SetValue(DevHandle, TPCANParameter.PCAN_DEVICE_NUMBER, ref tempDevNum, sizeof(UInt32));
+                        if (stsResult == TPCANStatus.PCAN_ERROR_OK)
+                            returnValue = true;
                         else
-                        {
-                            pcanReturnData.Add("Invalid parameter sent to SetDevId() function.  Parameter must be an integer value of 1 or 2" +
-                                Environment.NewLine + "The test program only expects a total of two devices will need device IDs.");
-                        }
+                            pcanReturnData.Add("PCAN Error returned while attempting to assign ID to PCAN-USB adapter:" + Environment.NewLine + stsResult.ToString());
                     }
+                    else
+                    {
+                        pcanReturnData.Add("Invalid parameter sent to SetDevId() function.  Parameter must be an integer value of 1 or 2" +
+                            Environment.NewLine + "The test program only expects a total of two devices will need device IDs.");
+                    }
+                    DeactivateDevice();
                 }
+                else
+                    pcanReturnData.Add("Failed to Initialize device.  Handle ID: " + DevHandle.ToString());
             }
             catch(Exception ex)
             {
@@ -1360,13 +1367,12 @@ namespace HydroFunctionalTest
         /// Prepares the CAN message using the method's parameters and loads it into the TPCANMsg struct
         /// Writes the message and checks for any errors
         /// </summary>
-        /// <param name="devNum"></param>
         /// <param name="canData"></param>
         /// <param name="canId"></param>
         /// <param name="msgLen"></param>
         /// <param name="remoteFrame"></param>
         /// <returns></returns>
-        public bool CanWrite(UInt16 devNum, byte[] canData, UInt32 canId, byte msgLen, bool remoteFrame = false)
+        public bool CanWrite(byte[] canData, UInt32 canId, byte msgLen, bool remoteFrame = false)
         {
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
@@ -1385,7 +1391,7 @@ namespace HydroFunctionalTest
                     CanMsg.MSGTYPE = TPCANMessageType.PCAN_MESSAGE_RTR;
                             
                 //Write command
-                stsResult = Write(devNum, ref CanMsg);
+                stsResult = Write(DevHandle, ref CanMsg);
                 if (stsResult == TPCANStatus.PCAN_ERROR_OK)
                     returnValue = true;
                 else
@@ -1403,10 +1409,9 @@ namespace HydroFunctionalTest
         /// Calls PCAN 'Read' method and stores CAN msg values in nested dictionary 'canReadRtnData'
         /// most recent data byte stored in "canDataFrame" list
         /// </summary>
-        /// <param name="devNum"></param>
         /// <param name="canIdToMatch"></param>
         /// <returns></returns>
-        public bool CanRead(UInt16 devNum, UInt32 canIdToMatch)
+        public bool CanRead(UInt32 canIdToMatch)
         {
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
@@ -1415,12 +1420,11 @@ namespace HydroFunctionalTest
 
             try
             {
-                UInt32 tempDevNum = (UInt32)devNum;
                 TPCANMsg CanMsg = new TPCANMsg();
                 TPCANTimestamp timeStamp;
 
                 //change the following line to a read command
-                stsResult = Read(pcanDevInfo[devNum], out CanMsg, out timeStamp);
+                stsResult = Read(DevHandle, out CanMsg, out timeStamp);
                 if (stsResult == TPCANStatus.PCAN_ERROR_OK)
                 {
                     List<UInt32> tempList = new List<UInt32>();
@@ -1453,9 +1457,8 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Calls the PCAN "Initialize" method and checks for errors
         /// </summary>
-        /// <param name="devNum"></param>
         /// <returns></returns>
-        public bool ActivateDevice(UInt16 devNum)
+        public bool ActivateDevice()
         {
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
@@ -1463,25 +1466,17 @@ namespace HydroFunctionalTest
 
             try
             {
-                if (pcanDevInfo.ContainsKey(devNum))
+                //Initialize the attached device and check for errors
+                stsResult = Initialize(DevHandle, canUSBBaudRate);
+                if (stsResult != TPCANStatus.PCAN_ERROR_OK)
                 {
-                    //Initialize the attached device and check for errors
-                    stsResult = Initialize(pcanDevInfo[devNum], canUSBBaudRate);
-                    if (stsResult != TPCANStatus.PCAN_ERROR_OK)
-                    {
-                        if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
-                            pcanReturnData.Add("PCAN-USB 'Error' while initializing:" + Environment.NewLine + stsResult.ToString());
-                        else
-                            pcanReturnData.Add("PCAN-USB 'Caution' while initializing:" + Environment.NewLine + stsResult.ToString());
-                    }
+                    if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
+                        pcanReturnData.Add("PCAN-USB 'Error' while initializing:" + Environment.NewLine + stsResult.ToString());
                     else
-                        returnValue = true; //device intialization successful
+                        pcanReturnData.Add("PCAN-USB 'Caution' while initializing:" + Environment.NewLine + stsResult.ToString());
                 }
                 else
-                {
-                    pcanReturnData.Add("Invalid parameter sent to ActivateDevice() function.  Parameter must be an integer value of 1 or 2" +
-                        Environment.NewLine + "The test program only expects a total of two devices will need device IDs.");
-                }
+                    returnValue = true; //device intialization successful
             }
             catch (Exception ex)
             {
@@ -1494,9 +1489,8 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Calls the PCAN "Uninitialize" method and checks for errors
         /// </summary>
-        /// <param name="devNum"></param>
         /// <returns></returns>
-        public bool DeactivateDevice(UInt16 devNum)
+        public bool DeactivateDevice()
         {
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
@@ -1504,25 +1498,17 @@ namespace HydroFunctionalTest
 
             try
             {
-                if (pcanDevInfo.ContainsKey(devNum))
+                //Initialize the attached device and check for errors
+                stsResult = Uninitialize(DevHandle);
+                if (stsResult != TPCANStatus.PCAN_ERROR_OK)
                 {
-                    //Initialize the attached device and check for errors
-                    stsResult = Uninitialize(pcanDevInfo[devNum]);
-                    if (stsResult != TPCANStatus.PCAN_ERROR_OK)
-                    {
-                        if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
-                            pcanReturnData.Add("PCAN-USB 'Error' while uninitializing:" + Environment.NewLine + stsResult.ToString());
-                        else
-                            pcanReturnData.Add("PCAN-USB 'Caution' while uninitializing:" + Environment.NewLine + stsResult.ToString());
-                    }
+                    if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
+                        pcanReturnData.Add("PCAN-USB 'Error' while uninitializing:" + Environment.NewLine + stsResult.ToString());
                     else
-                        returnValue = true; //device unintialization successful
+                        pcanReturnData.Add("PCAN-USB 'Caution' while uninitializing:" + Environment.NewLine + stsResult.ToString());
                 }
                 else
-                {
-                    pcanReturnData.Add("Invalid parameter sent to DeactivateDevice() function.  Parameter must be an integer value of 1 or 2" +
-                        Environment.NewLine + "The test program only expects a total of two devices will need device IDs.");
-                }
+                    returnValue = true; //device unintialization successful
             }
             catch (Exception ex)
             {
@@ -1534,11 +1520,9 @@ namespace HydroFunctionalTest
 
         /// <summary>
         /// Resets the device receive and transmit queues and all Crane test code member data buffers
-        /// The method will not not clear the saved connected devices, i.e., no need to run "ScanForDev" method
         /// </summary>
-        /// <param name="devNum"></param>
         /// <returns></returns>
-        public bool ClearDataBuffers(UInt16 devNum)
+        public bool ClearDataBuffers()
         {
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
@@ -1548,25 +1532,17 @@ namespace HydroFunctionalTest
 
             try
             {
-                if (pcanDevInfo.ContainsKey(devNum))
+                //Reset the attached device and check for errors
+                stsResult =Reset(DevHandle);
+                if (stsResult != TPCANStatus.PCAN_ERROR_OK)
                 {
-                    //Reset the attached device and check for errors
-                    stsResult =Reset(pcanDevInfo[devNum]);
-                    if (stsResult != TPCANStatus.PCAN_ERROR_OK)
-                    {
-                        if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
-                            pcanReturnData.Add("PCAN-USB 'Error' while resetting device:" + Environment.NewLine + stsResult.ToString());
-                        else
-                            pcanReturnData.Add("PCAN-USB 'Caution' while resetting device:" + Environment.NewLine + stsResult.ToString());
-                    }
+                    if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
+                        pcanReturnData.Add("PCAN-USB 'Error' while resetting device:" + Environment.NewLine + stsResult.ToString());
                     else
-                        returnValue = true; //device reset successful
+                        pcanReturnData.Add("PCAN-USB 'Caution' while resetting device:" + Environment.NewLine + stsResult.ToString());
                 }
                 else
-                {
-                    pcanReturnData.Add("Invalid parameter sent to ResetDevice() function.  Parameter must be an integer value of 1 or 2" +
-                        Environment.NewLine + "The test program only expects a total of two devices will need device IDs.");
-                }
+                    returnValue = true; //device reset successful
             }
             catch (Exception ex)
             {

@@ -9,8 +9,14 @@ namespace HydroFunctionalTest
 {
     class UsbToGpio
     {
-        private string gpioProdType = "USB-6501";
+        private const string gpioProdType = "USB-6501";
+        /// <summary>
+        /// The ScanForDevs method Saves the device names here
+        /// </summary>
         public List<string> gpioDeviceIds;
+        /// <summary>
+        /// store method operation results for the Main UI to view
+        /// </summary>
         public List<string> gpioReturnData;
 
         #region Contructor/Destructor
@@ -23,7 +29,11 @@ namespace HydroFunctionalTest
 
         #region Member Methods
 
-        #region ScanForDevs Method - Intialization of GPIO adapter.  Find attached gpio devices, ignore all others
+        #region ScanForDevs Method
+        /// <summary>
+        /// Intialization of GPIO adapter.  Find attached gpio devices, ignore all others
+        /// </summary>
+        /// <returns></returns>        
         public bool ScanForDevs()
         {
             bool requestSuccessful = false;
@@ -67,9 +77,16 @@ namespace HydroFunctionalTest
         }
         #endregion ScanForDevs Method
 
-        #region GpioWrite Method - (string devName, UInt32 portNum, UInt32 setClearBits, UInt32 pinNum(optional))
-        /*set/clear pins, parameters must include the desired device (gpioDeviceIds) as well as port/pin numbers to be set/cleared.
-        Pin to set is optional if opting to set all pins on the entire port.*/
+        #region GpioWrite Method
+        /// <summary>
+        /// set/clear pins, parameters must include the desired device (gpioDeviceIds) as well as port/pin numbers to be set/cleared.
+        ///Pin to set is optional if opting to set all pins on the entire port.
+        /// </summary>
+        /// <param name="devName"></param>
+        /// <param name="portNum"></param>
+        /// <param name="setClearBits"></param>
+        /// <param name="pinNum"></param>
+        /// <returns></returns>
         public bool GpioWrite(string devName, UInt32 portNum, UInt32 setClearBits, UInt32 pinNum = 8)
         {
             bool requestSuccessful = false;
@@ -108,7 +125,14 @@ namespace HydroFunctionalTest
         }
         #endregion GpioWrite Method
 
-        #region GpioRead Method - (string devName, UInt32 portNum, UInt32 pinNum(optional))
+        #region GpioRead Method
+        /// <summary>
+        /// Querys the device and returns either a bit or a byte based on the optional method parameter
+        /// </summary>
+        /// <param name="devName"></param>
+        /// <param name="portNum"></param>
+        /// <param name="pinNum"></param>
+        /// <returns></returns>
         public UInt32 GpioRead(string devName, UInt32 portNum, UInt32 pinNum = 8)
         {
             UInt32 returnData = 0xFF;

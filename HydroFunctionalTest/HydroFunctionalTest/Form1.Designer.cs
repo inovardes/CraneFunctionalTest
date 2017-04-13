@@ -32,43 +32,43 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabTest = new System.Windows.Forms.TabPage();
             this.grpBxTst2 = new System.Windows.Forms.GroupBox();
+            this.chkBxRma2 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpPrg2 = new System.Windows.Forms.CheckBox();
+            this.btnStrTst2 = new System.Windows.Forms.Button();
             this.txtBxSerNum2 = new System.Windows.Forms.TextBox();
             this.txtBxTst2 = new System.Windows.Forms.TextBox();
             this.grpBxTst1 = new System.Windows.Forms.GroupBox();
+            this.chkBxRma1 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpPrg1 = new System.Windows.Forms.CheckBox();
+            this.btnStrTst1 = new System.Windows.Forms.Button();
             this.txtBxTst1 = new System.Windows.Forms.TextBox();
             this.txtBxSerNum1 = new System.Windows.Forms.TextBox();
             this.tabDebug = new System.Windows.Forms.TabPage();
-            this.pictureBox3 = new System.Windows.Forms.PictureBox();
+            this.grpBxDbg2 = new System.Windows.Forms.GroupBox();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.btnDbgTst2 = new System.Windows.Forms.Button();
+            this.cboBxDbgCmd2 = new System.Windows.Forms.ComboBox();
+            this.cboBxDbgTst2 = new System.Windows.Forms.ComboBox();
+            this.btnDbgCmd2 = new System.Windows.Forms.Button();
+            this.grpBxDbg1 = new System.Windows.Forms.GroupBox();
+            this.txtBxDbg1 = new System.Windows.Forms.TextBox();
+            this.btnDbgTst1 = new System.Windows.Forms.Button();
+            this.cboBxDbgCmd1 = new System.Windows.Forms.ComboBox();
+            this.cboBxDbgTst1 = new System.Windows.Forms.ComboBox();
+            this.btnDbgCmd1 = new System.Windows.Forms.Button();
             this.tabConfig = new System.Windows.Forms.TabPage();
             this.cboBxDevId = new System.Windows.Forms.ComboBox();
             this.btnAsgnCanId = new System.Windows.Forms.Button();
-            this.btnStrTst1 = new System.Windows.Forms.Button();
-            this.btnStrTst2 = new System.Windows.Forms.Button();
-            this.grpBxDbg1 = new System.Windows.Forms.GroupBox();
-            this.btnDbgCmd1 = new System.Windows.Forms.Button();
-            this.grpBxDbg2 = new System.Windows.Forms.GroupBox();
-            this.btnDbgCmd2 = new System.Windows.Forms.Button();
-            this.cboBxDbgTst1 = new System.Windows.Forms.ComboBox();
-            this.cboBxDbgTst2 = new System.Windows.Forms.ComboBox();
-            this.cboBxDbgCmd1 = new System.Windows.Forms.ComboBox();
-            this.cboBxDbgCmd2 = new System.Windows.Forms.ComboBox();
-            this.btnDbgTst1 = new System.Windows.Forms.Button();
-            this.btnDbgTst2 = new System.Windows.Forms.Button();
-            this.chkBxSkpPrg1 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpPrg2 = new System.Windows.Forms.CheckBox();
-            this.chkBxRma1 = new System.Windows.Forms.CheckBox();
-            this.chkBxRma2 = new System.Windows.Forms.CheckBox();
-            this.txtBxDbg1 = new System.Windows.Forms.TextBox();
-            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
             this.grpBxTst1.SuspendLayout();
             this.tabDebug.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
-            this.tabConfig.SuspendLayout();
-            this.grpBxDbg1.SuspendLayout();
             this.grpBxDbg2.SuspendLayout();
+            this.grpBxDbg1.SuspendLayout();
+            this.tabConfig.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             this.SuspendLayout();
             // 
             // tabControl1
@@ -108,6 +108,36 @@
             this.grpBxTst2.TabStop = false;
             this.grpBxTst2.Text = "Fixture # 2";
             // 
+            // chkBxRma2
+            // 
+            this.chkBxRma2.AutoSize = true;
+            this.chkBxRma2.Location = new System.Drawing.Point(234, 45);
+            this.chkBxRma2.Name = "chkBxRma2";
+            this.chkBxRma2.Size = new System.Drawing.Size(50, 17);
+            this.chkBxRma2.TabIndex = 7;
+            this.chkBxRma2.Text = "RMA";
+            this.chkBxRma2.UseVisualStyleBackColor = true;
+            // 
+            // chkBxSkpPrg2
+            // 
+            this.chkBxSkpPrg2.AutoSize = true;
+            this.chkBxSkpPrg2.Location = new System.Drawing.Point(234, 19);
+            this.chkBxSkpPrg2.Name = "chkBxSkpPrg2";
+            this.chkBxSkpPrg2.Size = new System.Drawing.Size(111, 17);
+            this.chkBxSkpPrg2.TabIndex = 6;
+            this.chkBxSkpPrg2.Text = "Skip Programming";
+            this.chkBxSkpPrg2.UseVisualStyleBackColor = true;
+            // 
+            // btnStrTst2
+            // 
+            this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnStrTst2.Location = new System.Drawing.Point(6, 122);
+            this.btnStrTst2.Name = "btnStrTst2";
+            this.btnStrTst2.Size = new System.Drawing.Size(338, 51);
+            this.btnStrTst2.TabIndex = 5;
+            this.btnStrTst2.Text = "Begin Test";
+            this.btnStrTst2.UseVisualStyleBackColor = true;
+            // 
             // txtBxSerNum2
             // 
             this.txtBxSerNum2.Location = new System.Drawing.Point(6, 18);
@@ -139,6 +169,36 @@
             this.grpBxTst1.TabStop = false;
             this.grpBxTst1.Text = "Fixture # 1";
             // 
+            // chkBxRma1
+            // 
+            this.chkBxRma1.AutoSize = true;
+            this.chkBxRma1.Location = new System.Drawing.Point(234, 45);
+            this.chkBxRma1.Name = "chkBxRma1";
+            this.chkBxRma1.Size = new System.Drawing.Size(50, 17);
+            this.chkBxRma1.TabIndex = 6;
+            this.chkBxRma1.Text = "RMA";
+            this.chkBxRma1.UseVisualStyleBackColor = true;
+            // 
+            // chkBxSkpPrg1
+            // 
+            this.chkBxSkpPrg1.AutoSize = true;
+            this.chkBxSkpPrg1.Location = new System.Drawing.Point(234, 19);
+            this.chkBxSkpPrg1.Name = "chkBxSkpPrg1";
+            this.chkBxSkpPrg1.Size = new System.Drawing.Size(111, 17);
+            this.chkBxSkpPrg1.TabIndex = 5;
+            this.chkBxSkpPrg1.Text = "Skip Programming";
+            this.chkBxSkpPrg1.UseVisualStyleBackColor = true;
+            // 
+            // btnStrTst1
+            // 
+            this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnStrTst1.Location = new System.Drawing.Point(6, 122);
+            this.btnStrTst1.Name = "btnStrTst1";
+            this.btnStrTst1.Size = new System.Drawing.Size(338, 51);
+            this.btnStrTst1.TabIndex = 4;
+            this.btnStrTst1.Text = "Begin Test";
+            this.btnStrTst1.UseVisualStyleBackColor = true;
+            // 
             // txtBxTst1
             // 
             this.txtBxTst1.Cursor = System.Windows.Forms.Cursors.PanSW;
@@ -169,14 +229,129 @@
             this.tabDebug.Text = "Debug";
             this.tabDebug.UseVisualStyleBackColor = true;
             // 
-            // pictureBox3
+            // grpBxDbg2
             // 
-            this.pictureBox3.Image = global::HydroFunctionalTest.Properties.Resources.CraneLogo1;
-            this.pictureBox3.Location = new System.Drawing.Point(624, 393);
-            this.pictureBox3.Name = "pictureBox3";
-            this.pictureBox3.Size = new System.Drawing.Size(157, 85);
-            this.pictureBox3.TabIndex = 2;
-            this.pictureBox3.TabStop = false;
+            this.grpBxDbg2.Controls.Add(this.textBox1);
+            this.grpBxDbg2.Controls.Add(this.btnDbgTst2);
+            this.grpBxDbg2.Controls.Add(this.cboBxDbgCmd2);
+            this.grpBxDbg2.Controls.Add(this.cboBxDbgTst2);
+            this.grpBxDbg2.Controls.Add(this.btnDbgCmd2);
+            this.grpBxDbg2.Location = new System.Drawing.Point(400, 6);
+            this.grpBxDbg2.Name = "grpBxDbg2";
+            this.grpBxDbg2.Size = new System.Drawing.Size(350, 342);
+            this.grpBxDbg2.TabIndex = 6;
+            this.grpBxDbg2.TabStop = false;
+            this.grpBxDbg2.Text = "Fixture # 2";
+            // 
+            // textBox1
+            // 
+            this.textBox1.Cursor = System.Windows.Forms.Cursors.PanSW;
+            this.textBox1.Location = new System.Drawing.Point(6, 190);
+            this.textBox1.Multiline = true;
+            this.textBox1.Name = "textBox1";
+            this.textBox1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBox1.Size = new System.Drawing.Size(338, 146);
+            this.textBox1.TabIndex = 11;
+            // 
+            // btnDbgTst2
+            // 
+            this.btnDbgTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgTst2.Location = new System.Drawing.Point(6, 46);
+            this.btnDbgTst2.Name = "btnDbgTst2";
+            this.btnDbgTst2.Size = new System.Drawing.Size(121, 31);
+            this.btnDbgTst2.TabIndex = 10;
+            this.btnDbgTst2.Text = "Run Test";
+            this.btnDbgTst2.UseVisualStyleBackColor = true;
+            // 
+            // cboBxDbgCmd2
+            // 
+            this.cboBxDbgCmd2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBxDbgCmd2.FormattingEnabled = true;
+            this.cboBxDbgCmd2.Location = new System.Drawing.Point(6, 101);
+            this.cboBxDbgCmd2.Name = "cboBxDbgCmd2";
+            this.cboBxDbgCmd2.Size = new System.Drawing.Size(121, 21);
+            this.cboBxDbgCmd2.TabIndex = 9;
+            // 
+            // cboBxDbgTst2
+            // 
+            this.cboBxDbgTst2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBxDbgTst2.FormattingEnabled = true;
+            this.cboBxDbgTst2.Location = new System.Drawing.Point(6, 19);
+            this.cboBxDbgTst2.Name = "cboBxDbgTst2";
+            this.cboBxDbgTst2.Size = new System.Drawing.Size(121, 21);
+            this.cboBxDbgTst2.TabIndex = 8;
+            // 
+            // btnDbgCmd2
+            // 
+            this.btnDbgCmd2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgCmd2.Location = new System.Drawing.Point(6, 128);
+            this.btnDbgCmd2.Name = "btnDbgCmd2";
+            this.btnDbgCmd2.Size = new System.Drawing.Size(121, 60);
+            this.btnDbgCmd2.TabIndex = 5;
+            this.btnDbgCmd2.Text = "Execute Command";
+            this.btnDbgCmd2.UseVisualStyleBackColor = true;
+            // 
+            // grpBxDbg1
+            // 
+            this.grpBxDbg1.Controls.Add(this.txtBxDbg1);
+            this.grpBxDbg1.Controls.Add(this.btnDbgTst1);
+            this.grpBxDbg1.Controls.Add(this.cboBxDbgCmd1);
+            this.grpBxDbg1.Controls.Add(this.cboBxDbgTst1);
+            this.grpBxDbg1.Controls.Add(this.btnDbgCmd1);
+            this.grpBxDbg1.Location = new System.Drawing.Point(6, 6);
+            this.grpBxDbg1.Name = "grpBxDbg1";
+            this.grpBxDbg1.Size = new System.Drawing.Size(350, 342);
+            this.grpBxDbg1.TabIndex = 5;
+            this.grpBxDbg1.TabStop = false;
+            this.grpBxDbg1.Text = "Fixture # 1";
+            // 
+            // txtBxDbg1
+            // 
+            this.txtBxDbg1.Cursor = System.Windows.Forms.Cursors.PanSW;
+            this.txtBxDbg1.Location = new System.Drawing.Point(6, 190);
+            this.txtBxDbg1.Multiline = true;
+            this.txtBxDbg1.Name = "txtBxDbg1";
+            this.txtBxDbg1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtBxDbg1.Size = new System.Drawing.Size(338, 146);
+            this.txtBxDbg1.TabIndex = 10;
+            // 
+            // btnDbgTst1
+            // 
+            this.btnDbgTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgTst1.Location = new System.Drawing.Point(6, 46);
+            this.btnDbgTst1.Name = "btnDbgTst1";
+            this.btnDbgTst1.Size = new System.Drawing.Size(121, 31);
+            this.btnDbgTst1.TabIndex = 9;
+            this.btnDbgTst1.Text = "Run Test";
+            this.btnDbgTst1.UseVisualStyleBackColor = true;
+            // 
+            // cboBxDbgCmd1
+            // 
+            this.cboBxDbgCmd1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBxDbgCmd1.FormattingEnabled = true;
+            this.cboBxDbgCmd1.Location = new System.Drawing.Point(6, 101);
+            this.cboBxDbgCmd1.Name = "cboBxDbgCmd1";
+            this.cboBxDbgCmd1.Size = new System.Drawing.Size(121, 21);
+            this.cboBxDbgCmd1.TabIndex = 8;
+            // 
+            // cboBxDbgTst1
+            // 
+            this.cboBxDbgTst1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBxDbgTst1.FormattingEnabled = true;
+            this.cboBxDbgTst1.Location = new System.Drawing.Point(6, 19);
+            this.cboBxDbgTst1.Name = "cboBxDbgTst1";
+            this.cboBxDbgTst1.Size = new System.Drawing.Size(121, 21);
+            this.cboBxDbgTst1.TabIndex = 7;
+            // 
+            // btnDbgCmd1
+            // 
+            this.btnDbgCmd1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgCmd1.Location = new System.Drawing.Point(6, 128);
+            this.btnDbgCmd1.Name = "btnDbgCmd1";
+            this.btnDbgCmd1.Size = new System.Drawing.Size(121, 60);
+            this.btnDbgCmd1.TabIndex = 4;
+            this.btnDbgCmd1.Text = "Execute Command";
+            this.btnDbgCmd1.UseVisualStyleBackColor = true;
             // 
             // tabConfig
             // 
@@ -209,190 +384,16 @@
             this.btnAsgnCanId.TabIndex = 2;
             this.btnAsgnCanId.Text = "Associate PCAN-USB Adapter Device ID to Fixture";
             this.btnAsgnCanId.UseVisualStyleBackColor = true;
+            this.btnAsgnCanId.Click += new System.EventHandler(this.btnAsgnCanId_Click);
             // 
-            // btnStrTst1
+            // pictureBox3
             // 
-            this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnStrTst1.Location = new System.Drawing.Point(6, 122);
-            this.btnStrTst1.Name = "btnStrTst1";
-            this.btnStrTst1.Size = new System.Drawing.Size(338, 51);
-            this.btnStrTst1.TabIndex = 4;
-            this.btnStrTst1.Text = "Begin Test";
-            this.btnStrTst1.UseVisualStyleBackColor = true;
-            // 
-            // btnStrTst2
-            // 
-            this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnStrTst2.Location = new System.Drawing.Point(6, 122);
-            this.btnStrTst2.Name = "btnStrTst2";
-            this.btnStrTst2.Size = new System.Drawing.Size(338, 51);
-            this.btnStrTst2.TabIndex = 5;
-            this.btnStrTst2.Text = "Begin Test";
-            this.btnStrTst2.UseVisualStyleBackColor = true;
-            // 
-            // grpBxDbg1
-            // 
-            this.grpBxDbg1.Controls.Add(this.txtBxDbg1);
-            this.grpBxDbg1.Controls.Add(this.btnDbgTst1);
-            this.grpBxDbg1.Controls.Add(this.cboBxDbgCmd1);
-            this.grpBxDbg1.Controls.Add(this.cboBxDbgTst1);
-            this.grpBxDbg1.Controls.Add(this.btnDbgCmd1);
-            this.grpBxDbg1.Location = new System.Drawing.Point(6, 6);
-            this.grpBxDbg1.Name = "grpBxDbg1";
-            this.grpBxDbg1.Size = new System.Drawing.Size(350, 342);
-            this.grpBxDbg1.TabIndex = 5;
-            this.grpBxDbg1.TabStop = false;
-            this.grpBxDbg1.Text = "Fixture # 1";
-            // 
-            // btnDbgCmd1
-            // 
-            this.btnDbgCmd1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnDbgCmd1.Location = new System.Drawing.Point(6, 128);
-            this.btnDbgCmd1.Name = "btnDbgCmd1";
-            this.btnDbgCmd1.Size = new System.Drawing.Size(121, 60);
-            this.btnDbgCmd1.TabIndex = 4;
-            this.btnDbgCmd1.Text = "Execute Command";
-            this.btnDbgCmd1.UseVisualStyleBackColor = true;
-            // 
-            // grpBxDbg2
-            // 
-            this.grpBxDbg2.Controls.Add(this.textBox1);
-            this.grpBxDbg2.Controls.Add(this.btnDbgTst2);
-            this.grpBxDbg2.Controls.Add(this.cboBxDbgCmd2);
-            this.grpBxDbg2.Controls.Add(this.cboBxDbgTst2);
-            this.grpBxDbg2.Controls.Add(this.btnDbgCmd2);
-            this.grpBxDbg2.Location = new System.Drawing.Point(400, 6);
-            this.grpBxDbg2.Name = "grpBxDbg2";
-            this.grpBxDbg2.Size = new System.Drawing.Size(350, 342);
-            this.grpBxDbg2.TabIndex = 6;
-            this.grpBxDbg2.TabStop = false;
-            this.grpBxDbg2.Text = "Fixture # 2";
-            // 
-            // btnDbgCmd2
-            // 
-            this.btnDbgCmd2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnDbgCmd2.Location = new System.Drawing.Point(6, 128);
-            this.btnDbgCmd2.Name = "btnDbgCmd2";
-            this.btnDbgCmd2.Size = new System.Drawing.Size(121, 60);
-            this.btnDbgCmd2.TabIndex = 5;
-            this.btnDbgCmd2.Text = "Execute Command";
-            this.btnDbgCmd2.UseVisualStyleBackColor = true;
-            // 
-            // cboBxDbgTst1
-            // 
-            this.cboBxDbgTst1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboBxDbgTst1.FormattingEnabled = true;
-            this.cboBxDbgTst1.Location = new System.Drawing.Point(6, 19);
-            this.cboBxDbgTst1.Name = "cboBxDbgTst1";
-            this.cboBxDbgTst1.Size = new System.Drawing.Size(121, 21);
-            this.cboBxDbgTst1.TabIndex = 7;
-            // 
-            // cboBxDbgTst2
-            // 
-            this.cboBxDbgTst2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboBxDbgTst2.FormattingEnabled = true;
-            this.cboBxDbgTst2.Location = new System.Drawing.Point(6, 19);
-            this.cboBxDbgTst2.Name = "cboBxDbgTst2";
-            this.cboBxDbgTst2.Size = new System.Drawing.Size(121, 21);
-            this.cboBxDbgTst2.TabIndex = 8;
-            // 
-            // cboBxDbgCmd1
-            // 
-            this.cboBxDbgCmd1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboBxDbgCmd1.FormattingEnabled = true;
-            this.cboBxDbgCmd1.Location = new System.Drawing.Point(6, 101);
-            this.cboBxDbgCmd1.Name = "cboBxDbgCmd1";
-            this.cboBxDbgCmd1.Size = new System.Drawing.Size(121, 21);
-            this.cboBxDbgCmd1.TabIndex = 8;
-            // 
-            // cboBxDbgCmd2
-            // 
-            this.cboBxDbgCmd2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboBxDbgCmd2.FormattingEnabled = true;
-            this.cboBxDbgCmd2.Location = new System.Drawing.Point(6, 101);
-            this.cboBxDbgCmd2.Name = "cboBxDbgCmd2";
-            this.cboBxDbgCmd2.Size = new System.Drawing.Size(121, 21);
-            this.cboBxDbgCmd2.TabIndex = 9;
-            // 
-            // btnDbgTst1
-            // 
-            this.btnDbgTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnDbgTst1.Location = new System.Drawing.Point(6, 46);
-            this.btnDbgTst1.Name = "btnDbgTst1";
-            this.btnDbgTst1.Size = new System.Drawing.Size(121, 31);
-            this.btnDbgTst1.TabIndex = 9;
-            this.btnDbgTst1.Text = "Run Test";
-            this.btnDbgTst1.UseVisualStyleBackColor = true;
-            // 
-            // btnDbgTst2
-            // 
-            this.btnDbgTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnDbgTst2.Location = new System.Drawing.Point(6, 46);
-            this.btnDbgTst2.Name = "btnDbgTst2";
-            this.btnDbgTst2.Size = new System.Drawing.Size(121, 31);
-            this.btnDbgTst2.TabIndex = 10;
-            this.btnDbgTst2.Text = "Run Test";
-            this.btnDbgTst2.UseVisualStyleBackColor = true;
-            // 
-            // chkBxSkpPrg1
-            // 
-            this.chkBxSkpPrg1.AutoSize = true;
-            this.chkBxSkpPrg1.Location = new System.Drawing.Point(234, 19);
-            this.chkBxSkpPrg1.Name = "chkBxSkpPrg1";
-            this.chkBxSkpPrg1.Size = new System.Drawing.Size(111, 17);
-            this.chkBxSkpPrg1.TabIndex = 5;
-            this.chkBxSkpPrg1.Text = "Skip Programming";
-            this.chkBxSkpPrg1.UseVisualStyleBackColor = true;
-            // 
-            // chkBxSkpPrg2
-            // 
-            this.chkBxSkpPrg2.AutoSize = true;
-            this.chkBxSkpPrg2.Location = new System.Drawing.Point(234, 19);
-            this.chkBxSkpPrg2.Name = "chkBxSkpPrg2";
-            this.chkBxSkpPrg2.Size = new System.Drawing.Size(111, 17);
-            this.chkBxSkpPrg2.TabIndex = 6;
-            this.chkBxSkpPrg2.Text = "Skip Programming";
-            this.chkBxSkpPrg2.UseVisualStyleBackColor = true;
-            // 
-            // chkBxRma1
-            // 
-            this.chkBxRma1.AutoSize = true;
-            this.chkBxRma1.Location = new System.Drawing.Point(234, 45);
-            this.chkBxRma1.Name = "chkBxRma1";
-            this.chkBxRma1.Size = new System.Drawing.Size(50, 17);
-            this.chkBxRma1.TabIndex = 6;
-            this.chkBxRma1.Text = "RMA";
-            this.chkBxRma1.UseVisualStyleBackColor = true;
-            // 
-            // chkBxRma2
-            // 
-            this.chkBxRma2.AutoSize = true;
-            this.chkBxRma2.Location = new System.Drawing.Point(234, 45);
-            this.chkBxRma2.Name = "chkBxRma2";
-            this.chkBxRma2.Size = new System.Drawing.Size(50, 17);
-            this.chkBxRma2.TabIndex = 7;
-            this.chkBxRma2.Text = "RMA";
-            this.chkBxRma2.UseVisualStyleBackColor = true;
-            // 
-            // txtBxDbg1
-            // 
-            this.txtBxDbg1.Cursor = System.Windows.Forms.Cursors.PanSW;
-            this.txtBxDbg1.Location = new System.Drawing.Point(6, 190);
-            this.txtBxDbg1.Multiline = true;
-            this.txtBxDbg1.Name = "txtBxDbg1";
-            this.txtBxDbg1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtBxDbg1.Size = new System.Drawing.Size(338, 146);
-            this.txtBxDbg1.TabIndex = 10;
-            // 
-            // textBox1
-            // 
-            this.textBox1.Cursor = System.Windows.Forms.Cursors.PanSW;
-            this.textBox1.Location = new System.Drawing.Point(6, 190);
-            this.textBox1.Multiline = true;
-            this.textBox1.Name = "textBox1";
-            this.textBox1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox1.Size = new System.Drawing.Size(338, 146);
-            this.textBox1.TabIndex = 11;
+            this.pictureBox3.Image = global::HydroFunctionalTest.Properties.Resources.CraneLogo1;
+            this.pictureBox3.Location = new System.Drawing.Point(624, 393);
+            this.pictureBox3.Name = "pictureBox3";
+            this.pictureBox3.Size = new System.Drawing.Size(157, 85);
+            this.pictureBox3.TabIndex = 2;
+            this.pictureBox3.TabStop = false;
             // 
             // Form1
             // 
@@ -414,12 +415,12 @@
             this.grpBxTst1.ResumeLayout(false);
             this.grpBxTst1.PerformLayout();
             this.tabDebug.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
-            this.tabConfig.ResumeLayout(false);
-            this.grpBxDbg1.ResumeLayout(false);
-            this.grpBxDbg1.PerformLayout();
             this.grpBxDbg2.ResumeLayout(false);
             this.grpBxDbg2.PerformLayout();
+            this.grpBxDbg1.ResumeLayout(false);
+            this.grpBxDbg1.PerformLayout();
+            this.tabConfig.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
             this.ResumeLayout(false);
 
         }
