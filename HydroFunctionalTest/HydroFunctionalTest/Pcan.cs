@@ -1297,12 +1297,12 @@ namespace HydroFunctionalTest
                             stsResult = GetValue(i, TPCANParameter.PCAN_DEVICE_NUMBER, out iBuffer, sizeof(UInt32)); //get the device ID and compare to method parameter
                             //if no devices match then the device needs to be configured to have its device ID equal to the method parameter
                             UInt32 tempDevID = (UInt16)iBuffer;
-                            DeactivateDevice();
                             if (tempDevID == devId)
                             {
                                 pcanReturnData.Add("Found PCAN-USB device with the device ID: " + devId.ToString());
                                 return true;
-                            }                                                       
+                            }
+                            DeactivateDevice();
                         }
                         else
                             pcanReturnData.Add("Failed to Initialize device.  Handle ID: " + DevHandle.ToString());
@@ -1337,6 +1337,7 @@ namespace HydroFunctionalTest
 
             try
             {
+                DeactivateDevice();
                 ScanForDev(devNum);  //the return value and parameter doesn't matter here since we are manually setting the device ID.  Only one device should be connected or the ID could be assigned to another device.
                 if (ActivateDevice())
                 {

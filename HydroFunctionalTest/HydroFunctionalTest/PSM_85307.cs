@@ -10,16 +10,37 @@ namespace HydroFunctionalTest
     {
         //To Do
         //Hardware & other Class objects instantiated in main UI that need to be passed to this class
-        //  UsbToGpio
-        //  Pcan
+        UsbToGpio gpioObj;
+        Pcan pCanObj;
         //  Power supply class
         //  ELoad class
         //  DMM class
         //
 
-        //To Do - create even delegates which the UI subscribes to to update the GUI when information for the user is available/needed
+        //Delegates which the UI subscribes to to update the GUI when information for the user is available/needed
+        //Delegates determine the method signature (method return type & arguments) that subscribers will need to use in their methods
+        public delegate void InformationAvailableEventHandler(object source, EventArgs args);
+        //Create the actual event key word that subscribers will use:
+        public event InformationAvailableEventHandler InformationAvailable;
 
-        int fixtureNum; //holds value returned by GPIO adapter which determines the base station position the fixture is connected to, UUT 1 or UUT 2
+        public delegate void TestCompleteEventHandler(object source, EventArgs args);
+        public event TestCompleteEventHandler TestComplete;
+
+        protected virtual void OnInformationAvailable()
+        {
+            if (InformationAvailable != null)
+            {
+                InformationAvailable(this, EventArgs.Empty);
+            }
+        }
+
+        protected virtual void OnTestComplete()
+        {
+            if (TestComplete != null)
+            {
+                OnTestComplete();
+            }
+        }
 
         #region Structures
         /// <summary>
@@ -60,17 +81,17 @@ namespace HydroFunctionalTest
         /// </summary>
         public Dictionary<string, string[]> nEnOutput;
         /// <summary>
-        /// Byte to send to GPIO adapter to set/clear pins.  Key = output name, value = byte value representing pins to set/clear
+        /// Byte to send to GPIO adapter that controls the mux.  Key = output name, value = byte value representing pins to set/clear
         /// </summary>
-        public Dictionary<string, int> gpioCtrlByte;
+        public Dictionary<string, int> muxCtrlByte;
         /// <summary>
         /// UUT digital output High limit.
         /// </summary>
-        public int uutDigOutHigh;
+        public double uutDigOut_H;
         /// <summary>
         /// UUT digital output Low limit.
         /// </summary>
-        public int uutDigOutLow;
+        public double uutDigOut_L;
         /// <summary>
         /// All Aux output off High Limits (Voltage & Current)
         /// </summary>
@@ -83,17 +104,20 @@ namespace HydroFunctionalTest
 
         #region Contructor/Destructor
         /// <summary>
-        /// Contructor.  Sets program variables.  Could optionally set these values using an external file.
-        /// The parameter(base station position fixture is connected to) must be determined by the main UI
+        /// Contructor.  Initializes program members.  Could optionally set these values using an external file.
+        /// Hardware Objects must be sent from Main UI for this class to control and get status
         /// </summary>
-        /// <param name="tmpFixtureNum"></param>
-        public PSM_85307(int tmpFixtureNum)
+        /// <param name="tmpGpio"></param>
+        /// <param name="tmpPcan"></param>
+        public PSM_85307(UsbToGpio tmpGpio, Pcan tmpPcan)
         {
-            fixtureNum = tmpFixtureNum;  //value determined by main UI by using the GPIO adapter dig input pin connected to the base station connector pin 13
+            pCanObj = tmpPcan;
+            gpioObj = tmpGpio;
 
-            //Output off initializations
             auxOutOff_H = .01;    //Current(amp) & Voltage(volt) High limit
             auxOutOff_L = -.01;   //Current(amp) & Voltage(volt) Low limit 
+            uutDigOut_H = 3;
+            uutDigOut_L = 2;
 
             //initialize structs containing information specific to 28v, 12v & 5v adjustable output voltage tests
             OutputTestParams auxOut28vTst = new OutputTestParams();
@@ -233,8 +257,8 @@ namespace HydroFunctionalTest
             };
             #endregion Initialize variables holding CAN data Frames for UUT output control
 
-            #region Initialize variables holding GPIO control bytes
-            gpioCtrlByte = new Dictionary<string, int>
+            #region Initialize variables holding mux control bytes
+            muxCtrlByte = new Dictionary<string, int>
             {
                 //the int values are actually byte representation of GPIO pin set/clear values depending on which relay controls the UUT output
                 { "Aux0", 1 },
@@ -254,14 +278,16 @@ namespace HydroFunctionalTest
                 { "digOut6", 15 },
                 { "digOut7", 16 },
             };
-            #endregion Initialize variables holding GPIO control bytes
+            #endregion Initialize variables holding mux control bytes
         }
         #endregion Constructor/Destructor
 
         #region Methods
-        //To Do - to be done by main UI
-        //determine which fixture (1 or 2) is present and which GPIO adapt it associated with
-        //
+        public void TestLongRunningMethod()
+        {
+            System.Threading.Thread.Sleep(3000);
+            OnInformationAvailable();
+        }
 
         #endregion Methods
 

@@ -11,11 +11,15 @@ namespace HydroFunctionalTest
     {
         private const string gpioProdType = "USB-6501";
         /// <summary>
-        /// The ScanForDevs method Saves the device names here
+        /// The ScanForDevs method Saves the device names to List elements for the Main UI to view
         /// </summary>
         public List<string> gpioDeviceIds;
         /// <summary>
-        /// store method operation results for the Main UI to view
+        /// Once 
+        /// </summary>
+        private string DeviceId { get; set; }
+        /// <summary>
+        /// Stores method operation results to List elements for the Main UI to view
         /// </summary>
         public List<string> gpioReturnData;
 
@@ -34,10 +38,11 @@ namespace HydroFunctionalTest
         /// Intialization of GPIO adapter.  Find attached gpio devices, ignore all others
         /// </summary>
         /// <returns></returns>        
-        public bool ScanForDevs()
+        public bool ScanForDevs(int fixtPos)
         {
             bool requestSuccessful = false;
             gpioReturnData.Clear();
+            gpioDeviceIds.Clear();
 
             try
             {
@@ -47,7 +52,8 @@ namespace HydroFunctionalTest
                     gpioReturnData.Add("No GPIO devices were found.");
                 }
                 else
-                {                    
+                {
+                    gpioReturnData.Add("GPIO devices found:");
                     int index = 0;
                     foreach (string s in attachedDevices)
                     {
@@ -60,22 +66,42 @@ namespace HydroFunctionalTest
                         {
                             gpioDeviceIds.Add(attachedDevices[index]);
                         }
+                        gpioReturnData.Add(s);
+
+                        //check to see what fixture this device belongs to by checking the pullup and pulldown on the fixture (port 1, pin 0)
+                        DeviceId = s;   //Read and write functions use DeviceId to communicate with devices (by default any connected device will be assigned to fixture 1)
+                        if ((GpioRead(1, 0) == 0) & (fixtPos == 2))
+                        {
+                            DeviceId = s;
+                            requestSuccessful = true;
+                        }
+                        else if ((GpioRead(1, 0) == 1) & (fixtPos == 1))
+                        {
+                            DeviceId = s;
+                            requestSuccessful = true;
+                        }
+                        else
+                            DeviceId = null;
+
                         deviceObject.Dispose();
                         index++;
                     }
-                    requestSuccessful = true;
-                    gpioReturnData.Add("GPIO devices found, see 'gpioDeviceIds' for list of connected devices.");                  
+                    
                 }
             }
             catch (DaqException ex)
             {
                 gpioReturnData.Add("Error while initializing the GPIO adapter." + Environment.NewLine + ex.Message);
-                requestSuccessful = false;
             }
             
             return requestSuccessful;
         }
         #endregion ScanForDevs Method
+
+        public string GetDeviceId()
+        {
+            return DeviceId;
+        }
 
         #region GpioWrite Method
         /// <summary>
@@ -87,22 +113,22 @@ namespace HydroFunctionalTest
         /// <param name="setClearBits"></param>
         /// <param name="pinNum"></param>
         /// <returns></returns>
-        public bool GpioWrite(string devName, UInt32 portNum, UInt32 setClearBits, UInt32 pinNum = 8)
+        public bool GpioWrite(UInt32 portNum, UInt32 setClearBits, UInt32 pinNum = 8)
         {
             bool requestSuccessful = false;
             gpioReturnData.Clear();
 
             try
             {
-                NationalInstruments.DAQmx.Device deviceObject = DaqSystem.Local.LoadDevice(devName);
+                NationalInstruments.DAQmx.Device deviceObject = DaqSystem.Local.LoadDevice(DeviceId);
                 using (NationalInstruments.DAQmx.Task digitalWriteTask = new NationalInstruments.DAQmx.Task())
                 {
                     //Determine whether an entire port will be set or just a single pin                    
                     string gpioLines;
                     if (pinNum > 7)
-                        gpioLines = devName + "/port" + portNum.ToString();
+                        gpioLines = DeviceId + "/port" + portNum.ToString();
                     else
-                        gpioLines = devName + "/port" + portNum.ToString() + "/line" + pinNum.ToString();
+                        gpioLines = DeviceId + "/port" + portNum.ToString() + "/line" + pinNum.ToString();
                     //  Create an Digital Output channel and name it.
                     digitalWriteTask.DOChannels.CreateChannel(gpioLines, "", ChannelLineGrouping.OneChannelForAllLines);
 
@@ -110,7 +136,7 @@ namespace HydroFunctionalTest
                     //  of digital data on demand, so no timeout is necessary.
                     DigitalSingleChannelWriter writer = new DigitalSingleChannelWriter(digitalWriteTask.Stream);
                     writer.WriteSingleSamplePort(true, setClearBits);
-                    gpioReturnData.Add("GPIO Write Action Details:" + Environment.NewLine + "Device = " + devName.ToString() + ", Port #" +
+                    gpioReturnData.Add("GPIO Write Action Details:" + Environment.NewLine + "Device = " + DeviceId.ToString() + ", Port #" +
                         portNum.ToString() + ", Pin(opt) #" + pinNum.ToString() + ", Set/Clear Value: " + setClearBits.ToString());
                 }
 
@@ -118,7 +144,6 @@ namespace HydroFunctionalTest
             catch(DaqException ex)
             {
                 gpioReturnData.Add("Error while writing to the GPIO adapter." + Environment.NewLine + ex.Message);
-                requestSuccessful = false;
             }
 
             return requestSuccessful;
@@ -133,7 +158,7 @@ namespace HydroFunctionalTest
         /// <param name="portNum"></param>
         /// <param name="pinNum"></param>
         /// <returns></returns>
-        public UInt32 GpioRead(string devName, UInt32 portNum, UInt32 pinNum = 8)
+        public UInt32 GpioRead(UInt32 portNum, UInt32 pinNum = 8)
         {
             UInt32 returnData = 0xFF;
             gpioReturnData.Clear();
@@ -145,16 +170,24 @@ namespace HydroFunctionalTest
                     //Determine whether an entire port will be read or just a single pin                    
                     string gpioLines;
                     if (pinNum > 7)
-                        gpioLines = devName + "/port" + portNum.ToString();
+                        gpioLines = DeviceId + "/port" + portNum.ToString();
                     else
-                        gpioLines = devName + "/port" + portNum.ToString() + "/line" + pinNum.ToString();
+                        gpioLines = DeviceId + "/port" + portNum.ToString() + "/line" + pinNum.ToString();
                     //  Create an Digital Output channel and name it.
                     digitalReadTask.DIChannels.CreateChannel(gpioLines, "", ChannelLineGrouping.OneChannelForAllLines);
 
                     DigitalSingleChannelReader reader = new DigitalSingleChannelReader(digitalReadTask.Stream);
-                    returnData = reader.ReadSingleSamplePortUInt32();
-                    gpioReturnData.Add("GPIO return data: " + Environment.NewLine + returnData.ToString() + Environment.NewLine + 
-                        "Device = " + devName.ToString() + ", Port #" + portNum.ToString() + ", Pin(opt) #" + pinNum.ToString());
+                    returnData = (reader.ReadSingleSamplePortUInt32() & 0xFF);
+                    //by default the return data is a byte value that must be converted to a bit representation
+                    int temp;
+                    if (pinNum != 8)
+                    {
+                        temp = (int)returnData >> (int)pinNum;
+                        returnData = (uint)temp;
+                    }
+                        
+                    gpioReturnData.Add("Read from GPIO " + DeviceId.ToString() + ", Port" + portNum.ToString() + ", Pin(opt) " + pinNum.ToString() + 
+                        Environment.NewLine + "Value = " + returnData.ToString());
                 }
             }
             catch (DaqException ex)

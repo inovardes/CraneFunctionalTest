@@ -57,13 +57,11 @@
             this.cboBxDbgTst1 = new System.Windows.Forms.ComboBox();
             this.btnDbgCmd1 = new System.Windows.Forms.Button();
             this.tabTools = new System.Windows.Forms.TabPage();
-            this.cboBxDevId = new System.Windows.Forms.ComboBox();
+            this.btnCanCmd = new System.Windows.Forms.Button();
+            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.cboBxSlctFx = new System.Windows.Forms.ComboBox();
             this.btnAsgnDevId = new System.Windows.Forms.Button();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
-            this.textBox2 = new System.Windows.Forms.TextBox();
-            this.btnCanCmd = new System.Windows.Forms.Button();
-            this.chkBxAutoStr2 = new System.Windows.Forms.CheckBox();
-            this.chkBxAutoStr1 = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -100,7 +98,6 @@
             // 
             // grpBxTst2
             // 
-            this.grpBxTst2.Controls.Add(this.chkBxAutoStr2);
             this.grpBxTst2.Controls.Add(this.chkBxRma2);
             this.grpBxTst2.Controls.Add(this.chkBxSkpPrg2);
             this.grpBxTst2.Controls.Add(this.btnStrTst2);
@@ -136,12 +133,13 @@
             // btnStrTst2
             // 
             this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnStrTst2.Location = new System.Drawing.Point(6, 122);
+            this.btnStrTst2.Location = new System.Drawing.Point(6, 45);
             this.btnStrTst2.Name = "btnStrTst2";
-            this.btnStrTst2.Size = new System.Drawing.Size(338, 51);
+            this.btnStrTst2.Size = new System.Drawing.Size(127, 34);
             this.btnStrTst2.TabIndex = 5;
             this.btnStrTst2.Text = "Begin Test";
             this.btnStrTst2.UseVisualStyleBackColor = true;
+            this.btnStrTst2.Click += new System.EventHandler(this.btnStrTst2_Click);
             // 
             // txtBxSerNum2
             // 
@@ -162,7 +160,6 @@
             // 
             // grpBxTst1
             // 
-            this.grpBxTst1.Controls.Add(this.chkBxAutoStr1);
             this.grpBxTst1.Controls.Add(this.chkBxRma1);
             this.grpBxTst1.Controls.Add(this.chkBxSkpPrg1);
             this.grpBxTst1.Controls.Add(this.btnStrTst1);
@@ -198,12 +195,13 @@
             // btnStrTst1
             // 
             this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnStrTst1.Location = new System.Drawing.Point(6, 122);
+            this.btnStrTst1.Location = new System.Drawing.Point(6, 45);
             this.btnStrTst1.Name = "btnStrTst1";
-            this.btnStrTst1.Size = new System.Drawing.Size(338, 51);
+            this.btnStrTst1.Size = new System.Drawing.Size(127, 34);
             this.btnStrTst1.TabIndex = 4;
             this.btnStrTst1.Text = "Begin Test";
             this.btnStrTst1.UseVisualStyleBackColor = true;
+            this.btnStrTst1.Click += new System.EventHandler(this.btnStrTst1_Click);
             // 
             // txtBxTst1
             // 
@@ -363,32 +361,51 @@
             // 
             this.tabTools.Controls.Add(this.btnCanCmd);
             this.tabTools.Controls.Add(this.textBox2);
-            this.tabTools.Controls.Add(this.cboBxDevId);
+            this.tabTools.Controls.Add(this.cboBxSlctFx);
             this.tabTools.Controls.Add(this.btnAsgnDevId);
             this.tabTools.Location = new System.Drawing.Point(4, 22);
             this.tabTools.Name = "tabTools";
             this.tabTools.Size = new System.Drawing.Size(762, 352);
             this.tabTools.TabIndex = 2;
-            this.tabTools.Text = "Config";
+            this.tabTools.Text = "Tools";
             this.tabTools.UseVisualStyleBackColor = true;
             // 
-            // cboBxDevId
+            // btnCanCmd
             // 
-            this.cboBxDevId.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboBxDevId.FormattingEnabled = true;
-            this.cboBxDevId.Items.AddRange(new object[] {
+            this.btnCanCmd.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnCanCmd.Location = new System.Drawing.Point(266, 42);
+            this.btnCanCmd.Name = "btnCanCmd";
+            this.btnCanCmd.Size = new System.Drawing.Size(219, 33);
+            this.btnCanCmd.TabIndex = 5;
+            this.btnCanCmd.Text = "Send Can Command";
+            this.btnCanCmd.UseVisualStyleBackColor = true;
+            // 
+            // textBox2
+            // 
+            this.textBox2.Location = new System.Drawing.Point(266, 16);
+            this.textBox2.Name = "textBox2";
+            this.textBox2.Size = new System.Drawing.Size(219, 20);
+            this.textBox2.TabIndex = 4;
+            // 
+            // cboBxSlctFx
+            // 
+            this.cboBxSlctFx.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBxSlctFx.FormattingEnabled = true;
+            this.cboBxSlctFx.Items.AddRange(new object[] {
+            "Select Fixture",
             "Fixture #1",
             "Fixture #2"});
-            this.cboBxDevId.Location = new System.Drawing.Point(17, 19);
-            this.cboBxDevId.Name = "cboBxDevId";
-            this.cboBxDevId.Size = new System.Drawing.Size(121, 21);
-            this.cboBxDevId.TabIndex = 3;
+            this.cboBxSlctFx.Location = new System.Drawing.Point(13, 15);
+            this.cboBxSlctFx.Name = "cboBxSlctFx";
+            this.cboBxSlctFx.Size = new System.Drawing.Size(209, 21);
+            this.cboBxSlctFx.TabIndex = 3;
             // 
             // btnAsgnDevId
             // 
-            this.btnAsgnDevId.Location = new System.Drawing.Point(17, 46);
+            this.btnAsgnDevId.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAsgnDevId.Location = new System.Drawing.Point(13, 42);
             this.btnAsgnDevId.Name = "btnAsgnDevId";
-            this.btnAsgnDevId.Size = new System.Drawing.Size(121, 68);
+            this.btnAsgnDevId.Size = new System.Drawing.Size(209, 99);
             this.btnAsgnDevId.TabIndex = 2;
             this.btnAsgnDevId.Text = "Associate PCAN-USB Adapter Device ID to Fixture";
             this.btnAsgnDevId.UseVisualStyleBackColor = true;
@@ -402,42 +419,6 @@
             this.pictureBox3.Size = new System.Drawing.Size(157, 85);
             this.pictureBox3.TabIndex = 2;
             this.pictureBox3.TabStop = false;
-            // 
-            // textBox2
-            // 
-            this.textBox2.Location = new System.Drawing.Point(554, 20);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(182, 20);
-            this.textBox2.TabIndex = 4;
-            // 
-            // btnCanCmd
-            // 
-            this.btnCanCmd.Location = new System.Drawing.Point(554, 46);
-            this.btnCanCmd.Name = "btnCanCmd";
-            this.btnCanCmd.Size = new System.Drawing.Size(182, 27);
-            this.btnCanCmd.TabIndex = 5;
-            this.btnCanCmd.Text = "Send Can Command";
-            this.btnCanCmd.UseVisualStyleBackColor = true;
-            // 
-            // chkBxAutoStr2
-            // 
-            this.chkBxAutoStr2.AutoSize = true;
-            this.chkBxAutoStr2.Location = new System.Drawing.Point(234, 68);
-            this.chkBxAutoStr2.Name = "chkBxAutoStr2";
-            this.chkBxAutoStr2.Size = new System.Drawing.Size(73, 17);
-            this.chkBxAutoStr2.TabIndex = 8;
-            this.chkBxAutoStr2.Text = "Auto Start";
-            this.chkBxAutoStr2.UseVisualStyleBackColor = true;
-            // 
-            // chkBxAutoStr1
-            // 
-            this.chkBxAutoStr1.AutoSize = true;
-            this.chkBxAutoStr1.Location = new System.Drawing.Point(234, 68);
-            this.chkBxAutoStr1.Name = "chkBxAutoStr1";
-            this.chkBxAutoStr1.Size = new System.Drawing.Size(73, 17);
-            this.chkBxAutoStr1.TabIndex = 9;
-            this.chkBxAutoStr1.Text = "Auto Start";
-            this.chkBxAutoStr1.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
@@ -484,7 +465,7 @@
         private System.Windows.Forms.TabPage tabTools;
         private System.Windows.Forms.Button btnStrTst2;
         private System.Windows.Forms.Button btnStrTst1;
-        private System.Windows.Forms.ComboBox cboBxDevId;
+        private System.Windows.Forms.ComboBox cboBxSlctFx;
         private System.Windows.Forms.Button btnAsgnDevId;
         private System.Windows.Forms.GroupBox grpBxDbg2;
         private System.Windows.Forms.ComboBox cboBxDbgTst2;
@@ -502,8 +483,6 @@
         private System.Windows.Forms.CheckBox chkBxSkpPrg1;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.TextBox txtBxDbg1;
-        private System.Windows.Forms.CheckBox chkBxAutoStr2;
-        private System.Windows.Forms.CheckBox chkBxAutoStr1;
         private System.Windows.Forms.Button btnCanCmd;
         private System.Windows.Forms.TextBox textBox2;
     }
