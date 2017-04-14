@@ -56,10 +56,14 @@
             this.cboBxDbgCmd1 = new System.Windows.Forms.ComboBox();
             this.cboBxDbgTst1 = new System.Windows.Forms.ComboBox();
             this.btnDbgCmd1 = new System.Windows.Forms.Button();
-            this.tabConfig = new System.Windows.Forms.TabPage();
+            this.tabTools = new System.Windows.Forms.TabPage();
             this.cboBxDevId = new System.Windows.Forms.ComboBox();
-            this.btnAsgnCanId = new System.Windows.Forms.Button();
+            this.btnAsgnDevId = new System.Windows.Forms.Button();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
+            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.btnCanCmd = new System.Windows.Forms.Button();
+            this.chkBxAutoStr2 = new System.Windows.Forms.CheckBox();
+            this.chkBxAutoStr1 = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -67,7 +71,7 @@
             this.tabDebug.SuspendLayout();
             this.grpBxDbg2.SuspendLayout();
             this.grpBxDbg1.SuspendLayout();
-            this.tabConfig.SuspendLayout();
+            this.tabTools.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             this.SuspendLayout();
             // 
@@ -75,7 +79,7 @@
             // 
             this.tabControl1.Controls.Add(this.tabTest);
             this.tabControl1.Controls.Add(this.tabDebug);
-            this.tabControl1.Controls.Add(this.tabConfig);
+            this.tabControl1.Controls.Add(this.tabTools);
             this.tabControl1.Location = new System.Drawing.Point(11, 9);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -96,6 +100,7 @@
             // 
             // grpBxTst2
             // 
+            this.grpBxTst2.Controls.Add(this.chkBxAutoStr2);
             this.grpBxTst2.Controls.Add(this.chkBxRma2);
             this.grpBxTst2.Controls.Add(this.chkBxSkpPrg2);
             this.grpBxTst2.Controls.Add(this.btnStrTst2);
@@ -157,6 +162,7 @@
             // 
             // grpBxTst1
             // 
+            this.grpBxTst1.Controls.Add(this.chkBxAutoStr1);
             this.grpBxTst1.Controls.Add(this.chkBxRma1);
             this.grpBxTst1.Controls.Add(this.chkBxSkpPrg1);
             this.grpBxTst1.Controls.Add(this.btnStrTst1);
@@ -353,16 +359,18 @@
             this.btnDbgCmd1.Text = "Execute Command";
             this.btnDbgCmd1.UseVisualStyleBackColor = true;
             // 
-            // tabConfig
+            // tabTools
             // 
-            this.tabConfig.Controls.Add(this.cboBxDevId);
-            this.tabConfig.Controls.Add(this.btnAsgnCanId);
-            this.tabConfig.Location = new System.Drawing.Point(4, 22);
-            this.tabConfig.Name = "tabConfig";
-            this.tabConfig.Size = new System.Drawing.Size(762, 352);
-            this.tabConfig.TabIndex = 2;
-            this.tabConfig.Text = "Config";
-            this.tabConfig.UseVisualStyleBackColor = true;
+            this.tabTools.Controls.Add(this.btnCanCmd);
+            this.tabTools.Controls.Add(this.textBox2);
+            this.tabTools.Controls.Add(this.cboBxDevId);
+            this.tabTools.Controls.Add(this.btnAsgnDevId);
+            this.tabTools.Location = new System.Drawing.Point(4, 22);
+            this.tabTools.Name = "tabTools";
+            this.tabTools.Size = new System.Drawing.Size(762, 352);
+            this.tabTools.TabIndex = 2;
+            this.tabTools.Text = "Config";
+            this.tabTools.UseVisualStyleBackColor = true;
             // 
             // cboBxDevId
             // 
@@ -376,15 +384,15 @@
             this.cboBxDevId.Size = new System.Drawing.Size(121, 21);
             this.cboBxDevId.TabIndex = 3;
             // 
-            // btnAsgnCanId
+            // btnAsgnDevId
             // 
-            this.btnAsgnCanId.Location = new System.Drawing.Point(17, 46);
-            this.btnAsgnCanId.Name = "btnAsgnCanId";
-            this.btnAsgnCanId.Size = new System.Drawing.Size(121, 68);
-            this.btnAsgnCanId.TabIndex = 2;
-            this.btnAsgnCanId.Text = "Associate PCAN-USB Adapter Device ID to Fixture";
-            this.btnAsgnCanId.UseVisualStyleBackColor = true;
-            this.btnAsgnCanId.Click += new System.EventHandler(this.btnAsgnCanId_Click);
+            this.btnAsgnDevId.Location = new System.Drawing.Point(17, 46);
+            this.btnAsgnDevId.Name = "btnAsgnDevId";
+            this.btnAsgnDevId.Size = new System.Drawing.Size(121, 68);
+            this.btnAsgnDevId.TabIndex = 2;
+            this.btnAsgnDevId.Text = "Associate PCAN-USB Adapter Device ID to Fixture";
+            this.btnAsgnDevId.UseVisualStyleBackColor = true;
+            this.btnAsgnDevId.Click += new System.EventHandler(this.btnAsgnCanId_Click);
             // 
             // pictureBox3
             // 
@@ -394,6 +402,42 @@
             this.pictureBox3.Size = new System.Drawing.Size(157, 85);
             this.pictureBox3.TabIndex = 2;
             this.pictureBox3.TabStop = false;
+            // 
+            // textBox2
+            // 
+            this.textBox2.Location = new System.Drawing.Point(554, 20);
+            this.textBox2.Name = "textBox2";
+            this.textBox2.Size = new System.Drawing.Size(182, 20);
+            this.textBox2.TabIndex = 4;
+            // 
+            // btnCanCmd
+            // 
+            this.btnCanCmd.Location = new System.Drawing.Point(554, 46);
+            this.btnCanCmd.Name = "btnCanCmd";
+            this.btnCanCmd.Size = new System.Drawing.Size(182, 27);
+            this.btnCanCmd.TabIndex = 5;
+            this.btnCanCmd.Text = "Send Can Command";
+            this.btnCanCmd.UseVisualStyleBackColor = true;
+            // 
+            // chkBxAutoStr2
+            // 
+            this.chkBxAutoStr2.AutoSize = true;
+            this.chkBxAutoStr2.Location = new System.Drawing.Point(234, 68);
+            this.chkBxAutoStr2.Name = "chkBxAutoStr2";
+            this.chkBxAutoStr2.Size = new System.Drawing.Size(73, 17);
+            this.chkBxAutoStr2.TabIndex = 8;
+            this.chkBxAutoStr2.Text = "Auto Start";
+            this.chkBxAutoStr2.UseVisualStyleBackColor = true;
+            // 
+            // chkBxAutoStr1
+            // 
+            this.chkBxAutoStr1.AutoSize = true;
+            this.chkBxAutoStr1.Location = new System.Drawing.Point(234, 68);
+            this.chkBxAutoStr1.Name = "chkBxAutoStr1";
+            this.chkBxAutoStr1.Size = new System.Drawing.Size(73, 17);
+            this.chkBxAutoStr1.TabIndex = 9;
+            this.chkBxAutoStr1.Text = "Auto Start";
+            this.chkBxAutoStr1.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
@@ -419,7 +463,8 @@
             this.grpBxDbg2.PerformLayout();
             this.grpBxDbg1.ResumeLayout(false);
             this.grpBxDbg1.PerformLayout();
-            this.tabConfig.ResumeLayout(false);
+            this.tabTools.ResumeLayout(false);
+            this.tabTools.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
             this.ResumeLayout(false);
 
@@ -436,11 +481,11 @@
         private System.Windows.Forms.TextBox txtBxTst2;
         private System.Windows.Forms.TextBox txtBxTst1;
         private System.Windows.Forms.TextBox txtBxSerNum1;
-        private System.Windows.Forms.TabPage tabConfig;
+        private System.Windows.Forms.TabPage tabTools;
         private System.Windows.Forms.Button btnStrTst2;
         private System.Windows.Forms.Button btnStrTst1;
         private System.Windows.Forms.ComboBox cboBxDevId;
-        private System.Windows.Forms.Button btnAsgnCanId;
+        private System.Windows.Forms.Button btnAsgnDevId;
         private System.Windows.Forms.GroupBox grpBxDbg2;
         private System.Windows.Forms.ComboBox cboBxDbgTst2;
         private System.Windows.Forms.Button btnDbgCmd2;
@@ -457,6 +502,10 @@
         private System.Windows.Forms.CheckBox chkBxSkpPrg1;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.TextBox txtBxDbg1;
+        private System.Windows.Forms.CheckBox chkBxAutoStr2;
+        private System.Windows.Forms.CheckBox chkBxAutoStr1;
+        private System.Windows.Forms.Button btnCanCmd;
+        private System.Windows.Forms.TextBox textBox2;
     }
 }
 

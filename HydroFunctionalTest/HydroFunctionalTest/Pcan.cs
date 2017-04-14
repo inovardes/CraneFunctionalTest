@@ -1263,6 +1263,7 @@ namespace HydroFunctionalTest
 
         #region Crane Test Methods
 
+        #region ScanForDev()
         /// <summary>
         /// Will scan specifically for the PCAN-USB type devices.
         /// When found it will query the device for its ID and compare it to the device ID in the method parameter.
@@ -1318,7 +1319,9 @@ namespace HydroFunctionalTest
                       
             return returnValue;
         }
+        #endregion ScanForDev()
 
+        #region SetDevId()
         /// <summary>
         /// For setting the device ID if the device memory is corrupted/erased.
         /// Only a value of 1 or 2 are accepted as device IDs
@@ -1362,7 +1365,9 @@ namespace HydroFunctionalTest
                         
             return returnValue;
         }
+        #endregion SetDevId()
 
+        #region CanWrite()
         /// <summary>
         /// Prepares the CAN message using the method's parameters and loads it into the TPCANMsg struct
         /// Writes the message and checks for any errors
@@ -1404,7 +1409,9 @@ namespace HydroFunctionalTest
 
             return returnValue;
         }
+        #endregion CanWrite()
 
+        #region CanRead()
         /// <summary>
         /// Calls PCAN 'Read' method and stores CAN msg values in nested dictionary 'canReadRtnData'
         /// most recent data byte stored in "canDataFrame" list
@@ -1453,7 +1460,9 @@ namespace HydroFunctionalTest
 
             return returnValue;
         }
+        #endregion CanRead()
 
+        #region ActivateDevice()
         /// <summary>
         /// Calls the PCAN "Initialize" method and checks for errors
         /// </summary>
@@ -1485,7 +1494,9 @@ namespace HydroFunctionalTest
 
             return returnValue;
         }
+        #endregion ActivateDevice()
 
+        #region DeactivateDevice()        
         /// <summary>
         /// Calls the PCAN "Uninitialize" method and checks for errors
         /// </summary>
@@ -1517,7 +1528,9 @@ namespace HydroFunctionalTest
 
             return returnValue;
         }
+        #endregion DeactivateDevice()
 
+        #region ClearDataBuffers()        
         /// <summary>
         /// Resets the device receive and transmit queues and all Crane test code member data buffers
         /// </summary>
@@ -1551,10 +1564,12 @@ namespace HydroFunctionalTest
 
             return returnValue;
         }
-            #endregion Crane Test Methods
+        #endregion ClearDataBuffers()
 
-            #endregion Crane Test Code
+        #endregion Crane Test Methods
 
-        }
+        #endregion Crane Test Code
+
+    }
 }
 #endregion
