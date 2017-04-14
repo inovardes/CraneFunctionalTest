@@ -8,6 +8,19 @@ namespace HydroFunctionalTest
 {
     class PSM_85307
     {
+        //To Do
+        //Hardware & other Class objects instantiated in main UI that need to be passed to this class
+        //  UsbToGpio
+        //  Pcan
+        //  Power supply class
+        //  ELoad class
+        //  DMM class
+        //
+
+        //To Do - create even delegates which the UI subscribes to to update the GUI when information for the user is available/needed
+
+        int fixtureNum; //holds value returned by GPIO adapter which determines the base station position the fixture is connected to, UUT 1 or UUT 2
+
         #region Structures
         /// <summary>
         /// Contains all the parameters needed to test the 5 adj auxillary outputs @28v.
@@ -71,9 +84,13 @@ namespace HydroFunctionalTest
         #region Contructor/Destructor
         /// <summary>
         /// Contructor.  Sets program variables.  Could optionally set these values using an external file.
+        /// The parameter(base station position fixture is connected to) must be determined by the main UI
         /// </summary>
-        public PSM_85307()
-        {            
+        /// <param name="tmpFixtureNum"></param>
+        public PSM_85307(int tmpFixtureNum)
+        {
+            fixtureNum = tmpFixtureNum;  //value determined by main UI by using the GPIO adapter dig input pin connected to the base station connector pin 13
+
             //Output off initializations
             auxOutOff_H = .01;    //Current(amp) & Voltage(volt) High limit
             auxOutOff_L = -.01;   //Current(amp) & Voltage(volt) Low limit 
@@ -242,6 +259,9 @@ namespace HydroFunctionalTest
         #endregion Constructor/Destructor
 
         #region Methods
+        //To Do - to be done by main UI
+        //determine which fixture (1 or 2) is present and which GPIO adapt it associated with
+        //
 
         #endregion Methods
 
