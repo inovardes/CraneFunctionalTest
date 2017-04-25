@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace HydroFunctionalTest
 {
@@ -17,29 +18,26 @@ namespace HydroFunctionalTest
         //  DMM class
         //
 
-        //Delegates which the UI subscribes to to update the GUI when information for the user is available/needed
+        //Delegates which the UI subscribes to and can be used to update the GUI when information for the user is available/needed
         //Delegates determine the method signature (method return type & arguments) that subscribers will need to use in their methods
-        public delegate void InformationAvailableEventHandler(object source, EventArgs args);
-        //Create the actual event key word that subscribers will use:
+        public delegate void InformationAvailableEventHandler(object source, List<String> args, int fxPos);
+        //Create the actual event key word (pointer) that subscribers will use when subscribing to the event:
         public event InformationAvailableEventHandler InformationAvailable;
-
-        public delegate void TestCompleteEventHandler(object source, EventArgs args);
-        public event TestCompleteEventHandler TestComplete;
-
         protected virtual void OnInformationAvailable()
         {
-            if (InformationAvailable != null)
-            {
-                InformationAvailable(this, EventArgs.Empty);
-            }
+                if (InformationAvailable != null)
+                    InformationAvailable(this, this.testStatusInfo, this.fixPosition);       
         }
 
+        //Delegates which the UI subscribes to and can be used to update the GUI when tests are complete
+        //Delegates determine the method signature (method return type & arguments) that subscribers will need to use in their methods
+        public delegate void TestCompleteEventHandler(object source, Dictionary<String, int> passFailtstSts, int fxPos);
+        //Create the actual event key word (pointer) that subscribers will use when subscribing to the event:
+        public event TestCompleteEventHandler TestComplete;
         protected virtual void OnTestComplete()
         {
             if (TestComplete != null)
-            {
-                OnTestComplete();
-            }
+                TestComplete(this, this.passFailStatus, this.fixPosition);
         }
 
         #region Structures
@@ -72,6 +70,22 @@ namespace HydroFunctionalTest
         #endregion Structures
 
         #region Various Data Types
+        /// <summary>
+        /// Saves pass fail info about overall test and subtests.  Key = Name of test, Value = passed = 1, failed = 0, incomplete = -1
+        /// </summary>
+        private Dictionary<String, int> passFailStatus;
+        /// <summary>
+        /// Stores the fixture position.  This must be done in the constructor when the object is created in the main UI
+        /// </summary>
+        private int fixPosition;
+        /// <summary>
+        /// Store test data here that contains measurement and/or pass/fail data.  Will be sent to a file with specific formatting per the customer requirements
+        /// </summary>
+        public List<String> testDataCSV = new List<String>();
+        /// <summary>
+        /// Store test progress here to send back to the main UI to update the user of status
+        /// </summary>
+        public List<String> testStatusInfo = new List<String>();
         /// <summary>
         /// CAN commands to enable outputs.  Key = output name, Value[] = CAN frame1, CAN frame2
         /// </summary>
@@ -109,8 +123,9 @@ namespace HydroFunctionalTest
         /// </summary>
         /// <param name="tmpGpio"></param>
         /// <param name="tmpPcan"></param>
-        public PSM_85307(UsbToGpio tmpGpio, Pcan tmpPcan)
+        public PSM_85307(int tempPos, UsbToGpio tmpGpio, Pcan tmpPcan)
         {
+            fixPosition = tempPos;
             pCanObj = tmpPcan;
             gpioObj = tmpGpio;
 
@@ -279,21 +294,37 @@ namespace HydroFunctionalTest
                 { "digOut7", 16 },
             };
             #endregion Initialize variables holding mux control bytes
+
+            #region Initialize Dictionary containing pass/fail status for all tests
+            passFailStatus = new Dictionary<string, int>
+            {
+                { "Power On", -1 },
+                { "Power On Current", -1 },
+                { "USB Communication Check", -1 },
+                { "CAN Communication Check", -1 },
+            };
+            #endregion Initialize Dictionary containing all test pass fail status
         }
         #endregion Constructor/Destructor
 
         #region Methods
         public void TestLongRunningMethod()
         {
+
             System.Threading.Thread.Sleep(3000);
+            testStatusInfo.Add("asdf");
             OnInformationAvailable();
+            System.Threading.Thread.Sleep(3000);
+            anotherFunction();
         }
-
+        public void anotherFunction()
+        {
+            testStatusInfo.Clear();
+            testStatusInfo.Add("More data");
+            OnInformationAvailable();
+            OnTestComplete();
+        }
         #endregion Methods
-
-
-
-
     }
 
 
