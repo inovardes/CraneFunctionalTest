@@ -37,34 +37,6 @@ namespace HydroFunctionalTest
         //Eload eLoadObj = new Eload;
         #endregion Hardware Class objects
 
-        #region Fixture Class objects
-        /// <summary>
-        /// Represents array containing two object instances, UUT1 & UUT2.
-        /// UUT1 or UUT2 objects should only be instantiated if the fixture is connected.
-        /// </summary>
-        //PSM_85307[] PSM_uutObj = new PSM_85307[2];
-        /// <summary>
-        /// Represents array containing two object instances, UUT1 & UUT2.
-        /// UUT1 or UUT2 objects should only be instantiated if the fixture is connected.
-        /// </summary>  
-        //SAM_55207[] SAM_uutObj = new SAM_55207[2];
-        /// <summary>
-        /// Represents array containing two object instances, UUT1 & UUT2.
-        /// UUT1 or UUT2 objects should only be instantiated if the fixture is connected.
-        /// </summary>
-        //PCM_90707[] PCM__uutObj = new PCM_90707[2];
-        /// <summary>
-        /// Represents array containing two object instances, UUT1 & UUT2.
-        /// UUT1 or UUT2 objects should only be instantiated if the fixture is connected.
-        /// </summary>
-        //AIM_90807[] AIM_uutObj = new AIM_90807[2];
-        /// <summary>
-        /// Represents array containing two object instances, UUT1 & UUT2.
-        /// UUT1 or UUT2 objects should only be instantiated if the fixture is connected.
-        /// </summary>
-        //LUM_15607[] LUM_uutObj = new LUM_15607[2];
-        #endregion Fixture Class objects
-
         /// <summary>
         /// For indexing through the 2-D arrays that are associated with UUT1
         /// </summary>
@@ -93,6 +65,11 @@ namespace HydroFunctionalTest
             { "PCM_90707", new double[] { 3.2, 2.8 } },
             { "AIM_90807", new double[] { 2.2, 3.8 } },
             { "LUM_15607", new double[] { 1.2, .8 } },
+            { "PSM_85307_Gen3", new double[] { 4.7, 4.3 } },
+            { "SAM_55207_Gen3", new double[] { 3.7, 3.3 } },
+            { "PCM_90707_Gen3", new double[] { 2.7, 2.3 } },
+            { "AIM_90807_Gen3", new double[] { 1.7, 1.3 } },
+            { "LUM_15607_Gen3", new double[] { .7, .3 } },
         };
 
         #region Flip Flop control commands
@@ -136,39 +113,31 @@ namespace HydroFunctionalTest
         public void PrintDataToTxtBox(int fixPos, List<string> dataToPrint, string optString = "", bool clearTxtBox = false)
         {
             String tmpStr = "";
-            if (dataToPrint != null)
+            if (dataToPrint == null)
+                dataToPrint = new List<string>();
+            dataToPrint.Add(optString);
+            if (fixPos == fix1Designator)
             {
-                dataToPrint.Add(optString);
-                if (fixPos == fix1Designator)
+                foreach (string s in dataToPrint)
                 {
-                    foreach (string s in dataToPrint)
-                    {
-                        tmpStr = tmpStr + Environment.NewLine + s;
-                    }
-                    TxtBxCtrl(fixPos, true, tmpStr, false);
+                    tmpStr = tmpStr + Environment.NewLine + s;
                 }
-                else if (fixPos == fix2Designator)
+                TxtBxThreadCtrl(fixPos, true, tmpStr, false);
+            }
+            else if (fixPos == fix2Designator)
+            {
+                foreach (string s in dataToPrint)
                 {
-                    foreach (string s in dataToPrint)
-                    {
-                        tmpStr = tmpStr + Environment.NewLine + s;
-                    }
-                    TxtBxCtrl(fixPos, true, tmpStr, false);
+                    tmpStr = tmpStr + Environment.NewLine + s;
                 }
-                else
-                {
-                    MessageBox.Show("Invalid method parameter" + Environment.NewLine + "No such fixture: " + fixPos.ToString());
-                }
+                TxtBxThreadCtrl(fixPos, true, tmpStr, false);
             }
             else
             {
-                if (fixPos == fix1Designator)
-                    TxtBxCtrl(fixPos, true, "No data returned", false);
-                else if (fixPos == fix2Designator)
-                    TxtBxCtrl(fixPos, true, "No data returned", false);
-                else
-                    MessageBox.Show("Invalid method parameter" + Environment.NewLine + "No such fixture: " + fixPos.ToString());
+                MessageBox.Show("Invalid method parameter" + Environment.NewLine + "No such fixture: " + fixPos.ToString());
             }
+            //send a newline to the text box
+            TxtBxThreadCtrl(fixPos, true, Environment.NewLine, false);
         }
 
         private void btnAsgnCanId_Click(object sender, EventArgs e)
@@ -215,39 +184,40 @@ namespace HydroFunctionalTest
         private async void btnStrTst1_Click(object sender, EventArgs e)
         {
             //clear the txtbox
-            TxtBxCtrl(fix1Designator);//clear the text box of old data
+            TxtBxThreadCtrl(fix1Designator);//clear the text box of old data
             //reset background color, any integer other than 0 or 1 will work
-            GrpBxCtrl(fix1Designator, -1);//make background neutral to start test
+            GrpBxThreadCtrl(fix1Designator, -1);//make background neutral to start test
             //check for available gpio device
             if (gpioObj[uut1_index].ScanForDevs(fix1Designator))
             {
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nFixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId());
+                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Fixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId());
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut1_index].GpioRead(1, 1);
                 if (limitSw == 1)
                 {
-                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Detected");
+                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
                     //Depending on fixture ID, instantiate specific UUT in object array:
                     double dmmMeasuredValue = 5; //read value from dmm
 
 
                     //Type classInstanceType = Type.GetType(fxtIDs.Keys.First());
-
+                    bool tmpFoundFixture = false;
                     foreach (var pair in fxtIDs)
                     {
                         if ((dmmMeasuredValue < pair.Value[0]) && (dmmMeasuredValue > pair.Value[1]))
                         {
+                            tmpFoundFixture = true;
                             //classInstanceType = Type.GetType(pair.Key);
                             if (fxtIDs.ContainsKey("PSM_85307"))
                             {
-                                PSM_85307 PSM_Obj = new PSM_85307(fix1Designator, gpioObj[uut1_index], pCanObj[uut1_index]);
+                                PSM_85307 PSM_Obj = new PSM_85307(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
                                 PSM_Obj.InformationAvailable += OnInformationAvailable;
                                 PSM_Obj.TestComplete += OnTestComplete;
                                 //lock down the GUI so no other input can be received other than to cancel the task
-                                BtnCtrl(fix1Designator, false);                                
-                                await Task.Run(() => PSM_Obj.TestLongRunningMethod());
+                                BtnThreadCtrl(fix1Designator, false);                                
+                                await Task.Run(() => PSM_Obj.RunTests());
                             }
                             else if (fxtIDs.ContainsKey("SAM_55207"))
                             {
@@ -261,11 +231,36 @@ namespace HydroFunctionalTest
                             else if (fxtIDs.ContainsKey("LUM_15607"))
                             {
                             }
+                            else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
+                            {
+                            }
                             else
                             {
-                                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Detected");
+                                MessageBox.Show("Error in program.  Unable to match a fixture string to the dictionary values.");
                             }
+                        }                      
+                    }
+                    if (!tmpFoundFixture)
+                    {
+                        PrintDataToTxtBox(fix1Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeasuredValue.ToString() + " Volts.");
+                        List<String> tmpList = new List<string>();
+                        foreach (var couple in fxtIDs)
+                        {
+                            tmpList.Add("Expecting measurements between: " + couple.Value[0].ToString() + " and " + couple.Value[1].ToString() + " Volts for the " + couple.Key + " fixture.");
                         }
+                        PrintDataToTxtBox(fix1Designator, tmpList);
                     }
                     //object uut1Obj = Activator.CreateInstance(classInstanceType, gpioObj[uut1_index], pCanObj[uut1_index]);
                     //EventInfo infoAvailEvent = classInstanceType.GetEvent("InformationAvailable");
@@ -282,71 +277,131 @@ namespace HydroFunctionalTest
 
                 }
                 else
-                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Not Detected");                
+                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");                
             }
             else
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nFixture 1 not connected");      
+            {                
+                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Fixture 1 not connected");
+            }
         }
 
         private async void btnStrTst2_Click(object sender, EventArgs e)
         {
             //clear the txtbox
-            TxtBxCtrl(fix2Designator);//clear the text box of old data
+            TxtBxThreadCtrl(fix2Designator);//clear the text box of old data
+            //reset background color, any integer other than 0 or 1 will work
+            GrpBxThreadCtrl(fix2Designator, -1);//make background neutral to start test
             //check for available gpio device
             if (gpioObj[uut2_index].ScanForDevs(fix2Designator))
             {
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nFixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId());
+                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Fixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId());
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut2_index].GpioRead(1, 1);
                 if (limitSw == 1)
                 {
-                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nLid Down Detected");
-                    //if limit switch is activated, get the fixture ID (which asssembly is being tested)
-                    //Depending on fixture ID, instantiate UUT in object array:
-                    //  PSM_uutObj[uut1_index] = new PSM_85307();
-                    //  SAM_uutObj[uut1_index] = new SAM_55207();
-                    //  PCM_uutObj[uut1_index] = new PCM_90707();
-                    //  AIM_uutObj[uut1_index] = new AIM_90807();
-                    //  LUM_uutObj[uut1_index] = new LUM_15607();
+                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Lid Down Detected");
+                    //Get the fixture ID (which asssembly is being tested)
+                    //Depending on fixture ID, instantiate specific UUT in object array:
+                    double dmmMeasuredValue = 5; //read value from dmm
+
+
+                    //Type classInstanceType = Type.GetType(fxtIDs.Keys.First());
+                    bool tmpFoundFixture = false;
+                    foreach (var pair in fxtIDs)
+                    {
+                        if ((dmmMeasuredValue < pair.Value[0]) && (dmmMeasuredValue > pair.Value[1]))
+                        {
+                            tmpFoundFixture = true;
+                            if (fxtIDs.ContainsKey("PSM_85307"))
+                            {
+                                PSM_85307 PSM_Obj = new PSM_85307(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                                PSM_Obj.InformationAvailable += OnInformationAvailable;
+                                PSM_Obj.TestComplete += OnTestComplete;
+                                //lock down the GUI so no other input can be received other than to cancel the task
+                                BtnThreadCtrl(fix2Designator, false);
+                                txtBxSerNum1.Enabled = false;
+                                await Task.Run(() => PSM_Obj.RunTests());
+                            }
+                            else if (fxtIDs.ContainsKey("SAM_55207"))
+                            {
+                                SAM_55207 PSM_Obj = new SAM_55207(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                                PSM_Obj.InformationAvailable += OnInformationAvailable;
+                                PSM_Obj.TestComplete += OnTestComplete;
+                                //lock down the GUI so no other input can be received other than to cancel the task
+                                BtnThreadCtrl(fix2Designator, false);
+                                txtBxSerNum1.Enabled = false;
+                                await Task.Run(() => PSM_Obj.RunTests());
+                            }
+                            else if (fxtIDs.ContainsKey("PCM_90707"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("AIM_90807"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("LUM_15607"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
+                            {
+                            }
+                            else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
+                            {
+                            }
+                            else
+                            {
+                                MessageBox.Show("Error in program.  Unable to match a fixture string to the dictionary values.");
+                            }
+                        }
+                    }
+                    if (!tmpFoundFixture)
+                    {
+                        PrintDataToTxtBox(fix2Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeasuredValue.ToString() + " Volts.");
+                        List<String> tmpList = new List<string>();
+                        foreach (var couple in fxtIDs)
+                        {
+                            tmpList.Add("Expecting measurements between: " + couple.Value[0].ToString() + " and " + couple.Value[1].ToString() + " Volts for the " + couple.Key + " fixture.");
+                        }
+                        PrintDataToTxtBox(fix2Designator, tmpList);
+                    }
                 }
                 else
-                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nLid Down Not Detected");                
+                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Lid Down Not Detected");
             }
             else
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nFixture 2 not connected");
+            {
+                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Fixture 1 not connected");
+            }
         }
 
         /// <summary>
-        /// Waits for Limit switch to activate.  When called by a task, Method runs continually if no UUT installed
+        /// Subscriber to the event which should be published in every UUT class
+        /// This allows the UUT to update the main UI when the task is complete (test is done)
         /// </summary>
-        private void OnTestComplete(object source, Dictionary<String, int> passFailtstSts, int fixPos)
+        private void OnTestComplete(object source, List<String> passFailtstSts, int fixPos, bool allTestsPass)
         {
             //Unsubscribe from events
             //
             if (fixPos == fix1Designator)
-            {                
-                //Convert the dictionary to a string to output to text box
-                List<String> dictToString = new List<string>();
-                foreach (var pair in passFailtstSts)
-                {
-                    dictToString.Add(pair.Key);
-                    dictToString.Add(pair.Value.ToString());
-                }
-                PrintDataToTxtBox(fixPos, dictToString, "Testing Complete");
-                EndofTestRoutine(fixPos, true);
-                    
+            {
+                EndofTestRoutine(fixPos, allTestsPass);
+                PrintDataToTxtBox(fixPos, null, "\r\n***Test Results***");                
+                PrintDataToTxtBox(fixPos, passFailtstSts, "\r\n***Test Finished***");
             }
             else if (fixPos == fix2Designator)
             {
-                //Convert the dictionary to a string to output to text box
-                List<String> dictToString = new List<string>();
-                foreach (var pair in passFailtstSts)
-                {
-                    dictToString.Add(pair.Key);
-                    dictToString.Add(pair.Value.ToString());
-                }
-                PrintDataToTxtBox(fixPos, dictToString, "Testing Complete");
+                EndofTestRoutine(fixPos, allTestsPass);
+                PrintDataToTxtBox(fixPos, null, "\r\n***Test Results***");                
+                PrintDataToTxtBox(fixPos, passFailtstSts, "\r\n***Test Finished***");
             }
             else
             {
@@ -355,6 +410,13 @@ namespace HydroFunctionalTest
             }
         }
 
+        /// <summary>
+        /// Subscriber to the event which should be published in every UUT class
+        /// This allows the UUT to update the main UI with necessary information
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="testStatusInfo"></param>
+        /// <param name="fixPos"></param>
         private void OnInformationAvailable(object source, List<String> testStatusInfo, int fixPos)
         {
             //Unsubscribe from events
@@ -369,13 +431,23 @@ namespace HydroFunctionalTest
             }
         }
 
-        delegate void GrpBx_ThreadCtrl(int fixPos, int passFailClear);
-        public void GrpBxCtrl(int fixPos, int passFailClear)
+        /// <summary>
+        /// Delegate for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="passFailClear"></param>
+        delegate void grpBx_ThreadCtrl(int fixPos, int passFailClear);
+        /// <summary>
+        /// Method for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="passFailClear"></param>
+        public void GrpBxThreadCtrl(int fixPos, int passFailClear)
         {
             //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
             if (grpBxTst1.InvokeRequired || grpBxTst1.InvokeRequired)
             {
-                GrpBx_ThreadCtrl btnDel = new GrpBx_ThreadCtrl(GrpBxCtrl);
+                grpBx_ThreadCtrl btnDel = new grpBx_ThreadCtrl(GrpBxThreadCtrl);
                 this.Invoke(btnDel, new object[] { fixPos, passFailClear });
             }
             else
@@ -399,19 +471,27 @@ namespace HydroFunctionalTest
                         grpBxTst2.BackColor = System.Drawing.Color.White;
                 }
                 else
-                    MessageBox.Show("Incorrect fixture number parameter sent to 'GrpBxCtrl()' method: " + fixPos.ToString());
+                    MessageBox.Show("Incorrect fixture number parameter sent to 'GrpBxThreadCtrl()' method: " + fixPos.ToString());
             }
         }
 
- 
-
-        delegate void Btn_ThreadCtrl(int fixPos, bool en);
-        public void BtnCtrl(int fixPos, bool en)
+        /// <summary>
+        /// Delegate for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="en"></param>
+        delegate void btn_ThreadCtrl(int fixPos, bool en);
+        /// <summary>
+        /// Method for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="en"></param>
+        public void BtnThreadCtrl(int fixPos, bool en)
         {
             //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
             if (btnStrTst1.InvokeRequired || btnStrTst2.InvokeRequired)
             {
-                Btn_ThreadCtrl btnDel = new Btn_ThreadCtrl(BtnCtrl);
+                btn_ThreadCtrl btnDel = new btn_ThreadCtrl(BtnThreadCtrl);
                 this.Invoke(btnDel, new object[] { fixPos, en });
             }
             else
@@ -431,17 +511,71 @@ namespace HydroFunctionalTest
                         btnStrTst2.Enabled = false;
                 }
                 else
-                    MessageBox.Show("Incorrect fixture number parameter sent to 'BtnCtrl()' method: " + fixPos.ToString());
+                    MessageBox.Show("Incorrect fixture number parameter sent to 'BtnThreadCtrl()' method: " + fixPos.ToString());
             }
         }
 
-        delegate void TxtBx_ThreadCtrl(int fixPos, bool appendTxt, String txt, bool clr);
-        public void TxtBxCtrl(int fixPos, bool appendTxt = false, String txt = null, bool clr = true)
+        /// <summary>
+        /// Delegate for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="en"></param>
+        delegate void serialBx_ThreadCtrl(int fixPos, bool en);
+        /// <summary>
+        /// Method for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="en"></param>
+        public void SerialBxThreadCtrl(int fixPos, bool en)
+        {
+            //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
+            if (txtBxSerNum1.InvokeRequired || txtBxSerNum2.InvokeRequired)
+            {
+                serialBx_ThreadCtrl txtBxDel = new serialBx_ThreadCtrl(SerialBxThreadCtrl);
+                this.Invoke(txtBxDel, new object[] { fixPos, en });
+            }
+            else
+            {
+                if (fixPos == fix1Designator)
+                {
+                    if (en)
+                        txtBxSerNum1.Enabled = true;
+                    else
+                        txtBxSerNum1.Enabled = false;
+                }
+                else if (fixPos == fix2Designator)
+                {
+                    if (en)
+                        txtBxSerNum2.Enabled = true;
+                    else
+                        txtBxSerNum2.Enabled = false;
+                }
+                else
+                    MessageBox.Show("Incorrect fixture number parameter sent to 'SerialBxThreadCtrl()' method: " + fixPos.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Delegate for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="appendTxt"></param>
+        /// <param name="txt"></param>
+        /// <param name="clr"></param>
+        delegate void txtBx_ThreadCtrl(int fixPos, bool appendTxt, String txt, bool clr);
+        /// <summary>
+        /// Method for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="appendTxt"></param>
+        /// <param name="txt"></param>
+        /// <param name="clr"></param>
+        public void TxtBxThreadCtrl(int fixPos, bool appendTxt = false, String txt = null, bool clr = true)
         {
             //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
             if (txtBxTst1.InvokeRequired || txtBxTst2.InvokeRequired)
             {
-                TxtBx_ThreadCtrl d = new TxtBx_ThreadCtrl(TxtBxCtrl);
+                txtBx_ThreadCtrl d = new txtBx_ThreadCtrl(TxtBxThreadCtrl);
                 this.Invoke(d, new object[] { fixPos, appendTxt, txt, clr });
             }
             else
@@ -463,20 +597,26 @@ namespace HydroFunctionalTest
                     txtBxTst2.Refresh();
                 }
                 else
-                    MessageBox.Show("Incorrect fixture number parameter sent to 'TxtBxCtrl()' method: " + fixPos.ToString());
+                    MessageBox.Show("Incorrect fixture number parameter sent to 'TxtBxThreadCtrl()' method: " + fixPos.ToString());
             }
         }
 
+        /// <summary>
+        /// Method for performing any common tasks or end of test cleanup work needed before the task ends and object is destroyed.
+        /// e.g., enable GUI controls or otherwise setup the UI for user input
+        /// </summary>
+        /// <param name="fixPos"></param>
+        /// <param name="allTestsPass"></param>
         public void EndofTestRoutine(int fixPos, bool allTestsPass)
         {
-            BtnCtrl(fixPos, true);
+            BtnThreadCtrl(fixPos, true);
             if (allTestsPass)
             {
-                GrpBxCtrl(fixPos, 1);
+                GrpBxThreadCtrl(fixPos, 1);
             }
             else
             {
-                GrpBxCtrl(fixPos, 0);
+                GrpBxThreadCtrl(fixPos, 0);
             }
         }
             
