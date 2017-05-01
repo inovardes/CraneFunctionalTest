@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net;
+using System.Windows.Forms;
+using System.Reflection;
 
 namespace HydroFunctionalTest
 {
@@ -30,6 +32,11 @@ namespace HydroFunctionalTest
         /// This data is passed to the main UI upon the OnTestComplete event
         /// </summary>
         private Dictionary<String, int> passFailStatus;
+        /// <summary>
+        /// Provides the main UI with control to abort test.
+        /// Value is changed in the event handler function btnAbort1_Click
+        /// </summary>
+        private bool userAbortClick = false;
         /// <summary>
         /// Stores the fixture position.  This must be done in the constructor when the object is created in the main UI
         /// </summary>
@@ -149,16 +156,68 @@ namespace HydroFunctionalTest
         #endregion Event Publishers and Handlers required for all assemblies
 
         #region Common Methods required for all assemblies
-        /// <summary>
+/// <summary>
         /// Call all test functions and execute all other test requirements.  This is the only function called from the main UI
+        /// The main UI must provide the UUT with the cancel button object to subscribe to the button event.
         /// </summary>
-        public void RunTests()
+        public void RunTests(System.Windows.Forms.Button softwAbortEvent)
         {
-            System.Threading.Thread.Sleep(3000);
-            testStatusInfo.Add("asdf");
+            testStatusInfo.Clear();
+            //subscribe to the main UI abort button event
+            softwAbortEvent.Click += new System.EventHandler(btnAbort1_Click);
+            bool allTestsDone = false;
+            userAbortClick = false;
+            testStatusInfo.Add("***Begin Testing***");
             OnInformationAvailable();
-            System.Threading.Thread.Sleep(3000);
+            //loop until all tests have been complete or user aborts test.
+            while (!allTestsDone && (!UserAbortCheck()))
+            {
+                if (!passFailStatus.ContainsValue(-1))
+                    allTestsDone = true;//testing completed
+                else
+                {
+                    foreach (var pair in passFailStatus)
+                    {
+                        //break out of the loop if user has aborted the test
+                        if (UserAbortCheck())
+                            break;
+                        if (pair.Value == -1)
+                        {
+                            //run the tests (call functions):
+                        }
+                        //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
+                        //Each function puts test status in the List --> testStatusInfo.Add("test status")
+                        OnInformationAvailable();
+                    }
+                }
+            }
+            //unsubscribe from the main UI abort button event
+            softwAbortEvent.Click -= new System.EventHandler(btnAbort1_Click);
+            //Fire the OnTestComplete event to update the main UI and end the test
+            testStatusInfo.Add("***End Testing UUT***");
+            OnInformationAvailable();
             OnTestComplete();
+        }
+
+        private bool UserAbortCheck()
+        {
+            bool rtnResult = false;
+            testStatusInfo.Clear();
+            if (userAbortClick)
+            {
+                testStatusInfo.Add("***Abort Button Clicked***");
+                rtnResult = true;
+            }
+            //check to see if user has aborted test
+            //if aborted:
+            //  Save test results up to the point at which the test was aborted
+            //  Mark the UUT test as aborted on the ATR
+            //  Follow the abort routine: Power down UUT, command all inputs/outputs to high impedence (via software and hardware commands)
+
+            //Fire the OnInformationAvailable event to update the main UI with test status
+            //Each function puts test status in the List --> testStatusInfo.Add("test status")
+            OnInformationAvailable();
+            return rtnResult;
         }
 
         /// <summary>
@@ -176,6 +235,16 @@ namespace HydroFunctionalTest
             else
                 testStatusInfo.Add("Response from server does not match expected string.\r\nExpected response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
             OnInformationAvailable();
+        }
+
+        /// <summary>
+        /// Event hanling function fires when user clicks the GUI cancel button
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void btnAbort1_Click(object sender, EventArgs e)
+        {
+            userAbortClick = true;
         }
         #endregion Common Methods required for all assemblies
 

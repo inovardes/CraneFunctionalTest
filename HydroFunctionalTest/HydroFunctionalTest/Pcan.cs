@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace HydroFunctionalTest
 {
@@ -1347,21 +1348,21 @@ namespace HydroFunctionalTest
                         if (stsResult == TPCANStatus.PCAN_ERROR_OK)
                             returnValue = true;
                         else
-                            pcanReturnData.Add("PCAN Error returned while attempting to assign ID to PCAN-USB adapter:" + Environment.NewLine + stsResult.ToString());
+                            MessageBox.Show("PCAN Error returned while attempting to assign ID to PCAN-USB adapter:" + Environment.NewLine + stsResult.ToString());
                     }
                     else
                     {
-                        pcanReturnData.Add("Invalid parameter sent to SetDevId() function.  Parameter must be an integer value of 1 or 2" +
+                        MessageBox.Show("Invalid parameter sent to SetDevId() function.  Parameter must be an integer value of 1 or 2" +
                             Environment.NewLine + "The test program only expects a total of two devices will need device IDs.");
                     }
                     DeactivateDevice();
                 }
                 else
-                    pcanReturnData.Add("Failed to Initialize device.  Handle ID: " + DevHandle.ToString());
+                    MessageBox.Show("Failed to Initialize device.  Handle ID: " + DevHandle.ToString());
             }
             catch(Exception ex)
             {
-                pcanReturnData.Add("Error in SetDevId() function" + Environment.NewLine + ex.Message);
+                MessageBox.Show("Error in SetDevId() function" + Environment.NewLine + ex.Message);
             }            
                         
             return returnValue;

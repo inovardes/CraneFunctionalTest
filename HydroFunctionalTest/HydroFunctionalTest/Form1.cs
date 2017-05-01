@@ -120,7 +120,7 @@ namespace HydroFunctionalTest
             {
                 foreach (string s in dataToPrint)
                 {
-                    tmpStr = tmpStr + Environment.NewLine + s;
+                    tmpStr = tmpStr + s;
                 }
                 TxtBxThreadCtrl(fixPos, true, tmpStr, false);
             }
@@ -128,7 +128,7 @@ namespace HydroFunctionalTest
             {
                 foreach (string s in dataToPrint)
                 {
-                    tmpStr = tmpStr + Environment.NewLine + s;
+                    tmpStr = tmpStr + s;
                 }
                 TxtBxThreadCtrl(fixPos, true, tmpStr, false);
             }
@@ -190,62 +190,141 @@ namespace HydroFunctionalTest
             //check for available gpio device
             if (gpioObj[uut1_index].ScanForDevs(fix1Designator))
             {
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Fixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId());
+                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut1_index].GpioRead(1, 1);
                 if (limitSw == 1)
                 {
-                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Detected");
+                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
                     //Depending on fixture ID, instantiate specific UUT in object array:
                     double dmmMeasuredValue = 5; //read value from dmm
-
-
-                    //Type classInstanceType = Type.GetType(fxtIDs.Keys.First());
                     bool tmpFoundFixture = false;
                     foreach (var pair in fxtIDs)
                     {
                         if ((dmmMeasuredValue < pair.Value[0]) && (dmmMeasuredValue > pair.Value[1]))
                         {
                             tmpFoundFixture = true;
-                            //classInstanceType = Type.GetType(pair.Key);
+                            //lock down the GUI so no other input can be received other than to cancel the task
+                            BtnThreadCtrl(fix1Designator, false);
+                            SerialBxThreadCtrl(fix1Designator, false);
                             if (fxtIDs.ContainsKey("PSM_85307"))
                             {
-                                PSM_85307 PSM_Obj = new PSM_85307(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
-                                PSM_Obj.InformationAvailable += OnInformationAvailable;
-                                PSM_Obj.TestComplete += OnTestComplete;
-                                //lock down the GUI so no other input can be received other than to cancel the task
-                                BtnThreadCtrl(fix1Designator, false);                                
-                                await Task.Run(() => PSM_Obj.RunTests());
+                                //initialize the uut object
+                                PSM_85307 uutObj = new PSM_85307(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                                //subscribe to uut events
+                                uutObj.InformationAvailable += OnInformationAvailable;
+                                uutObj.TestComplete += OnTestComplete;
+                                //execute uut tests
+                                await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                                //unsubscribe from uut events
+                                uutObj.InformationAvailable -= OnInformationAvailable;
+                                uutObj.TestComplete -= OnTestComplete;
                             }
                             else if (fxtIDs.ContainsKey("SAM_55207"))
                             {
+                                SAM_55207 uutObj = new SAM_55207(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                                //subscribe to uut events
+                                uutObj.InformationAvailable += OnInformationAvailable;
+                                uutObj.TestComplete += OnTestComplete;
+                                //execute uut tests
+                                await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                                //unsubscribe from uut events
+                                uutObj.InformationAvailable -= OnInformationAvailable;
+                                uutObj.TestComplete -= OnTestComplete;
                             }
-                            else if (fxtIDs.ContainsKey("PCM_90707"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("AIM_90807"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("LUM_15607"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
-                            {
-                            }
+                            //else if (fxtIDs.ContainsKey("PCM_90707"))
+                            //{
+                            //    PCM_90707 uutObj = new PCM_90707(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("AIM_90807"))
+                            //{
+                            //    AIM_90807 uutObj = new AIM_90807(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("LUM_15607"))
+                            //{
+                            //    LUM_15607 uutObj = new LUM_15607(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
+                            //{
+                            //    PSM_85307_Gen3 uutObj = new PSM_85307_Gen3(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
+                            //{
+                            //    SAM_55207_Gen3 uutObj = new SAM_55207_Gen3(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //}
+                            //else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
+                            //{
+                            //    PCM_90707_Gen3 uutObj = new PCM_90707_Gen3(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
+                            //{
+                            //    AIM_90807_Gen3 uutObj = new AIM_90807_Gen3(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
+                            //{
+                            //    LUM_15607_Gen3 uutObj = new LUM_15607_Gen3(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
                             else
                             {
                                 MessageBox.Show("Error in program.  Unable to match a fixture string to the dictionary values.");
@@ -262,19 +341,6 @@ namespace HydroFunctionalTest
                         }
                         PrintDataToTxtBox(fix1Designator, tmpList);
                     }
-                    //object uut1Obj = Activator.CreateInstance(classInstanceType, gpioObj[uut1_index], pCanObj[uut1_index]);
-                    //EventInfo infoAvailEvent = classInstanceType.GetEvent("InformationAvailable");
-                    //Type tDelegate = infoAvailEvent.EventHandlerType;
-                    //MethodInfo miHandler = classInstanceType.GetMethod("OnInformationAvailable", BindingFlags.NonPublic | BindingFlags.Instance);
-                    //Delegate d = Delegate.CreateDelegate(tDelegate, uut1Obj, miHandler);
-                    //MethodInfo addHandler = infoAvailEvent.GetAddMethod();
-                    //object[] addHandlerArgs = { d };
-                    //addHandler.Invoke(uut1Obj, addHandlerArgs);
-
-                    ////Start the test
-                    //MethodInfo startTest = classInstanceType.GetMethod("TestLongRunningMethod");
-                    //await Task.Run(() => startTest.Invoke(uut1Obj, new object[0]));
-
                 }
                 else
                     PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");                
@@ -294,13 +360,13 @@ namespace HydroFunctionalTest
             //check for available gpio device
             if (gpioObj[uut2_index].ScanForDevs(fix2Designator))
             {
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Fixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId());
+                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, " (Fixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId() + ")");
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut2_index].GpioRead(1, 1);
                 if (limitSw == 1)
                 {
-                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Lid Down Detected");
+                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
                     //Depending on fixture ID, instantiate specific UUT in object array:
                     double dmmMeasuredValue = 5; //read value from dmm
@@ -313,50 +379,129 @@ namespace HydroFunctionalTest
                         if ((dmmMeasuredValue < pair.Value[0]) && (dmmMeasuredValue > pair.Value[1]))
                         {
                             tmpFoundFixture = true;
+                            //lock down the GUI so no other input can be received other than to cancel the task
+                            BtnThreadCtrl(fix2Designator, false);
+                            SerialBxThreadCtrl(fix2Designator, false);                            
                             if (fxtIDs.ContainsKey("PSM_85307"))
                             {
-                                PSM_85307 PSM_Obj = new PSM_85307(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
-                                PSM_Obj.InformationAvailable += OnInformationAvailable;
-                                PSM_Obj.TestComplete += OnTestComplete;
-                                //lock down the GUI so no other input can be received other than to cancel the task
-                                BtnThreadCtrl(fix2Designator, false);
-                                txtBxSerNum1.Enabled = false;
-                                await Task.Run(() => PSM_Obj.RunTests());
+                                PSM_85307 uutObj = new PSM_85307(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                                //subscribe to uut events
+                                uutObj.InformationAvailable += OnInformationAvailable;
+                                uutObj.TestComplete += OnTestComplete;
+                                //execute uut tests
+                                await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                                //unsubscribe from uut events
+                                uutObj.InformationAvailable -= OnInformationAvailable;
+                                uutObj.TestComplete -= OnTestComplete;
                             }
                             else if (fxtIDs.ContainsKey("SAM_55207"))
                             {
-                                SAM_55207 PSM_Obj = new SAM_55207(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
-                                PSM_Obj.InformationAvailable += OnInformationAvailable;
-                                PSM_Obj.TestComplete += OnTestComplete;
-                                //lock down the GUI so no other input can be received other than to cancel the task
-                                BtnThreadCtrl(fix2Designator, false);
-                                txtBxSerNum1.Enabled = false;
-                                await Task.Run(() => PSM_Obj.RunTests());
+                                SAM_55207 uutObj = new SAM_55207(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                                //subscribe to uut events
+                                uutObj.InformationAvailable += OnInformationAvailable;
+                                uutObj.TestComplete += OnTestComplete;
+                                //execute uut tests
+                                await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                                //unsubscribe from uut events
+                                uutObj.InformationAvailable -= OnInformationAvailable;
+                                uutObj.TestComplete -= OnTestComplete;
                             }
-                            else if (fxtIDs.ContainsKey("PCM_90707"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("AIM_90807"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("LUM_15607"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
-                            {
-                            }
-                            else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
-                            {
-                            }
+                            //else if (fxtIDs.ContainsKey("PCM_90707"))
+                            //{
+                            //    PCM_90707 uutObj = new PCM_90707(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("AIM_90807"))
+                            //{
+                            //    AIM_90807 uutObj = new AIM_90807(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("LUM_15607"))
+                            //{
+                            //    LUM_15607 uutObj = new LUM_15607(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
+                            //{
+                            //    PSM_85307_Gen3 uutObj = new PSM_85307_Gen3(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
+                            //{
+                            //    SAM_55207_Gen3 uut_Obj = new SAM_55207_Gen3(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
+                            //{
+                            //    PCM_90707_Gen3 uutObj = new PCM_90707_Gen3(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
+                            //{
+                            //    AIM_90807_Gen3 uutObj = new AIM_90807_Gen3(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
+                            //else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
+                            //{
+                            //    LUM_15607_Gen3 uutObj = new LUM_15607_Gen3(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                            //    //subscribe to uut events
+                            //    uutObj.InformationAvailable += OnInformationAvailable;
+                            //    uutObj.TestComplete += OnTestComplete;
+                            //    //execute uut tests
+                            //    await Task.Run(() => uutObj.RunTests(this.btnAbort2));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //}
                             else
                             {
                                 MessageBox.Show("Error in program.  Unable to match a fixture string to the dictionary values.");
@@ -389,19 +534,26 @@ namespace HydroFunctionalTest
         /// </summary>
         private void OnTestComplete(object source, List<String> passFailtstSts, int fixPos, bool allTestsPass)
         {
-            //Unsubscribe from events
+            //Unsubscribe from events and check that task is complete, kill if still running
             //
             if (fixPos == fix1Designator)
             {
+                
+                //lock down the GUI so no other input can be received other than to cancel the task
+                BtnThreadCtrl(fix1Designator, true);
+                SerialBxThreadCtrl(fix1Designator, true);
                 EndofTestRoutine(fixPos, allTestsPass);
                 PrintDataToTxtBox(fixPos, null, "\r\n***Test Results***");                
-                PrintDataToTxtBox(fixPos, passFailtstSts, "\r\n***Test Finished***");
+                PrintDataToTxtBox(fixPos, passFailtstSts);
             }
             else if (fixPos == fix2Designator)
             {
+                //lock down the GUI so no other input can be received other than to cancel the task
+                BtnThreadCtrl(fix2Designator, true);
+                SerialBxThreadCtrl(fix2Designator, true);
                 EndofTestRoutine(fixPos, allTestsPass);
                 PrintDataToTxtBox(fixPos, null, "\r\n***Test Results***");                
-                PrintDataToTxtBox(fixPos, passFailtstSts, "\r\n***Test Finished***");
+                PrintDataToTxtBox(fixPos, passFailtstSts);
             }
             else
             {
@@ -619,7 +771,16 @@ namespace HydroFunctionalTest
                 GrpBxThreadCtrl(fixPos, 0);
             }
         }
-            
+
+        private void btnAbort1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnAbort2_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 
 }

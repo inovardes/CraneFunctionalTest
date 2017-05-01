@@ -62,6 +62,8 @@
             this.cboBxSlctFx = new System.Windows.Forms.ComboBox();
             this.btnAsgnDevId = new System.Windows.Forms.Button();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
+            this.btnAbort1 = new System.Windows.Forms.Button();
+            this.btnAbort2 = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -98,6 +100,7 @@
             // 
             // grpBxTst2
             // 
+            this.grpBxTst2.Controls.Add(this.btnAbort2);
             this.grpBxTst2.Controls.Add(this.chkBxRma2);
             this.grpBxTst2.Controls.Add(this.chkBxSkpPrg2);
             this.grpBxTst2.Controls.Add(this.btnStrTst2);
@@ -113,7 +116,7 @@
             // chkBxRma2
             // 
             this.chkBxRma2.AutoSize = true;
-            this.chkBxRma2.Location = new System.Drawing.Point(234, 45);
+            this.chkBxRma2.Location = new System.Drawing.Point(22, 68);
             this.chkBxRma2.Name = "chkBxRma2";
             this.chkBxRma2.Size = new System.Drawing.Size(50, 17);
             this.chkBxRma2.TabIndex = 7;
@@ -123,7 +126,7 @@
             // chkBxSkpPrg2
             // 
             this.chkBxSkpPrg2.AutoSize = true;
-            this.chkBxSkpPrg2.Location = new System.Drawing.Point(234, 19);
+            this.chkBxSkpPrg2.Location = new System.Drawing.Point(22, 45);
             this.chkBxSkpPrg2.Name = "chkBxSkpPrg2";
             this.chkBxSkpPrg2.Size = new System.Drawing.Size(111, 17);
             this.chkBxSkpPrg2.TabIndex = 6;
@@ -133,7 +136,7 @@
             // btnStrTst2
             // 
             this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnStrTst2.Location = new System.Drawing.Point(6, 45);
+            this.btnStrTst2.Location = new System.Drawing.Point(6, 99);
             this.btnStrTst2.Name = "btnStrTst2";
             this.btnStrTst2.Size = new System.Drawing.Size(127, 34);
             this.btnStrTst2.TabIndex = 5;
@@ -151,15 +154,16 @@
             // 
             // txtBxTst2
             // 
-            this.txtBxTst2.Location = new System.Drawing.Point(6, 179);
+            this.txtBxTst2.Location = new System.Drawing.Point(6, 139);
             this.txtBxTst2.Multiline = true;
             this.txtBxTst2.Name = "txtBxTst2";
             this.txtBxTst2.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtBxTst2.Size = new System.Drawing.Size(338, 157);
+            this.txtBxTst2.Size = new System.Drawing.Size(338, 197);
             this.txtBxTst2.TabIndex = 1;
             // 
             // grpBxTst1
             // 
+            this.grpBxTst1.Controls.Add(this.btnAbort1);
             this.grpBxTst1.Controls.Add(this.chkBxRma1);
             this.grpBxTst1.Controls.Add(this.chkBxSkpPrg1);
             this.grpBxTst1.Controls.Add(this.btnStrTst1);
@@ -175,7 +179,7 @@
             // chkBxRma1
             // 
             this.chkBxRma1.AutoSize = true;
-            this.chkBxRma1.Location = new System.Drawing.Point(234, 45);
+            this.chkBxRma1.Location = new System.Drawing.Point(22, 68);
             this.chkBxRma1.Name = "chkBxRma1";
             this.chkBxRma1.Size = new System.Drawing.Size(50, 17);
             this.chkBxRma1.TabIndex = 6;
@@ -185,7 +189,7 @@
             // chkBxSkpPrg1
             // 
             this.chkBxSkpPrg1.AutoSize = true;
-            this.chkBxSkpPrg1.Location = new System.Drawing.Point(234, 19);
+            this.chkBxSkpPrg1.Location = new System.Drawing.Point(22, 45);
             this.chkBxSkpPrg1.Name = "chkBxSkpPrg1";
             this.chkBxSkpPrg1.Size = new System.Drawing.Size(111, 17);
             this.chkBxSkpPrg1.TabIndex = 5;
@@ -195,7 +199,7 @@
             // btnStrTst1
             // 
             this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnStrTst1.Location = new System.Drawing.Point(6, 45);
+            this.btnStrTst1.Location = new System.Drawing.Point(6, 99);
             this.btnStrTst1.Name = "btnStrTst1";
             this.btnStrTst1.Size = new System.Drawing.Size(127, 34);
             this.btnStrTst1.TabIndex = 4;
@@ -206,11 +210,11 @@
             // txtBxTst1
             // 
             this.txtBxTst1.Cursor = System.Windows.Forms.Cursors.PanSW;
-            this.txtBxTst1.Location = new System.Drawing.Point(6, 179);
+            this.txtBxTst1.Location = new System.Drawing.Point(6, 139);
             this.txtBxTst1.Multiline = true;
             this.txtBxTst1.Name = "txtBxTst1";
             this.txtBxTst1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtBxTst1.Size = new System.Drawing.Size(338, 157);
+            this.txtBxTst1.Size = new System.Drawing.Size(338, 197);
             this.txtBxTst1.TabIndex = 0;
             // 
             // txtBxSerNum1
@@ -420,6 +424,28 @@
             this.pictureBox3.TabIndex = 2;
             this.pictureBox3.TabStop = false;
             // 
+            // btnAbort1
+            // 
+            this.btnAbort1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAbort1.Location = new System.Drawing.Point(217, 99);
+            this.btnAbort1.Name = "btnAbort1";
+            this.btnAbort1.Size = new System.Drawing.Size(127, 34);
+            this.btnAbort1.TabIndex = 7;
+            this.btnAbort1.Text = "Abort Test";
+            this.btnAbort1.UseVisualStyleBackColor = true;
+            this.btnAbort1.Click += new System.EventHandler(this.btnAbort1_Click);
+            // 
+            // btnAbort2
+            // 
+            this.btnAbort2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAbort2.Location = new System.Drawing.Point(217, 99);
+            this.btnAbort2.Name = "btnAbort2";
+            this.btnAbort2.Size = new System.Drawing.Size(127, 34);
+            this.btnAbort2.TabIndex = 8;
+            this.btnAbort2.Text = "Abort Test";
+            this.btnAbort2.UseVisualStyleBackColor = true;
+            this.btnAbort2.Click += new System.EventHandler(this.btnAbort2_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -485,6 +511,8 @@
         private System.Windows.Forms.TextBox txtBxDbg1;
         private System.Windows.Forms.Button btnCanCmd;
         private System.Windows.Forms.TextBox textBox2;
+        private System.Windows.Forms.Button btnAbort1;
+        private System.Windows.Forms.Button btnAbort2;
     }
 }
 
