@@ -88,7 +88,7 @@ namespace HydroFunctionalTest
         /// Store test data here. Key = Test name, value[] = High limit, Low limit, Result
         /// </summary>
         public List<String> testDataCSV = new List<string>();
-        private const string testDataFilePath = "C:\\Test Data\\";
+        private const string testDataFilePath = "C:\\Crane Functional Test\\Test Data\\";
         /// <summary>
         /// Store test progress here to send back to the main UI to update the user of status
         /// </summary>
@@ -367,6 +367,7 @@ namespace HydroFunctionalTest
             //convert the passFailStatus dictionary to a string before sending to main UI
             List<String> tmpList = new List<string>();
             bool tmpAllTestsPass = true;
+            bool tmpUsrAbrtTst = false;
             foreach (var pair in this.testRoutineInformation)
             {
                 if (pair.Value > 0)
@@ -389,10 +390,15 @@ namespace HydroFunctionalTest
             }
             if (UserAbortCheck())
             {
-                testStatusInfo.Add("***Abort Button Clicked***");
+                tmpUsrAbrtTst = true;
+                testStatusInfo.Add("***Operator Aborted Test***");
             }
             //Register the passing or failing uut in Inovar's database for work center transfer validation
             TestResultToDatabase(tmpAllTestsPass);
+            //Generate the file containing test results in the testDataCSV list
+            OutputTestResultsToFile(tmpAllTestsPass, tmpUsrAbrtTst);
+            //Follow the abort routine: Power down UUT, command all inputs/outputs to high impedence (via software and hardware commands)
+
             if (TestComplete != null)
                 TestComplete(this, tmpList, this.fixPosition, tmpAllTestsPass);
         }
@@ -405,13 +411,11 @@ namespace HydroFunctionalTest
         /// </summary>
         public void RunTests(System.Windows.Forms.Button softwAbortEvent)
         {
-            testStatusInfo.Clear();
             //subscribe to the main UI abort button event
             softwAbortEvent.Click += new System.EventHandler(btnAbort_Click);
             bool allTestsDone = false;
             userAbortClick = false;
-            testStatusInfo.Add("\r\n**********\r\nBegin Testing\r\n" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\r\n\r\n**********");
-            OnInformationAvailable();
+            testStatusInfo.Add("\r\n**********Begin Testing " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "**********\r\n");
             //loop until all tests have been complete or user aborts test.
             while (!allTestsDone && (!UserAbortCheck()))
             {
@@ -430,51 +434,50 @@ namespace HydroFunctionalTest
                             //run the tests (call functions) by invoking them
                             //each test method needs to be listed in the testRoutineInformation List
                             testStatusInfo.Add(key.ToString() + "...");
-                            OnInformationAvailable();
                             Type thisType = this.GetType();
                             MethodInfo theMethod = thisType.GetMethod(key);
+                            //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
+                            //Each function puts test status in the List --> testStatusInfo.Add("test status")
+                            OnInformationAvailable();
+                            testStatusInfo.Clear();
                             theMethod.Invoke(this, new object[0]);
                             if (testRoutineInformation[key] == -1)
-                                testStatusInfo.Add("Resource busy, test skipped");
+                                testStatusInfo.Add("Resource busy, jump to next test...\r\n");
                         }
-                        //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
-                        //Each function puts test status in the List --> testStatusInfo.Add("test status")
-                        OnInformationAvailable();
-                    }
-                    if(!allTestsDone)
-                    {
-                        testStatusInfo.Add("Running skipped tests...");
-                        OnInformationAvailable();
-                    }                        
+                    }                      
                 }
             }
             //unsubscribe from the main UI abort button event
-            softwAbortEvent.Click -= new System.EventHandler(btnAbort_Click);
+            softwAbortEvent.Click -= new System.EventHandler(btnAbort_Click);            
+            testStatusInfo.Add("*****************Testing Ended*****************\r\n");
             //Fire the OnTestComplete event to update the main UI and end the test
-            testStatusInfo.Add("***PCBA Testing Ended***");
             OnInformationAvailable();
-            OutputTestResultsToFile();
+            testStatusInfo.Clear();
             OnTestComplete();
         }
 
         private bool UserAbortCheck()
         {
-            testStatusInfo.Clear();
             bool rtnResult = false;
-            testStatusInfo.Clear();
+            //check to see limit switch is activated
+            UInt32 limitSw = gpioObj.GpioRead(1, 1);
+            //check to see if abort button has been enabled
+            double dmmMeas = 28;
+
             if (userAbortClick)
             {                
                 rtnResult = true;
+            }            
+            else if (limitSw == 1)
+            {
+                testStatusInfo.Add("Lid Down Not Detected\r\n Test Aborted");
+                rtnResult = true;
             }
-            //check to see if user has aborted test
-            //if aborted:
-            //  Save test results up to the point at which the test was aborted
-            //  Mark the UUT test as aborted on the ATR
-            //  Follow the abort routine: Power down UUT, command all inputs/outputs to high impedence (via software and hardware commands)
-
-            //Fire the OnInformationAvailable event to update the main UI with test status
-            //Each function puts test status in the List --> testStatusInfo.Add("test status")
-            OnInformationAvailable();
+            else if (dmmMeas < 26 )//if DMM measures +28V not present, abort test
+            {
+                testStatusInfo.Add("+28V main power not detected\r\n Test Aborted");
+                rtnResult = true;
+            }
             return rtnResult;
         }
 
@@ -482,50 +485,64 @@ namespace HydroFunctionalTest
         /// Outputs any information held in the testDataCSV List.  This list contains any information needed for outputting to a file in the required customer format
         /// </summary>
         /// <returns></returns>
-        private bool OutputTestResultsToFile()
+        private void OutputTestResultsToFile(bool tmpAllTestsPass, bool tmpUsrAbrtTst)
         {
-            testStatusInfo.Clear();
-            testDataCSV.Clear();
-            bool rtnResult = false;
             String dateTime =  (System.DateTime.Now.ToString().Replace("/","_")).Replace(":",".");
-            String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + " SN_" + uutSerialNum.ToString() + " " + dateTime + ".txt";
-            testStatusInfo.Add("Sending test data to txt file\r\n" + testDataFilePath + fileName);
-            OnInformationAvailable();
+            String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) + 
+                "\\" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + 
+                "~SN_" + uutSerialNum.ToString() + "~" + dateTime + "~" + tmpAllTestsPass.ToString() + ".txt";
 
             //add information about the UUT at the top of the file
-            String fileString = "PCBA Part Number: " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\r\nPCBA Serial Number: " + uutSerialNum.ToString()
+            String fileString = "";
+            if (tmpUsrAbrtTst)
+                fileString = "--->\tOperator Aborted Test\t<---\r\n\r\n";
+            fileString = fileString + "PCBA Part Number: " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\r\nPCBA Serial Number: " + uutSerialNum.ToString()
                 + "\r\nDate of Test: " + dateTime + "\r\nWork Order: " + uutSerialNum.Remove(5) + Environment.NewLine;
             //add informatoin about the overall test results
-            List<String> tmpList = new List<string>();
+            fileString = fileString + "\r\n****\tTest Results Overview\t****\r\n";
             foreach (var pair in this.testRoutineInformation)
             {
+                fileString = fileString + "\t";
                 if (pair.Value > 0)
-                    testDataCSV.Add(pair.Key + "--> Pass");
+                    fileString = fileString + pair.Key + "--> Pass\r\n";
+                    //testDataCSV.Add(pair.Key + "--> Pass");
                 else
                 {
                     if (pair.Value == 0)
-                        testDataCSV.Add(pair.Key + "--> Fail");
+                        fileString = fileString + pair.Key + "--> Fail\r\n";
+                        //testDataCSV.Add(pair.Key + "--> Fail");
                     else
-                        testDataCSV.Add(pair.Key + "--> Incomplete");
+                        fileString = fileString + pair.Key + "--> Incomplete\r\n";
+                        //testDataCSV.Add(pair.Key + "--> Incomplete");
                 }
-                testDataCSV.Add(Environment.NewLine);
-            }
+            }            
             //add a header for the test data to follow
-            fileString = fileString + "Test Description,High Limit,Low Limit,Measurement,Result";
+            fileString = fileString + "\r\nTest Description,High Limit,Low Limit,Measurement,Result";
             testDataCSV.Add("asdfasdf");
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + fileName))
+
+            try
             {
-                file.WriteLine(fileString);
-                foreach (var s in testDataCSV)
-                {                    
-                    file.WriteLine(s);
+                System.IO.DirectoryInfo tmp = System.IO.Directory.CreateDirectory(testDataFilePath +
+                    this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5));
+
+                testStatusInfo.Add("Sending test data to txt file:\r\n" + testDataFilePath + fileName);
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + fileName))
+                {
+                    file.WriteLine(fileString);
+                    foreach (var s in testDataCSV)
+                    {
+                        file.WriteLine(s);
+                    }
                 }
             }
-
-            //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
-            //Each function puts test status in the List --> testStatusInfo.Add("test status")
-            OnInformationAvailable();
-            return rtnResult;
+            catch (Exception ex)
+            {
+                testStatusInfo.Add("File operation error.\r\n" + ex.Message +  "\r\nFailed to send test data to txt file:\r\n" + testDataFilePath + fileName);
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+            }
         }
 
         /// <summary>
@@ -534,7 +551,6 @@ namespace HydroFunctionalTest
         /// <param name="uutPassedAll"></param>
         private void TestResultToDatabase(bool uutPassedAll)
         {
-            testStatusInfo.Clear();
             WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/testSaveWithWorkCenter?" + "serial=" + uutSerialNum + "&testResult=" + uutPassedAll.ToString() + "&failMode=" + "" + "&workcenter=Functional+Test");
             WebResponse response = request.GetResponse();
             String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
@@ -544,6 +560,7 @@ namespace HydroFunctionalTest
             else
                 testStatusInfo.Add("Response from server does not match expected string.\r\nExpected response: '" +  expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
             OnInformationAvailable();
+            testStatusInfo.Clear();
         }
 
         /// <summary>
@@ -555,46 +572,33 @@ namespace HydroFunctionalTest
         {
             userAbortClick = true;
         }
+
         #endregion Common Methods required for all assemblies
 
         #region Methods unique to this assembly only
         //Write methods here
-        private bool AllOutputsHighImped()
+        private bool EndTestRoutine()
         {
-            testStatusInfo.Clear();
             bool rtnResult = false;
+            //command all outputs to go high impedence
 
-
-            //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
-            //Each function puts test status in the List --> testStatusInfo.Add("test status")
-            OnInformationAvailable();
             return rtnResult;
         }
 
         public void PowerUpRoutine()
         {
-            testStatusInfo.Clear();
-            testRoutineInformation["PowerUpRoutine"] = 1;
+            //testRoutineInformation["PowerUpRoutine"] = 1;
             //ensure outputs are all disconnected
             //set current limit to 1.5 amps
             //set voltage limit to 28 Volts
 
-
-            //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
-            //Each function puts test status in the List --> testStatusInfo.Add("test status")
-            OnInformationAvailable();
         }
 
         public void CurrentLimitCheckRoutine()
         {
-            testStatusInfo.Clear();
             testRoutineInformation["CurrentLimitCheckRoutine"] = 1;
             //check current limit hasn't exceeded
 
-
-            //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
-            //Each function puts test status in the List --> testStatusInfo.Add("test status")
-            OnInformationAvailable();
         }
 
         #endregion Methods unique to this assembly only

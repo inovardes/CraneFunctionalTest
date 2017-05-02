@@ -64,6 +64,9 @@
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.btnAbort1 = new System.Windows.Forms.Button();
             this.btnAbort2 = new System.Windows.Forms.Button();
+            this.mainStsTxtBx = new System.Windows.Forms.TextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.rfshEqBtn = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -363,8 +366,11 @@
             // 
             // tabTools
             // 
+            this.tabTools.Controls.Add(this.rfshEqBtn);
             this.tabTools.Controls.Add(this.btnCanCmd);
+            this.tabTools.Controls.Add(this.label1);
             this.tabTools.Controls.Add(this.textBox2);
+            this.tabTools.Controls.Add(this.mainStsTxtBx);
             this.tabTools.Controls.Add(this.cboBxSlctFx);
             this.tabTools.Controls.Add(this.btnAsgnDevId);
             this.tabTools.Location = new System.Drawing.Point(4, 22);
@@ -446,6 +452,34 @@
             this.btnAbort2.UseVisualStyleBackColor = true;
             this.btnAbort2.Click += new System.EventHandler(this.btnAbort2_Click);
             // 
+            // mainStsTxtBx
+            // 
+            this.mainStsTxtBx.Location = new System.Drawing.Point(13, 277);
+            this.mainStsTxtBx.Multiline = true;
+            this.mainStsTxtBx.Name = "mainStsTxtBx";
+            this.mainStsTxtBx.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.mainStsTxtBx.Size = new System.Drawing.Size(257, 72);
+            this.mainStsTxtBx.TabIndex = 3;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(10, 261);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(111, 13);
+            this.label1.TabIndex = 4;
+            this.label1.Text = "Equipment Status Info";
+            // 
+            // rfshEqBtn
+            // 
+            this.rfshEqBtn.Location = new System.Drawing.Point(276, 277);
+            this.rfshEqBtn.Name = "rfshEqBtn";
+            this.rfshEqBtn.Size = new System.Drawing.Size(87, 72);
+            this.rfshEqBtn.TabIndex = 5;
+            this.rfshEqBtn.Text = "Refresh Test Equip. Connections";
+            this.rfshEqBtn.UseVisualStyleBackColor = true;
+            this.rfshEqBtn.Click += new System.EventHandler(this.rfshEqBtn_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -458,6 +492,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
             this.Text = "Functional Test";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.tabControl1.ResumeLayout(false);
             this.tabTest.ResumeLayout(false);
@@ -513,6 +548,9 @@
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Button btnAbort1;
         private System.Windows.Forms.Button btnAbort2;
+        private System.Windows.Forms.TextBox mainStsTxtBx;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button rfshEqBtn;
     }
 }
 

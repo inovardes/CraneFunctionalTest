@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Reflection;
+using System.IO.Ports;
+using System.Diagnostics;
 
 namespace HydroFunctionalTest
 {
@@ -26,11 +28,11 @@ namespace HydroFunctionalTest
         /// <summary>
         /// 
         /// </summary>
-        //PwrSup pwrSupObj = new PwrSup;
+        PwrSup pwrSupObj;
         /// <summary>
         /// 
         /// </summary>
-        //Dmm dmmObj = new Dmm;
+        Dmm dmmObj;
         /// <summary>
         /// 
         /// </summary>
@@ -53,6 +55,9 @@ namespace HydroFunctionalTest
         /// Constant for visual representation of Fixture 2 (easier to read code)
         /// </summary>
         const int fix2Designator = 2;
+        public bool foundDmm = false;
+        public bool foundEload = true;
+        public bool foundPwrSup = false;
 
 
         /// <summary>
@@ -86,7 +91,17 @@ namespace HydroFunctionalTest
 
         public Form1()
         {            
-            InitializeComponent();
+            InitializeComponent();            
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            //SetupHardware();
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            DisconnectHardw();
         }
 
         /// <summary>
@@ -96,48 +111,78 @@ namespace HydroFunctionalTest
         /// <returns></returns>
         public bool SetupHardware()
         {
+            foundDmm = false;
+            foundPwrSup = false;
+            foundEload = false;
             //Instantiate hardware object array elements
             for (int i = 0; i < 2; i++)
             {
                 gpioObj[i] = new UsbToGpio();
                 pCanObj[i] = new Pcan();
             }
-            return true;
+            dmmObj = new Dmm();
+            pwrSupObj = new PwrSup();
+            
+            String[] tmpPortNames = SerialPort.GetPortNames();
+            foreach (String s in tmpPortNames)
+            {
+                //if the comport is associated with device, stop searching 
+                bool stopSearch = false;
+                if (!stopSearch && !foundDmm)
+                {
+                    if(dmmObj.InitializeDmm(s))
+                    {
+                        foundDmm = true;
+                        stopSearch = true;
+                        dmmObj.CloseComport();
+                        mainStsTxtBx.AppendText("DMM attached to: " + s + Environment.NewLine);
+                    }                    
+                }
+                if (!stopSearch && !foundPwrSup)
+                {
+                    if(pwrSupObj.InitializePwrSup(s))
+                    {
+                        foundPwrSup = true;
+                        stopSearch = true;
+                        pwrSupObj.CloseComport();
+                        mainStsTxtBx.AppendText("Power Supply attached to: " + s + Environment.NewLine);
+                    }                    
+                }
+                if (!stopSearch && !foundEload)
+                {
+
+                }
+            }
+            if (!foundDmm)
+                mainStsTxtBx.AppendText("Problem commun. w/ DMM\r\n");
+            if (!foundPwrSup)
+                mainStsTxtBx.AppendText("Problem commun. w/ Power Supply\r\n");
+            if (!foundEload)
+                mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n");
+
+            return (foundPwrSup & foundEload & foundDmm);
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        public void DisconnectHardw()
         {
-            SetupHardware();
+            if (foundDmm)
+                dmmObj.CloseComport();
+            if (foundPwrSup)
+                pwrSupObj.CloseComport();
+            if (foundEload)
+            {
+
+            }
         }
+
      
         public void PrintDataToTxtBox(int fixPos, List<string> dataToPrint, string optString = "", bool clearTxtBox = false)
         {
-            String tmpStr = "";
             if (dataToPrint == null)
                 dataToPrint = new List<string>();
             dataToPrint.Add(optString);
-            if (fixPos == fix1Designator)
-            {
-                foreach (string s in dataToPrint)
-                {
-                    tmpStr = tmpStr + s;
-                }
-                TxtBxThreadCtrl(fixPos, true, tmpStr, false);
-            }
-            else if (fixPos == fix2Designator)
-            {
-                foreach (string s in dataToPrint)
-                {
-                    tmpStr = tmpStr + s;
-                }
-                TxtBxThreadCtrl(fixPos, true, tmpStr, false);
-            }
-            else
-            {
-                MessageBox.Show("Invalid method parameter" + Environment.NewLine + "No such fixture: " + fixPos.ToString());
-            }
-            //send a newline to the text box
-            TxtBxThreadCtrl(fixPos, true, Environment.NewLine, false);
+
+            TxtBxThreadCtrl(fixPos, true, dataToPrint, false);            
         }
 
         private void btnAsgnCanId_Click(object sender, EventArgs e)
@@ -543,7 +588,7 @@ namespace HydroFunctionalTest
                 BtnThreadCtrl(fix1Designator, true);
                 SerialBxThreadCtrl(fix1Designator, true);
                 EndofTestRoutine(fixPos, allTestsPass);
-                PrintDataToTxtBox(fixPos, null, "\r\n***Test Results***");                
+                PrintDataToTxtBox(fixPos, null, "\r\n*********Test Results*********");                
                 PrintDataToTxtBox(fixPos, passFailtstSts);
             }
             else if (fixPos == fix2Designator)
@@ -714,7 +759,7 @@ namespace HydroFunctionalTest
         /// <param name="appendTxt"></param>
         /// <param name="txt"></param>
         /// <param name="clr"></param>
-        delegate void txtBx_ThreadCtrl(int fixPos, bool appendTxt, String txt, bool clr);
+        delegate void txtBx_ThreadCtrl(int fixPos, bool appendTxt, List<String> txtList, bool clr);
         /// <summary>
         /// Method for controlling and updating Main GUI from threads other than the main form
         /// </summary>
@@ -722,20 +767,26 @@ namespace HydroFunctionalTest
         /// <param name="appendTxt"></param>
         /// <param name="txt"></param>
         /// <param name="clr"></param>
-        public void TxtBxThreadCtrl(int fixPos, bool appendTxt = false, String txt = null, bool clr = true)
+        public void TxtBxThreadCtrl(int fixPos, bool appendTxt = false, List<String> txtList = null, bool clr = true)
         {
             //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
             if (txtBxTst1.InvokeRequired || txtBxTst2.InvokeRequired)
             {
                 txtBx_ThreadCtrl d = new txtBx_ThreadCtrl(TxtBxThreadCtrl);
-                this.Invoke(d, new object[] { fixPos, appendTxt, txt, clr });
+                this.Invoke(d, new object[] { fixPos, appendTxt, txtList, clr });
             }
             else
             {
                 if (fixPos == fix1Designator)
                 {
                     if (appendTxt)
-                        txtBxTst1.AppendText(txt);
+                    {
+                        foreach(String s in txtList)
+                        {
+                            txtBxTst1.AppendText(s);
+                        }
+                        txtBxTst1.AppendText(Environment.NewLine);
+                    }                        
                     if (clr)
                         txtBxTst1.Clear();
                     txtBxTst1.Refresh();
@@ -743,7 +794,13 @@ namespace HydroFunctionalTest
                 else if (fixPos == fix2Designator)
                 {
                     if (appendTxt)
-                        txtBxTst2.AppendText(txt);
+                    {
+                        foreach (String s in txtList)
+                        {
+                            txtBxTst2.AppendText(s);
+                        }
+                        txtBxTst1.AppendText(Environment.NewLine);
+                    }                        
                     if (clr)
                         txtBxTst2.Clear();
                     txtBxTst2.Refresh();
@@ -780,6 +837,13 @@ namespace HydroFunctionalTest
         private void btnAbort2_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void rfshEqBtn_Click(object sender, EventArgs e)
+        {
+            mainStsTxtBx.Clear();
+            DisconnectHardw();
+            SetupHardware();
         }
     }
 
