@@ -17,18 +17,17 @@ namespace HydroFunctionalTest
     {
         #region Hardware Class objects
         /// <summary>
-        /// 2 obj. instances for Read/Write from/to GPIO adapter.
+        /// 2 obj. instances for Read/Write from/to GPIO adapter.  No attempt to scan or connect to the gpio adapters 
+        /// is done until a UUT test begins.  This is because the adapter is inside the bed of nails fixture and we
+        /// have no knowledge of the adapter until a fixture is connected and the operator begins a test.
+        /// When a scan for adapters is called, each instance obj. in the array is sent to the UUT object created at test time, depending on the fixture position
         /// </summary>
         UsbToGpio[] gpioObj = new UsbToGpio[2];
         /// <summary>
-        /// 2 obj. instances for Receive/Transmit from/to PCAN adapter.
-        /// Must call "DeactivateDevice" when the device is no longer needed
+        /// 2 obj. instances for Receive/Transmit from/to PCAN adapter.  Initialization of the 2 adapters is done in the 'SetupHardware' method
+        /// Must call "ScanForDev" to "Activate" a device and must call "DeactivateDevice" when the program closes 'Form1_FormClosing'
         /// </summary>
         Pcan[] pCanObj = new Pcan[2];
-        /// <summary>
-        /// 
-        /// </summary>
-        Dmm dmmObj;
         /// <summary>
         /// 
         /// </summary>
@@ -36,11 +35,11 @@ namespace HydroFunctionalTest
         #endregion Hardware Class objects
 
         /// <summary>
-        /// For indexing through the 2-D arrays that are associated with UUT1
+        /// For indexing through the 2-D arrays that are associated with UUT1, specifically the pCanObj & gpioObj arrays
         /// </summary>
         const int uut1_index = 0;
         /// <summary>
-        /// For indexing through the 2-D arrays that are associated with UUT2
+        /// For indexing through the 2-D arrays that are associated with UUT2, specifically the pCanObj & gpioObj arrays
         /// </summary>
         const int uut2_index = 1;
         /// <summary>
@@ -51,9 +50,18 @@ namespace HydroFunctionalTest
         /// Constant for visual representation of Fixture 2 (easier to read code)
         /// </summary>
         const int fix2Designator = 2;
-        public bool foundDmm = false;
-        public bool foundEload = true;
-        public bool foundPwrSup = false;
+        /// <summary>
+        /// Will be set to true upon successful connection to the DMM serial port.  Initially set to false when the program opens (Form1_Load)
+        /// </summary>
+        public bool foundDmm;
+        /// <summary>
+        /// Will be set to true upon successful connection to the ELoad serial port.  Initially set to false when the program opens (Form1_Load)
+        /// </summary>
+        public bool foundEload;
+        /// <summary>
+        /// Will be set to true upon successful connection to the power supply serial port.  Initially set to false when the program opens (Form1_Load)
+        /// </summary>
+        public bool foundPwrSup;
 
 
         /// <summary>
@@ -80,7 +88,7 @@ namespace HydroFunctionalTest
         /// </summary>
         Dictionary<string, int[]> flipFlopCtrlCmd = new Dictionary<string, int[]>
             {
-                { "FIXTR_ID_EN", new int[] { 0, 4, 2, 5 } },
+                { "FIXTURE_ID_EN", new int[] { 0, 4, 2, 5 } },
             };
         #endregion Flip Flop control commands
 
@@ -92,6 +100,9 @@ namespace HydroFunctionalTest
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            foundDmm = false;
+            foundEload = true;
+            foundPwrSup = false;
             if (!SetupHardware())
             {
                 for (int i = 0; i < 3; i++)
@@ -104,6 +115,9 @@ namespace HydroFunctionalTest
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            //DeactivateDevice PCAN devices
+            pCanObj[uut1_index].DeactivateDevice();
+            pCanObj[uut2_index].DeactivateDevice();
             DisconnectHardw();
         }
 
@@ -117,6 +131,7 @@ namespace HydroFunctionalTest
             eqStsLbl.Text = "Initializing Test Equipment...";
             eqStsLbl.ForeColor = System.Drawing.Color.Black;
             eqStsLbl.Refresh();
+            //disconnect from any hardware before scanning for attached devices/equipment
             DisconnectHardw();
             //Instantiate hardware object array elements
             for (int i = 0; i < 2; i++)
@@ -124,8 +139,8 @@ namespace HydroFunctionalTest
                 gpioObj[i] = new UsbToGpio();
                 pCanObj[i] = new Pcan();
             }
-            dmmObj = new Dmm();
-            
+                        
+            //Scan and identify hardware/equipment that use the COM ports
             String[] tmpPortNames = SerialPort.GetPortNames();
             foreach (String s in tmpPortNames)
             {
@@ -144,7 +159,7 @@ namespace HydroFunctionalTest
                 if (!stopSearch && !foundDmm)
                 {
                     System.Threading.Thread.Sleep(250);
-                    if (dmmObj.InitializeDmm(s))
+                    if (Dmm.InitializeDmm(s))
                     {
                         foundDmm = true;
                         stopSearch = true;
@@ -158,9 +173,9 @@ namespace HydroFunctionalTest
                 }
             }
             if (!foundDmm)
-                mainStsTxtBx.AppendText("Problem commun. w/ DMM\r\n");
+                mainStsTxtBx.AppendText("Problem commun. w/ DMM\r\nVerify RS232 settings.\r\n" + Dmm.dmmSettings + "\r\n");
             if (!foundPwrSup)
-                mainStsTxtBx.AppendText("Problem commun. w/ Power Supply\r\n");
+                mainStsTxtBx.AppendText("Problem commun. w/ Power Supply\r\nVerify RS232 settings.\r\n" + PwrSup.pwrSupSettings + "\r\n");
             if (!foundEload)
                 mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n");
 
@@ -180,7 +195,7 @@ namespace HydroFunctionalTest
         public void DisconnectHardw()
         {
             if (foundDmm)
-                dmmObj.CloseComport();
+                Dmm.CloseComport();
             if (foundPwrSup)
                 PwrSup.CloseComport();
             if (foundEload)
@@ -252,7 +267,8 @@ namespace HydroFunctionalTest
             //check for available gpio device
             if (gpioObj[uut1_index].ScanForDevs(fix1Designator))
             {
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
+                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " +
+                    fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut1_index].GpioRead(1, 1);

@@ -1268,7 +1268,8 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Will scan specifically for the PCAN-USB type devices.
         /// When found it will query the device for its ID and compare it to the device ID in the method parameter.
-        /// Devices that don't match the parameter device ID will need to call the SetDevId() method 
+        /// The device ID must be either fixture '1' or fixture '2'.
+        /// Devices that don't match the parameter device ID will need to call the SetDevId() method and set the ID to either '1' or '2'
         /// </summary>
         /// <returns></returns>
         //scan for devices and save the device ID into the 
@@ -1282,17 +1283,16 @@ namespace HydroFunctionalTest
 
             try
             {
-                // Checks for a Plug&Play Handle and, according with the return value, adds it
-                // to the pcanDeviceIds List.
+                // Checks for a Plug&Play Handle and, depending with the return value, adds it to the pcanDeviceIds List.
                 //
-                //search for maximum of 8 devices.  the loop count is arbitrary, just need to find one that matches the device ID passed to the method
+                //search for maximum of 8 devices.  This loop count is arbitrary, just need to find one that matches the device ID passed to the method
                 for (System.UInt16 i = 0x51; i < 0x58; i++) //0x51 represents the first value given to the PCAN-USB type adapters in the handles definition section(region)
                 {
                     stsResult = Pcan.GetValue(i, TPCANParameter.PCAN_CHANNEL_CONDITION, out iBuffer, sizeof(UInt32));                    
                     if ((stsResult == TPCANStatus.PCAN_ERROR_OK) && ((iBuffer & Pcan.PCAN_CHANNEL_AVAILABLE) == Pcan.PCAN_CHANNEL_AVAILABLE))
                     {
                         DevHandle = i;
-                        // carried over from PCAN example code, may not be needed... --> stsResult = Pcan.GetValue(m_HandlesArray[i], TPCANParameter.PCAN_CHANNEL_FEATURES, out iBuffer, sizeof(UInt32));
+                        // the following code carried over from PCAN example code, may not be needed... --> stsResult = Pcan.GetValue(m_HandlesArray[i], TPCANParameter.PCAN_CHANNEL_FEATURES, out iBuffer, sizeof(UInt32));
                         if (ActivateDevice())
                         {                            
                             stsResult = GetValue(i, TPCANParameter.PCAN_DEVICE_NUMBER, out iBuffer, sizeof(UInt32)); //get the device ID and compare to method parameter
@@ -1300,10 +1300,11 @@ namespace HydroFunctionalTest
                             UInt32 tempDevID = (UInt16)iBuffer;
                             if (tempDevID == devId)
                             {
-                                pcanReturnData.Add("Found PCAN-USB device with the device ID: " + devId.ToString());
-                                return true;
+                                pcanReturnData.Add("Found PCAN-USB device with device ID: " + devId.ToString());
+                                returnValue = true;
                             }
-                            DeactivateDevice();
+                            else
+                                DeactivateDevice();
                         }
                         else
                             pcanReturnData.Add("Failed to Initialize device.  Handle ID: " + DevHandle.ToString());

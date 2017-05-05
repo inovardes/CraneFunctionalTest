@@ -88,7 +88,11 @@ namespace HydroFunctionalTest
         /// Store test data here. Key = Test name, value[] = High limit, Low limit, Result
         /// </summary>
         public List<String> testDataCSV = new List<string>();
-        private const string testDataFilePath = "C:\\Crane Functional Test\\Test Data\\";
+        private const string testPrgmPath = "C:\\Crane Functional Test\\";
+        private const string testDataFilePath = testPrgmPath + "Test Data\\";
+        private const string jtagPrgmrExe = "openocd-x64-0.8.0.exe";
+        private const string jtagPrgmrFilePath = testPrgmPath + "Olimex OpenOCD\\openocd-0.8.0\\bin-x64";
+        private const string autoItExe = "LoadFirmwareViaAutoIt.exe";
         /// <summary>
         /// Store test progress here to send back to the main UI to update the user of status
         /// </summary>
@@ -572,6 +576,56 @@ namespace HydroFunctionalTest
         {
             userAbortClick = true;
         }
+
+
+        #region//ProgramBootloader (written by Ben M.)
+        public bool ProgramBootloader()
+        {
+            string output = "";
+            try
+            {
+                //Create the process
+                var programmer = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        WorkingDirectory = jtagPrgmrFilePath,
+                        FileName = jtagPrgmrFilePath + "\\" + jtagPrgmrExe,
+                        Arguments = "-f olimex-arm-usb-tiny-h.cfg -f stellaris.cfg",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                        //Ben is cool
+                    }
+                };
+                //Start the process
+                programmer.Start();
+                //Read all the output (for some reason the programmer outputs to the StandardError Output)
+                output = programmer.StandardError.ReadToEnd();
+                //Wait for the process to finish
+                programmer.WaitForExit();
+                //Did it pass?
+                if (output.Contains("** Programming Finished **"))
+                {
+                    //WriteTestDataToFile("JTAG programming", "Pass", "N/A", "N/A", "N/A", "N/A");
+                    return true;
+                }
+                else
+                {
+                    //WriteTestDataToFile("JTAG programming", "Fail", "N/A", "N/A", "N/A", "N/A");
+                    //TestFailedRoutine("Failed to program bootloader\r\n" + output);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                //WriteTestDataToFile("JTAG programming", "fail", "N/A", "N/A", "N/A", ex.Message);
+                //TestFailedRoutine("Failed to program bootloader\r\n" + output);
+                return false;
+            }
+        }
+        #endregion
 
         #endregion Common Methods required for all assemblies
 
