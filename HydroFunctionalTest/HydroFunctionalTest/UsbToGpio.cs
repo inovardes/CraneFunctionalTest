@@ -74,11 +74,15 @@ namespace HydroFunctionalTest
                         {
                             DeviceId = s;
                             requestSuccessful = true;
+                            deviceObject.Dispose();
+                            break;
                         }
                         else if ((GpioRead(1, 0) == 1) & (fixtPos == 1))
                         {
                             DeviceId = s;
                             requestSuccessful = true;
+                            deviceObject.Dispose();
+                            break;
                         }
                         else
                             DeviceId = null;

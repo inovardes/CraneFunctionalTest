@@ -28,10 +28,6 @@ namespace HydroFunctionalTest
         /// <summary>
         /// 
         /// </summary>
-        PwrSup pwrSupObj;
-        /// <summary>
-        /// 
-        /// </summary>
         Dmm dmmObj;
         /// <summary>
         /// 
@@ -96,7 +92,14 @@ namespace HydroFunctionalTest
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            //SetupHardware();
+            if (!SetupHardware())
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    if (SetupHardware())
+                        break;
+                }
+            }
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -111,9 +114,10 @@ namespace HydroFunctionalTest
         /// <returns></returns>
         public bool SetupHardware()
         {
-            foundDmm = false;
-            foundPwrSup = false;
-            foundEload = false;
+            eqStsLbl.Text = "Initializing Test Equipment...";
+            eqStsLbl.ForeColor = System.Drawing.Color.Black;
+            eqStsLbl.Refresh();
+            DisconnectHardw();
             //Instantiate hardware object array elements
             for (int i = 0; i < 2; i++)
             {
@@ -121,35 +125,35 @@ namespace HydroFunctionalTest
                 pCanObj[i] = new Pcan();
             }
             dmmObj = new Dmm();
-            pwrSupObj = new PwrSup();
             
             String[] tmpPortNames = SerialPort.GetPortNames();
             foreach (String s in tmpPortNames)
             {
                 //if the comport is associated with device, stop searching 
                 bool stopSearch = false;
-                if (!stopSearch && !foundDmm)
-                {
-                    if(dmmObj.InitializeDmm(s))
-                    {
-                        foundDmm = true;
-                        stopSearch = true;
-                        dmmObj.CloseComport();
-                        mainStsTxtBx.AppendText("DMM attached to: " + s + Environment.NewLine);
-                    }                    
-                }
                 if (!stopSearch && !foundPwrSup)
                 {
-                    if(pwrSupObj.InitializePwrSup(s))
+                    System.Threading.Thread.Sleep(250);
+                    if (PwrSup.InitializePwrSup(s))
                     {
                         foundPwrSup = true;
                         stopSearch = true;
-                        pwrSupObj.CloseComport();
                         mainStsTxtBx.AppendText("Power Supply attached to: " + s + Environment.NewLine);
-                    }                    
+                    }
+                }                
+                if (!stopSearch && !foundDmm)
+                {
+                    System.Threading.Thread.Sleep(250);
+                    if (dmmObj.InitializeDmm(s))
+                    {
+                        foundDmm = true;
+                        stopSearch = true;
+                        mainStsTxtBx.AppendText("DMM attached to: " + s + Environment.NewLine);
+                    }
                 }
                 if (!stopSearch && !foundEload)
                 {
+                    System.Threading.Thread.Sleep(250);
 
                 }
             }
@@ -160,6 +164,16 @@ namespace HydroFunctionalTest
             if (!foundEload)
                 mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n");
 
+            if (foundPwrSup & foundEload & foundDmm)
+            {
+                eqStsLbl.Text = "Equipment Initialization Successful";
+                eqStsLbl.ForeColor = System.Drawing.Color.Green;
+            }                
+            else
+            {
+                eqStsLbl.Text = "Equipment Initialization Failed";
+                eqStsLbl.ForeColor = System.Drawing.Color.Red;
+            }
             return (foundPwrSup & foundEload & foundDmm);
         }
 
@@ -168,11 +182,14 @@ namespace HydroFunctionalTest
             if (foundDmm)
                 dmmObj.CloseComport();
             if (foundPwrSup)
-                pwrSupObj.CloseComport();
+                PwrSup.CloseComport();
             if (foundEload)
             {
 
             }
+            foundDmm = false;
+            foundPwrSup = false;
+            foundEload = true;
         }
 
      
@@ -392,7 +409,7 @@ namespace HydroFunctionalTest
             }
             else
             {                
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Fixture 1 not connected");
+                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nFixture " + fix1Designator.ToString() + " not connected");
             }
         }
 
@@ -569,7 +586,7 @@ namespace HydroFunctionalTest
             }
             else
             {
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Fixture 1 not connected");
+                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nFixture " + fix2Designator.ToString()  + " not connected");
             }
         }
 
@@ -799,7 +816,7 @@ namespace HydroFunctionalTest
                         {
                             txtBxTst2.AppendText(s);
                         }
-                        txtBxTst1.AppendText(Environment.NewLine);
+                        txtBxTst2.AppendText(Environment.NewLine);
                     }                        
                     if (clr)
                         txtBxTst2.Clear();
@@ -843,7 +860,54 @@ namespace HydroFunctionalTest
         {
             mainStsTxtBx.Clear();
             DisconnectHardw();
-            SetupHardware();
+            if (!SetupHardware())
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    DisconnectHardw();
+                    if (SetupHardware())
+                        break;
+                    System.Threading.Thread.Sleep(1000);
+                }
+            }
+        }
+
+        private bool NullCheck(String tmpStr)
+        {
+            if (tmpStr == null)
+                return true;
+            else
+                return false;
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (PwrSup.IsBusy)
+                MessageBox.Show("PWR SUP busy");
+            PwrSup.SetPwrSupVoltLimits(28, 28, 5);
+            foreach (String s in PwrSup.pwrSupReturnData)
+            {
+                txtBxTst1.AppendText(s);
+                txtBxTst1.AppendText(Environment.NewLine);
+            }
+            PwrSup.TurnOutputOnOff(1, true, 1, 5);
+            foreach(String s in PwrSup.pwrSupReturnData)
+            {
+                txtBxTst1.AppendText(s);
+                txtBxTst1.AppendText(Environment.NewLine);
+            }
+            PwrSup.TurnOutputOnOff(1, false, 0, 0);
+            foreach (String s in PwrSup.pwrSupReturnData)
+            {
+                txtBxTst1.AppendText(s);
+                txtBxTst1.AppendText(Environment.NewLine);
+            }
+
+
+            //dmm
+            //String tmpStr = dmmObj.Measure("meas:volt:dc?");
+            //double tmp = double.Parse(dmmObj.Measure("meas:res?"));//*IDN?
+            //MessageBox.Show(s);
         }
     }
 

@@ -67,6 +67,8 @@
             this.mainStsTxtBx = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.rfshEqBtn = new System.Windows.Forms.Button();
+            this.eqStsLbl = new System.Windows.Forms.Label();
+            this.button1 = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -138,7 +140,7 @@
             // 
             // btnStrTst2
             // 
-            this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnStrTst2.Location = new System.Drawing.Point(6, 99);
             this.btnStrTst2.Name = "btnStrTst2";
             this.btnStrTst2.Size = new System.Drawing.Size(127, 34);
@@ -201,7 +203,7 @@
             // 
             // btnStrTst1
             // 
-            this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnStrTst1.Location = new System.Drawing.Point(6, 99);
             this.btnStrTst1.Name = "btnStrTst1";
             this.btnStrTst1.Size = new System.Drawing.Size(127, 34);
@@ -266,7 +268,7 @@
             // 
             // btnDbgTst2
             // 
-            this.btnDbgTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnDbgTst2.Location = new System.Drawing.Point(6, 46);
             this.btnDbgTst2.Name = "btnDbgTst2";
             this.btnDbgTst2.Size = new System.Drawing.Size(121, 31);
@@ -294,7 +296,7 @@
             // 
             // btnDbgCmd2
             // 
-            this.btnDbgCmd2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgCmd2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnDbgCmd2.Location = new System.Drawing.Point(6, 128);
             this.btnDbgCmd2.Name = "btnDbgCmd2";
             this.btnDbgCmd2.Size = new System.Drawing.Size(121, 60);
@@ -328,7 +330,7 @@
             // 
             // btnDbgTst1
             // 
-            this.btnDbgTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnDbgTst1.Location = new System.Drawing.Point(6, 46);
             this.btnDbgTst1.Name = "btnDbgTst1";
             this.btnDbgTst1.Size = new System.Drawing.Size(121, 31);
@@ -356,7 +358,7 @@
             // 
             // btnDbgCmd1
             // 
-            this.btnDbgCmd1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnDbgCmd1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnDbgCmd1.Location = new System.Drawing.Point(6, 128);
             this.btnDbgCmd1.Name = "btnDbgCmd1";
             this.btnDbgCmd1.Size = new System.Drawing.Size(121, 60);
@@ -382,10 +384,10 @@
             // 
             // btnCanCmd
             // 
-            this.btnCanCmd.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnCanCmd.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnCanCmd.Location = new System.Drawing.Point(266, 42);
             this.btnCanCmd.Name = "btnCanCmd";
-            this.btnCanCmd.Size = new System.Drawing.Size(219, 33);
+            this.btnCanCmd.Size = new System.Drawing.Size(219, 30);
             this.btnCanCmd.TabIndex = 5;
             this.btnCanCmd.Text = "Send Can Command";
             this.btnCanCmd.UseVisualStyleBackColor = true;
@@ -412,10 +414,10 @@
             // 
             // btnAsgnDevId
             // 
-            this.btnAsgnDevId.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAsgnDevId.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnAsgnDevId.Location = new System.Drawing.Point(13, 42);
             this.btnAsgnDevId.Name = "btnAsgnDevId";
-            this.btnAsgnDevId.Size = new System.Drawing.Size(209, 99);
+            this.btnAsgnDevId.Size = new System.Drawing.Size(209, 69);
             this.btnAsgnDevId.TabIndex = 2;
             this.btnAsgnDevId.Text = "Associate PCAN-USB Adapter Device ID to Fixture";
             this.btnAsgnDevId.UseVisualStyleBackColor = true;
@@ -432,7 +434,7 @@
             // 
             // btnAbort1
             // 
-            this.btnAbort1.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAbort1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnAbort1.Location = new System.Drawing.Point(217, 99);
             this.btnAbort1.Name = "btnAbort1";
             this.btnAbort1.Size = new System.Drawing.Size(127, 34);
@@ -443,7 +445,7 @@
             // 
             // btnAbort2
             // 
-            this.btnAbort2.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAbort2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnAbort2.Location = new System.Drawing.Point(217, 99);
             this.btnAbort2.Name = "btnAbort2";
             this.btnAbort2.Size = new System.Drawing.Size(127, 34);
@@ -464,21 +466,43 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(10, 261);
+            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(9, 254);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(111, 13);
+            this.label1.Size = new System.Drawing.Size(169, 20);
             this.label1.TabIndex = 4;
             this.label1.Text = "Equipment Status Info";
             // 
             // rfshEqBtn
             // 
+            this.rfshEqBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.rfshEqBtn.Location = new System.Drawing.Point(276, 277);
             this.rfshEqBtn.Name = "rfshEqBtn";
-            this.rfshEqBtn.Size = new System.Drawing.Size(87, 72);
+            this.rfshEqBtn.Size = new System.Drawing.Size(111, 72);
             this.rfshEqBtn.TabIndex = 5;
             this.rfshEqBtn.Text = "Refresh Test Equip. Connections";
             this.rfshEqBtn.UseVisualStyleBackColor = true;
             this.rfshEqBtn.Click += new System.EventHandler(this.rfshEqBtn_Click);
+            // 
+            // eqStsLbl
+            // 
+            this.eqStsLbl.AutoSize = true;
+            this.eqStsLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.eqStsLbl.Location = new System.Drawing.Point(18, 393);
+            this.eqStsLbl.Name = "eqStsLbl";
+            this.eqStsLbl.Size = new System.Drawing.Size(206, 20);
+            this.eqStsLbl.TabIndex = 3;
+            this.eqStsLbl.Text = "Initializing Test Equipment...";
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(238, 418);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.TabIndex = 4;
+            this.button1.Text = "button1";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // Form1
             // 
@@ -486,6 +510,8 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(793, 485);
+            this.Controls.Add(this.button1);
+            this.Controls.Add(this.eqStsLbl);
             this.Controls.Add(this.pictureBox3);
             this.Controls.Add(this.tabControl1);
             this.DoubleBuffered = true;
@@ -509,6 +535,7 @@
             this.tabTools.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).EndInit();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -551,6 +578,8 @@
         private System.Windows.Forms.TextBox mainStsTxtBx;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button rfshEqBtn;
+        private System.Windows.Forms.Label eqStsLbl;
+        private System.Windows.Forms.Button button1;
     }
 }
 

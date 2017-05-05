@@ -468,14 +468,14 @@ namespace HydroFunctionalTest
             {                
                 rtnResult = true;
             }            
-            else if (limitSw == 1)
+            else if (limitSw == 0)
             {
-                testStatusInfo.Add("Lid Down Not Detected\r\n Test Aborted");
+                testStatusInfo.Add("Lid Down Not Detected\r\nTest Aborted\r\n");
                 rtnResult = true;
             }
             else if (dmmMeas < 26 )//if DMM measures +28V not present, abort test
             {
-                testStatusInfo.Add("+28V main power not detected\r\n Test Aborted");
+                testStatusInfo.Add("+28V main power not detected\r\nTest Aborted\r\n");
                 rtnResult = true;
             }
             return rtnResult;
