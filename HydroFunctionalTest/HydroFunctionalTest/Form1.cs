@@ -62,6 +62,8 @@ namespace HydroFunctionalTest
         /// Will be set to true upon successful connection to the power supply serial port.  Initially set to false when the program opens (Form1_Load)
         /// </summary>
         public bool foundPwrSup;
+        public bool foundPcanDev1 = false;
+        public bool foundPcanDev2 = false;
 
 
         /// <summary>
@@ -103,21 +105,14 @@ namespace HydroFunctionalTest
             foundDmm = false;
             foundEload = true;
             foundPwrSup = false;
-            if (!SetupHardware())
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    if (SetupHardware())
-                        break;
-                }
-            }
+            foundPcanDev1 = false;
+            foundPcanDev2 = false;
+
+            SetupHardware();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //DeactivateDevice PCAN devices
-            pCanObj[uut1_index].DeactivateDevice();
-            pCanObj[uut2_index].DeactivateDevice();
             DisconnectHardw();
         }
 
@@ -139,7 +134,46 @@ namespace HydroFunctionalTest
                 gpioObj[i] = new UsbToGpio();
                 pCanObj[i] = new Pcan();
             }
-                        
+
+            //Scan for PCAN Devices (if found, the device has been activated)
+            if (pCanObj[uut1_index].ScanForDev(fix1Designator))
+            {
+                foundPcanDev1 = true;
+                foreach (String s in pCanObj[uut1_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->PCAN-USB Active for Fixture #1");
+            }
+            else
+            {
+                foreach (String s in pCanObj[uut1_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->Use the PCAN-USB Adapter Fixture Association Tool to resolve connection error with fixture #1.");
+            }
+            mainStsTxtBx.AppendText(Environment.NewLine);
+
+            if (pCanObj[uut2_index].ScanForDev(fix2Designator))
+            {
+                foundPcanDev2 = true;
+                foreach (String s in pCanObj[uut2_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->PCAN-USB Active for Fixture #2");
+            }
+            else
+            {
+                foreach (String s in pCanObj[uut2_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->Use the PCAN-USB Adapter Fixture Association Tool to resolve connection error with fixture #2.");
+            }
+            mainStsTxtBx.AppendText(Environment.NewLine);
+
             //Scan and identify hardware/equipment that use the COM ports
             String[] tmpPortNames = SerialPort.GetPortNames();
             foreach (String s in tmpPortNames)
@@ -179,21 +213,25 @@ namespace HydroFunctionalTest
             if (!foundEload)
                 mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n");
 
-            if (foundPwrSup & foundEload & foundDmm)
+            if (foundPwrSup & foundEload & foundDmm & foundPcanDev1 & foundPcanDev2)
             {
                 eqStsLbl.Text = "Equipment Initialization Successful";
                 eqStsLbl.ForeColor = System.Drawing.Color.Green;
             }                
             else
             {
-                eqStsLbl.Text = "Equipment Initialization Failed";
+                eqStsLbl.Text = "Equipment Initialization Not Complete (see equip. status info in tools tab)\r\nOne or both fixtures may not operate without resolving.";
                 eqStsLbl.ForeColor = System.Drawing.Color.Red;
             }
-            return (foundPwrSup & foundEload & foundDmm);
+            return (foundPwrSup & foundEload & foundDmm & foundPcanDev1 & foundPcanDev2);
         }
 
         public void DisconnectHardw()
         {
+            if (foundPcanDev1)
+                pCanObj[uut1_index].DeactivateDevice();
+            if (foundPcanDev2)
+                pCanObj[uut2_index].DeactivateDevice();
             if (foundDmm)
                 Dmm.CloseComport();
             if (foundPwrSup)
@@ -205,6 +243,8 @@ namespace HydroFunctionalTest
             foundDmm = false;
             foundPwrSup = false;
             foundEload = true;
+            foundPcanDev1 = false;
+            foundPcanDev2 = false;
         }
 
      
@@ -264,8 +304,10 @@ namespace HydroFunctionalTest
             TxtBxThreadCtrl(fix1Designator);//clear the text box of old data
             //reset background color, any integer other than 0 or 1 will work
             GrpBxThreadCtrl(fix1Designator, -1);//make background neutral to start test
-            //check for available gpio device
-            if (gpioObj[uut1_index].ScanForDevs(fix1Designator))
+
+            //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
+            bool foundGpio = gpioObj[uut1_index].ScanForDevs(fix1Designator);
+            if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev1)
             {
                 PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " +
                     fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
@@ -407,7 +449,7 @@ namespace HydroFunctionalTest
                             {
                                 MessageBox.Show("Error in program.  Unable to match a fixture string to the dictionary values.");
                             }
-                        }                      
+                        }
                     }
                     if (!tmpFoundFixture)
                     {
@@ -421,11 +463,18 @@ namespace HydroFunctionalTest
                     }
                 }
                 else
-                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");                
+                {
+                    if (!foundGpio)
+                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
+                    else
+                        PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
+                }
             }
             else
-            {                
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nFixture " + fix1Designator.ToString() + " not connected");
+            {
+                //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
+                //if ((gpioObj[uut1_index].ScanForDevs(fix1Designator)) & (foundDmm & foundPwrSup & foundEload & foundPcanDev1))
+                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nFixture " + fix1Designator.ToString() + " not connected");
             }
         }
 
@@ -435,8 +484,10 @@ namespace HydroFunctionalTest
             TxtBxThreadCtrl(fix2Designator);//clear the text box of old data
             //reset background color, any integer other than 0 or 1 will work
             GrpBxThreadCtrl(fix2Designator, -1);//make background neutral to start test
-            //check for available gpio device
-            if (gpioObj[uut2_index].ScanForDevs(fix2Designator))
+
+            //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
+            bool foundGpio = gpioObj[uut2_index].ScanForDevs(fix2Designator);
+            if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev2)
             {
                 PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, " (Fixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId() + ")");
 
@@ -459,7 +510,7 @@ namespace HydroFunctionalTest
                             tmpFoundFixture = true;
                             //lock down the GUI so no other input can be received other than to cancel the task
                             BtnThreadCtrl(fix2Designator, false);
-                            SerialBxThreadCtrl(fix2Designator, false);                            
+                            SerialBxThreadCtrl(fix2Designator, false);
                             if (fxtIDs.ContainsKey("PSM_85307"))
                             {
                                 PSM_85307 uutObj = new PSM_85307(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
@@ -598,11 +649,16 @@ namespace HydroFunctionalTest
                     }
                 }
                 else
-                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Lid Down Not Detected");
+                {
+                    if (!foundGpio)
+                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
+                    else
+                        PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
+                }
             }
             else
             {
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nFixture " + fix2Designator.ToString()  + " not connected");
+                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nFixture " + fix2Designator.ToString() + " not connected");
             }
         }
 
@@ -649,8 +705,6 @@ namespace HydroFunctionalTest
         /// <param name="fixPos"></param>
         private void OnInformationAvailable(object source, List<String> testStatusInfo, int fixPos)
         {
-            //Unsubscribe from events
-            //
             if ((fixPos == fix1Designator) || (fixPos == fix2Designator))
             {
                 PrintDataToTxtBox(fixPos, testStatusInfo);
@@ -872,20 +926,11 @@ namespace HydroFunctionalTest
 
         }
 
-        private void rfshEqBtn_Click(object sender, EventArgs e)
+        private void rfshEquipBtn_Click(object sender, EventArgs e)
         {
             mainStsTxtBx.Clear();
             DisconnectHardw();
-            if (!SetupHardware())
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    DisconnectHardw();
-                    if (SetupHardware())
-                        break;
-                    System.Threading.Thread.Sleep(1000);
-                }
-            }
+            SetupHardware();
         }
 
         private bool NullCheck(String tmpStr)
@@ -896,35 +941,6 @@ namespace HydroFunctionalTest
                 return false;
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (PwrSup.IsBusy)
-                MessageBox.Show("PWR SUP busy");
-            PwrSup.SetPwrSupVoltLimits(28, 28, 5);
-            foreach (String s in PwrSup.pwrSupReturnData)
-            {
-                txtBxTst1.AppendText(s);
-                txtBxTst1.AppendText(Environment.NewLine);
-            }
-            PwrSup.TurnOutputOnOff(1, true, 1, 5);
-            foreach(String s in PwrSup.pwrSupReturnData)
-            {
-                txtBxTst1.AppendText(s);
-                txtBxTst1.AppendText(Environment.NewLine);
-            }
-            PwrSup.TurnOutputOnOff(1, false, 0, 0);
-            foreach (String s in PwrSup.pwrSupReturnData)
-            {
-                txtBxTst1.AppendText(s);
-                txtBxTst1.AppendText(Environment.NewLine);
-            }
-
-
-            //dmm
-            //String tmpStr = dmmObj.Measure("meas:volt:dc?");
-            //double tmp = double.Parse(dmmObj.Measure("meas:res?"));//*IDN?
-            //MessageBox.Show(s);
-        }
     }
 
 }

@@ -109,15 +109,15 @@ namespace HydroFunctionalTest
 
         #region GpioWrite Method
         /// <summary>
-        /// set/clear pins, parameters must include the desired device (gpioDeviceIds) as well as port/pin numbers to be set/cleared.
-        ///Pin to set is optional if opting to set all pins on the entire port.
+        ///  Commands GPIO to set/clear pins.  Parameters must include the pin status (either an 8 bit value or just 1 bit), and then the port number and optional pin number to be set/cleared.
+        ///  Pin to set is optional if opting to set the entire port with an 8 bit value.  pinNum by default = 8 to allow for ommitting pin number when setting entire port (no such pin number = 8)
         /// </summary>
         /// <param name="devName"></param>
         /// <param name="portNum"></param>
-        /// <param name="setClearBits"></param>
+        /// <param name="byteValue"></param>
         /// <param name="pinNum"></param>
         /// <returns></returns>
-        public bool GpioWrite(UInt32 portNum, UInt32 setClearBits, UInt32 pinNum = 8)
+        public bool GpioWrite(UInt32 portNum, UInt32 byteValue)
         {
             bool requestSuccessful = false;
             gpioReturnData.Clear();
@@ -128,20 +128,16 @@ namespace HydroFunctionalTest
                 using (NationalInstruments.DAQmx.Task digitalWriteTask = new NationalInstruments.DAQmx.Task())
                 {
                     //Determine whether an entire port will be set or just a single pin                    
-                    string gpioLines;
-                    if (pinNum > 7)
-                        gpioLines = DeviceId + "/port" + portNum.ToString();
-                    else
-                        gpioLines = DeviceId + "/port" + portNum.ToString() + "/line" + pinNum.ToString();
+                    string gpioLines = DeviceId + "/port" + portNum.ToString();
                     //  Create an Digital Output channel and name it.
                     digitalWriteTask.DOChannels.CreateChannel(gpioLines, "", ChannelLineGrouping.OneChannelForAllLines);
 
                     //  Write digital port data. WriteDigitalSingChanSingSampPort writes a single sample
                     //  of digital data on demand, so no timeout is necessary.
                     DigitalSingleChannelWriter writer = new DigitalSingleChannelWriter(digitalWriteTask.Stream);
-                    writer.WriteSingleSamplePort(true, setClearBits);
+                    writer.WriteSingleSamplePort(true, (UInt32)byteValue);
                     gpioReturnData.Add("GPIO Write Action Details:" + Environment.NewLine + "Device = " + DeviceId.ToString() + ", Port #" +
-                        portNum.ToString() + ", Pin(opt) #" + pinNum.ToString() + ", Set/Clear Value: " + setClearBits.ToString());
+                        portNum.ToString() + ", Set/Clear Value: " + byteValue.ToString());
                 }
 
             }

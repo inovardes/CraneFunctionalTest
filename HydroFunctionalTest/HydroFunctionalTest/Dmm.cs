@@ -122,7 +122,8 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Method uses 'lock' to prevent simultaneous access from multiple threads.  Check 'IsBusy' to avoid having to wait for the device to become available.
         ///   The parameter must be a valid SCPI command per the DMM programming syntax.
-        ///   The DMM returns the command string and this is used for error checking
+        ///   The DMM returns the command string and this is used for error checking within this method.  If this method returns 'null', then the DMM failed to
+        ///   return any useful data.
         /// </summary>
         /// <param name="cmd"></param>
         /// <returns></returns>
@@ -160,7 +161,7 @@ namespace HydroFunctionalTest
                 //check to see if the rtnData value is a number before sending it back
                 double i = 0;
                 if (double.TryParse(rtnData, out i))
-                    dmmReturnData.Add("Dmm returned a number value: " + rtnData);
+                    dmmReturnData.Add("Dmm returned a numeric value: " + rtnData);
                 else
                 {
                     dmmReturnData.Add("DMM didn't return a numeric value: " + rtnData);

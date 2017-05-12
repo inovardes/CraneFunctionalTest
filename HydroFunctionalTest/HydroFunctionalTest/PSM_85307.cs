@@ -16,7 +16,6 @@ namespace HydroFunctionalTest
         //  Power supply class - must turn on/off correct port to fixture depending on the fixture position
         //  ELoad class - must connect equipment (enable relays) to fixture depending on the fixture position
         //  DMM class - must connect equipment (enable relays) to fixture depending on the fixture position
-        //  Programmer control and routine
         //  Abort check - check toggle clamp (limit switch, if DGIO 1.1 goes high - abort test) or use DMM to measure power is still connected 
         //  File output - setup the CSV dictionary to be common among all assemblies but the dictionary contents are specific to the assembly.  This makes output universal
         //  LED indicator
@@ -50,9 +49,30 @@ namespace HydroFunctionalTest
             /// </summary>
             public Dictionary<string, string[]> canSetVoltCmd;         
         }
+
+        //GPIO port and pin names for code readability
+        private struct gpioConst
+        {
+            public const UInt32 port2InitStateByte = 63; //set P2.7 & P2.6 low, everything else goes high
+            public const UInt32 port0 = 0;
+            public const UInt32 port1 = 1;
+            public const UInt32 port2 = 2;
+            public const UInt32 bit0 = 1;
+            public const UInt32 bit1 = 2;
+            public const UInt32 bit2 = 4;
+            public const UInt32 bit3 = 8;
+            public const UInt32 bit4 = 16;
+            public const UInt32 bit5 = 32;
+            public const UInt32 bit6 = 64;
+            public const UInt32 bit7 = 128;
+            public const bool set = true;
+            public const bool clear = false;
+        }
+
         #endregion Structures unique to this assembly
 
         #region Common Data Types required for all assemblies
+
         //Hardware & other Class objects instantiated in main UI that need to be passed to this class
         /// <summary>
         /// Provides control to the GPIO adapter in the fixture.  Initializes when the main UI passes the object to this class contructor
@@ -68,10 +88,16 @@ namespace HydroFunctionalTest
         /// </summary>
         private Dictionary<String, int> testRoutineInformation;
         /// <summary>
-        /// Provides the main UI with control to abort test.
+        /// Provides the main UI with control to abort test via the cancel button
         /// Value is changed in the event handler function btnAbort1_Click
+        /// Its value can also be changed by any method that needs to indicate to the
+        /// 'RunTests' method that the test should be aborted
         /// </summary>
-        private bool userAbortClick = false;
+        private bool softwAbort = false;
+        /// <summary>
+        /// Provides information when one of two hardware abort indicators are activated: 1) Limit switch released, 2) Fixture button is depressed
+        /// </summary>
+        private bool hardwAbort = false;
         /// <summary>
         /// Stores the fixture position.  This must be done in the constructor when the object is created in the main UI
         /// </summary>
@@ -90,16 +116,13 @@ namespace HydroFunctionalTest
         public List<String> testDataCSV = new List<string>();
         private const string testPrgmPath = "C:\\Crane Functional Test\\";
         private const string testDataFilePath = testPrgmPath + "Test Data\\";
-        private const string jtagPrgmrExe = "openocd-x64-0.8.0.exe";
-        private const string jtagPrgmrFilePath = testPrgmPath + "Olimex OpenOCD\\openocd-0.8.0\\bin-x64";
-        private const string autoItExe = "LoadFirmwareViaAutoIt.exe";
         /// <summary>
         /// Store test progress here to send back to the main UI to update the user of status
         /// </summary>
         public List<String> testStatusInfo = new List<String>();
         #endregion Common Data Types required for all assemblies
 
-        #region Data types uniqe to this assembly only
+        #region Data types uniqe to this assembly only   
         /// <summary>
         /// CAN commands to enable outputs.  Key = output name, Value[] = CAN frame1, CAN frame2
         /// </summary>
@@ -112,6 +135,22 @@ namespace HydroFunctionalTest
         /// Byte to send to GPIO adapter that controls the mux.  Key = output name, value = byte value representing pins to set/clear
         /// </summary>
         public Dictionary<string, int> muxCtrlByte;
+        /// <summary>
+        /// static variable that holds U2 flip flop desired output.  This value is a 8 bit value and must be set for the desired output for Port 0
+        /// </summary>
+        public UInt32 u2FlipFlopInputByte;
+        /// <summary>
+        /// static variable that holds U3 flip flop desired output.  This value is a 8 bit value and must be set for the desired output for Port 0
+        /// </summary>
+        public UInt32 u3FlipFlopInputByte;
+        /// <summary>
+        /// static variable that holds U4 flip flop desired output.  This value is a 8 bit value and must be set for the desired output for Port 0
+        /// </summary>
+        public UInt32 u4FlipFlopInputByte;
+        /// <summary>
+        /// static variable that holds the GPIO port2 desired output.  Port 2 is the control logic for all flip flops, Mux and connection to common test equipment (Eload & DMM)
+        /// </summary>
+        public UInt32 port2CtrlByte;
         /// <summary>
         /// UUT digital output High limit.
         /// </summary>
@@ -146,8 +185,11 @@ namespace HydroFunctionalTest
 
             auxOutOff_H = .01;    //Current(amp) & Voltage(volt) High limit
             auxOutOff_L = -.01;   //Current(amp) & Voltage(volt) Low limit 
-            uutDigOut_H = 3;
-            uutDigOut_L = 2;
+            uutDigOut_H = 3;      //Voltage Out High limit for UUT digital outputs
+            uutDigOut_L = 2;      //Voltage Out Low limit for UUT digital outputs
+
+            //deactivate all relays/controls, i.e., assert GPIO lines to put relays/controls in passive or non-active state
+            GpioInitState();
 
             //initialize structs containing information specific to 28v, 12v & 5v adjustable output voltage tests
             OutputTestParams auxOut28vTst = new OutputTestParams();
@@ -318,9 +360,11 @@ namespace HydroFunctionalTest
                 //{ "USB Communication Check", -1 },
                 //{ "CAN Communication Check", -1 },
                 //{ "All Tests", -1 },
-                { "PowerUpRoutine", -1 },
-                { "CurrentLimitCheckRoutine", -1 },
-                
+                { "PowerUp", -1 },
+                { "CurrentLimitCheck", -1 },
+                { "FlashBootloader", -1 },
+                { "LoadFirmware", -1 },
+
             };
             #endregion Initialize Dictionary containing all test pass fail status
 
@@ -370,39 +414,43 @@ namespace HydroFunctionalTest
         {
             //convert the passFailStatus dictionary to a string before sending to main UI
             List<String> tmpList = new List<string>();
-            bool tmpAllTestsPass = true;
-            bool tmpUsrAbrtTst = false;
+            bool tmpAllTestsPass = false;
+            int howManyFailures = testRoutineInformation.Count();
             foreach (var pair in this.testRoutineInformation)
             {
                 if (pair.Value > 0)
+                {
                     tmpList.Add(pair.Key + "--> Pass");
+                    howManyFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                }
                 else
                 {
                     if (pair.Value == 0)
                         tmpList.Add(pair.Key + "--> Fail");
                     else
                         tmpList.Add(pair.Key + "--> Incomplete");
-
-                    if (pair.Value == -2)
-                    {
-                        //-2 represents a test method that does not need to be evaluated
-                    }
-                    else
-                        tmpAllTestsPass = false;//mark board as a failure if not a test method
                 }
                 tmpList.Add(Environment.NewLine);
             }
-            if (UserAbortCheck())
-            {
-                tmpUsrAbrtTst = true;
+            if (howManyFailures <= 0)
+                tmpAllTestsPass = true;
+
+            //update the main UI if any abort event occured
+            if(softwAbort)
+                testStatusInfo.Add("***Software Aborted Test***");
+            else if (hardwAbort)
                 testStatusInfo.Add("***Operator Aborted Test***");
-            }
+
+            //turn on the LED to indicate pass or fail
+            SetClearLEDs(false, tmpAllTestsPass);
+
             //Register the passing or failing uut in Inovar's database for work center transfer validation
             TestResultToDatabase(tmpAllTestsPass);
             //Generate the file containing test results in the testDataCSV list
-            OutputTestResultsToFile(tmpAllTestsPass, tmpUsrAbrtTst);
+            OutputTestResultsToFile(tmpAllTestsPass);
             //Follow the abort routine: Power down UUT, command all inputs/outputs to high impedence (via software and hardware commands)
 
+            //event handler checks for any subscribers
             if (TestComplete != null)
                 TestComplete(this, tmpList, this.fixPosition, tmpAllTestsPass);
         }
@@ -417,36 +465,44 @@ namespace HydroFunctionalTest
         {
             //subscribe to the main UI abort button event
             softwAbortEvent.Click += new System.EventHandler(btnAbort_Click);
+            SetClearLEDs();//turn the pass/fail indictator LEDs off
             bool allTestsDone = false;
-            userAbortClick = false;
+            softwAbort = false;
+            hardwAbort = false;
             testStatusInfo.Add("\r\n**********Begin Testing " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "**********\r\n");
             //loop until all tests have been complete or user aborts test.
-            while (!allTestsDone && (!UserAbortCheck()))
+            while (!allTestsDone && (!AbortCheck()))
             {
                 if (!testRoutineInformation.ContainsValue(-1))
                     allTestsDone = true;//testing completed
                 else
                 {
+                    //get the test names of all tests needing to be executed and invoke them
+                    //the keys of the testRoutineInformation match the name of the function
                     List<String> keys = new List<String>(testRoutineInformation.Keys);
                     foreach (String key in keys)
                     {
                         //break out of the loop if user has aborted the test
-                        if (UserAbortCheck())
+                        if (AbortCheck())
                             break;
                         if (testRoutineInformation[key] == -1)
-                        {
+                        {                            
+                            testStatusInfo.Add(key.ToString() + "..."); //update the GUI with the next test to run
+                            OnInformationAvailable();
+                            testStatusInfo.Clear();
                             //run the tests (call functions) by invoking them
                             //each test method needs to be listed in the testRoutineInformation List
-                            testStatusInfo.Add(key.ToString() + "...");
-                            Type thisType = this.GetType();
+                            Type thisType = this.GetType();//gets this instance type which then has access to the functions
                             MethodInfo theMethod = thisType.GetMethod(key);
+                            //delay before calling next test
+                            System.Threading.Thread.Sleep(1000);
+                            theMethod.Invoke(this, new object[0]);
                             //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
                             //Each function puts test status in the List --> testStatusInfo.Add("test status")
                             OnInformationAvailable();
                             testStatusInfo.Clear();
-                            theMethod.Invoke(this, new object[0]);
                             if (testRoutineInformation[key] == -1)
-                                testStatusInfo.Add("Resource busy, jump to next test...\r\n");
+                                testStatusInfo.Add("Resource busy, jumping to next test...\r\n");
                         }
                     }                      
                 }
@@ -457,30 +513,46 @@ namespace HydroFunctionalTest
             //Fire the OnTestComplete event to update the main UI and end the test
             OnInformationAvailable();
             testStatusInfo.Clear();
-            OnTestComplete();
+            OnTestComplete();//calls routines for program cleanup/wrap-up and triggers an event telling subscriber (main UI) that the test is complete
         }
 
-        private bool UserAbortCheck()
+        /// <summary>
+        /// Checks the status of the class variable 'softwAbort' as well as checks two different hardware abort triggers: 1) Limit switch not activated, 2) Button on fixture activated.  
+        /// This method is checked within a while loop inside the 'RunTests' method.  If AbortCheck returns false, the 'RunTests' method will break out of the loop and end the test
+        /// softwAbort can be set by any test method if the test encounters a failure that requires the test to end.
+        /// </summary>
+        /// <returns></returns>
+        private bool AbortCheck()
         {
             bool rtnResult = false;
             //check to see limit switch is activated
             UInt32 limitSw = gpioObj.GpioRead(1, 1);
             //check to see if abort button has been enabled
-            double dmmMeas = 28;
+            String tmpDmmStr = Dmm.Measure("meas:volt:dc?");
+            double dmmMeas = 0;//initial value will force failure if DMM measurement fails
+            if (tmpDmmStr != null)
+            {
+                dmmMeas = double.Parse(tmpDmmStr);                
+            }
+            else
+            {
+                softwAbort = true;
+                testStatusInfo.Add("Unable to get voltage measurement from DMM in the 'AbortCheck' Method\r\nTest Aborted");
+            }
 
-            if (userAbortClick)
+            if (softwAbort)
             {                
                 rtnResult = true;
             }            
             else if (limitSw == 0)
             {
                 testStatusInfo.Add("Lid Down Not Detected\r\nTest Aborted\r\n");
-                rtnResult = true;
+                hardwAbort = rtnResult = true;
             }
             else if (dmmMeas < 26 )//if DMM measures +28V not present, abort test
             {
                 testStatusInfo.Add("+28V main power not detected\r\nTest Aborted\r\n");
-                rtnResult = true;
+                hardwAbort = rtnResult = true;
             }
             return rtnResult;
         }
@@ -489,7 +561,7 @@ namespace HydroFunctionalTest
         /// Outputs any information held in the testDataCSV List.  This list contains any information needed for outputting to a file in the required customer format
         /// </summary>
         /// <returns></returns>
-        private void OutputTestResultsToFile(bool tmpAllTestsPass, bool tmpUsrAbrtTst)
+        private void OutputTestResultsToFile(bool tmpAllTestsPass)
         {
             String dateTime =  (System.DateTime.Now.ToString().Replace("/","_")).Replace(":",".");
             String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) + 
@@ -498,10 +570,15 @@ namespace HydroFunctionalTest
 
             //add information about the UUT at the top of the file
             String fileString = "";
-            if (tmpUsrAbrtTst)
+            if (softwAbort)
+                fileString = "--->\tSoftware Aborted Test\t<---\r\n\r\n";
+            else if (hardwAbort)
                 fileString = "--->\tOperator Aborted Test\t<---\r\n\r\n";
+
+            //add information about the PCA
             fileString = fileString + "PCBA Part Number: " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\r\nPCBA Serial Number: " + uutSerialNum.ToString()
-                + "\r\nDate of Test: " + dateTime + "\r\nWork Order: " + uutSerialNum.Remove(5) + Environment.NewLine;
+                + "\r\nDate of Test: " + dateTime + "\r\nWork Order: " + uutSerialNum.Remove(5) + Environment.NewLine;            
+
             //add informatoin about the overall test results
             fileString = fileString + "\r\n****\tTest Results Overview\t****\r\n";
             foreach (var pair in this.testRoutineInformation)
@@ -574,85 +651,187 @@ namespace HydroFunctionalTest
         /// <param name="e"></param>
         private void btnAbort_Click(object sender, EventArgs e)
         {
-            userAbortClick = true;
+            softwAbort = true;
         }
 
-
-        #region//ProgramBootloader (written by Ben M.)
-        public bool ProgramBootloader()
+        private void FlashBootloader()
         {
-            string output = "";
-            try
+            //check to see if resource is busy before enabling the JTAG usb port
+            while (ProgrammingControl.JtagIsBusy)
             {
-                //Create the process
-                var programmer = new Process
+                testStatusInfo.Add("Waiting for other JTAG bootloader process to finish...");
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                System.Threading.Thread.Sleep(1000);
+            }
+
+            //enable JTAG USB port
+            u2FlipFlopInputByte = SetBits(u2FlipFlopInputByte, gpioConst.bit2);
+            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
+            //latch the flip flop input (rising edge of pin 11 (CP)) P2.3
+            gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit3));
+            gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit3));
+            //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
+            Dictionary<bool, String> tmpDict = ProgrammingControl.ProgramBootloader(testPrgmPath, this, gpioObj);
+            //disable JTAG USB port
+            u2FlipFlopInputByte = ClearBits(u2FlipFlopInputByte, gpioConst.bit2);
+            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
+            //latch the flip flop input (rising edge of pin 11 (CP)) P2.3
+            gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit3));
+            gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit3));
+            if (tmpDict.Keys.First())
+                testRoutineInformation["FlashBootloader"] = 1; // Successfully flashed bootloader
+            else
+            {
+                testRoutineInformation["FlashBootloader"] = 0; // Failed to program bootloader
+                //discontinue test by setting softwAbort to true;
+                softwAbort = true;
+            }
+                
+
+
+        }
+
+        private void LoadFirmware()
+        {
+            //check to see if resource is busy (optional, probably won't want to wait since no other test will run without first programming)
+            //if (!ProgrammingControl.AutoItIsBusy)
+            //{
+
+            //}
+
+            //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
+            Dictionary<bool, String> tmpDict =  ProgrammingControl.LoadFirmwareViaAutoit(testPrgmPath, this);
+            if (tmpDict.Keys.First())
+                testRoutineInformation["LoadFirmware"] = 1;  //Successfully programmed
+            else
+            {
+                testRoutineInformation["LoadFirmware"] = 0;
+                //discontinue test by setting softwAbort to true;
+                softwAbort = true;
+            }
+
+        }
+
+        private void SetClearLEDs(bool ledsOff = true, bool passedAllTests = false)
+        {
+            if (ledsOff)
+            {
+                u4FlipFlopInputByte = SetBits(u4FlipFlopInputByte, 6);
+                gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
+                //latch the flip flop input (rising edge of pin 11 (CP)) P2.5
+                gpioObj.GpioWrite(gpioConst.port2, ClearBits(u4FlipFlopInputByte, gpioConst.bit5));
+                gpioObj.GpioWrite(gpioConst.port2, SetBits(u4FlipFlopInputByte, gpioConst.bit5));
+            }
+            else
+            {
+                if (passedAllTests)
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        WorkingDirectory = jtagPrgmrFilePath,
-                        FileName = jtagPrgmrFilePath + "\\" + jtagPrgmrExe,
-                        Arguments = "-f olimex-arm-usb-tiny-h.cfg -f stellaris.cfg",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true
-                        //Ben is cool
-                    }
-                };
-                //Start the process
-                programmer.Start();
-                //Read all the output (for some reason the programmer outputs to the StandardError Output)
-                output = programmer.StandardError.ReadToEnd();
-                //Wait for the process to finish
-                programmer.WaitForExit();
-                //Did it pass?
-                if (output.Contains("** Programming Finished **"))
-                {
-                    //WriteTestDataToFile("JTAG programming", "Pass", "N/A", "N/A", "N/A", "N/A");
-                    return true;
+                    u4FlipFlopInputByte = ClearBits(u4FlipFlopInputByte, gpioConst.bit1);
+                    gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
+                    //latch the flip flop input (rising edge of pin 11 (CP)) P2.5
+                    gpioObj.GpioWrite(gpioConst.port2, ClearBits(u4FlipFlopInputByte, gpioConst.bit5));
+                    gpioObj.GpioWrite(gpioConst.port2, SetBits(u4FlipFlopInputByte, gpioConst.bit5));
                 }
                 else
                 {
-                    //WriteTestDataToFile("JTAG programming", "Fail", "N/A", "N/A", "N/A", "N/A");
-                    //TestFailedRoutine("Failed to program bootloader\r\n" + output);
-                    return false;
+                    u4FlipFlopInputByte = ClearBits(u4FlipFlopInputByte, gpioConst.bit2);
+                    gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
+                    //latch the flip flop input (rising edge of pin 11 (CP)) P2.5
+                    gpioObj.GpioWrite(gpioConst.port2, ClearBits(u4FlipFlopInputByte, gpioConst.bit5));
+                    gpioObj.GpioWrite(gpioConst.port2, SetBits(u4FlipFlopInputByte, gpioConst.bit5));
                 }
             }
-            catch (Exception ex)
-            {
-                //WriteTestDataToFile("JTAG programming", "fail", "N/A", "N/A", "N/A", ex.Message);
-                //TestFailedRoutine("Failed to program bootloader\r\n" + output);
-                return false;
-            }
         }
-        #endregion
+
+        /// <summary>
+        /// Safe way to keep track of the flip flop latched output status variable.  Send in the old value that keeps track of the flip flop status 
+        /// and the bit or bits that need to be cleared.  For example, if bit 3 needs to be cleared send in a value of '8', or, if bits 2 & 5
+        ///  need to be cleared send in a value of '34'.
+        /// </summary>
+        /// <param name="oldByte"></param>
+        /// <param name="newByte"></param>
+        /// <returns></returns>
+        public UInt32 ClearBits(UInt32 oldByte, UInt32 newByte)
+        {
+            newByte = (byte)((~newByte) & oldByte);
+            return newByte;
+        }
+
+        /// <summary>
+        /// Safe way to keep track of the flip flop latched output status variable.  Send in the old value that keeps track of the flip flop status 
+        /// and the bit or bits that need to be set.  For example, if bit 3 needs to be set send in a value of '8', or, if bits 2 & 5
+        ///  need to be set send in a value of '34'.
+        /// </summary>
+        /// <param name="oldByte"></param>
+        /// <param name="newByte"></param>
+        /// <returns></returns>
+        public UInt32 SetBits(UInt32 oldByte, UInt32 newByte)
+        {
+            newByte = (byte)(oldByte | newByte);
+            return newByte;
+        }
 
         #endregion Common Methods required for all assemblies
 
         #region Methods unique to this assembly only
         //Write methods here
-        private bool EndTestRoutine()
+        /// <summary>
+        /// Determines the state of all GPIO lines to the desired state when test begins or ends.
+        /// </summary>
+        private void GpioInitState()
         {
-            bool rtnResult = false;
-            //command all outputs to go high impedence
+            //assert initial GPIO values to put relays / controls in passive or non - active state
+            //(command all outputs to go high impedence)
 
-            return rtnResult;
+            //Mux - assert the control pins to disable the output(P2.0, P2.1, P2.3)
+
+            //set port 2 control pins all high except for P2.6 & P2.7 that control the Eload and DMM
+            port2CtrlByte = gpioConst.port2InitStateByte;
+            gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+
+            //U2 Flip Flop
+            u2FlipFlopInputByte = 0; //all outputs low
+            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
+            //latch the flip flop input (rising edge of pin 11 (CP)) P2.3
+            gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit3));
+            gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit3));
+
+            //U3 Flip Flop
+            u3FlipFlopInputByte = 0; //all outputs low
+            gpioObj.GpioWrite(gpioConst.port0, u3FlipFlopInputByte);
+            //latch the input (rising edge of pin 11 (CP) of flip flop) P2.4
+            gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit4));
+            gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit4));
+
+            //U4 Flip Flop
+            u4FlipFlopInputByte = 6;//all outputs low except ones controlling pass/fail LED
+            gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
+            //latch the input (rising edge of pin 11 (CP) of flip flop) P2.5
+            gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit5));
+            gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit5));
+
         }
 
-        public void PowerUpRoutine()
+        public void PowerUp()
         {
-            //testRoutineInformation["PowerUpRoutine"] = 1;
+            //testRoutineInformation["PowerUp"] = 1;
             //ensure outputs are all disconnected
             //set current limit to 1.5 amps
             //set voltage limit to 28 Volts
 
+            if (PwrSup.IsBusy)
+                MessageBox.Show("PWR SUP busy");
+            PwrSup.SetPwrSupVoltLimits(28, 28, 5);
+            PwrSup.TurnOutputOnOff(1, true, 1, 5);
+            PwrSup.TurnOutputOnOff(1, false, 0, 0);
+
         }
 
-        public void CurrentLimitCheckRoutine()
+        public void CurrentLimitCheck()
         {
-            testRoutineInformation["CurrentLimitCheckRoutine"] = 1;
+            testRoutineInformation["CurrentLimitCheck"] = 1;
             //check current limit hasn't exceeded
-
         }
 
         #endregion Methods unique to this assembly only

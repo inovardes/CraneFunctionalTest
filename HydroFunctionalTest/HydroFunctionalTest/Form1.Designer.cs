@@ -32,12 +32,14 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabTest = new System.Windows.Forms.TabPage();
             this.grpBxTst2 = new System.Windows.Forms.GroupBox();
+            this.btnAbort2 = new System.Windows.Forms.Button();
             this.chkBxRma2 = new System.Windows.Forms.CheckBox();
             this.chkBxSkpPrg2 = new System.Windows.Forms.CheckBox();
             this.btnStrTst2 = new System.Windows.Forms.Button();
             this.txtBxSerNum2 = new System.Windows.Forms.TextBox();
             this.txtBxTst2 = new System.Windows.Forms.TextBox();
             this.grpBxTst1 = new System.Windows.Forms.GroupBox();
+            this.btnAbort1 = new System.Windows.Forms.Button();
             this.chkBxRma1 = new System.Windows.Forms.CheckBox();
             this.chkBxSkpPrg1 = new System.Windows.Forms.CheckBox();
             this.btnStrTst1 = new System.Windows.Forms.Button();
@@ -57,18 +59,15 @@
             this.cboBxDbgTst1 = new System.Windows.Forms.ComboBox();
             this.btnDbgCmd1 = new System.Windows.Forms.Button();
             this.tabTools = new System.Windows.Forms.TabPage();
+            this.rfshEquipBtn = new System.Windows.Forms.Button();
             this.btnCanCmd = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
             this.textBox2 = new System.Windows.Forms.TextBox();
+            this.mainStsTxtBx = new System.Windows.Forms.TextBox();
             this.cboBxSlctFx = new System.Windows.Forms.ComboBox();
             this.btnAsgnDevId = new System.Windows.Forms.Button();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
-            this.btnAbort1 = new System.Windows.Forms.Button();
-            this.btnAbort2 = new System.Windows.Forms.Button();
-            this.mainStsTxtBx = new System.Windows.Forms.TextBox();
-            this.label1 = new System.Windows.Forms.Label();
-            this.rfshEqBtn = new System.Windows.Forms.Button();
             this.eqStsLbl = new System.Windows.Forms.Label();
-            this.button1 = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -117,6 +116,17 @@
             this.grpBxTst2.TabIndex = 5;
             this.grpBxTst2.TabStop = false;
             this.grpBxTst2.Text = "Fixture # 2";
+            // 
+            // btnAbort2
+            // 
+            this.btnAbort2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAbort2.Location = new System.Drawing.Point(217, 99);
+            this.btnAbort2.Name = "btnAbort2";
+            this.btnAbort2.Size = new System.Drawing.Size(127, 34);
+            this.btnAbort2.TabIndex = 8;
+            this.btnAbort2.Text = "Abort Test";
+            this.btnAbort2.UseVisualStyleBackColor = true;
+            this.btnAbort2.Click += new System.EventHandler(this.btnAbort2_Click);
             // 
             // chkBxRma2
             // 
@@ -180,6 +190,17 @@
             this.grpBxTst1.TabIndex = 4;
             this.grpBxTst1.TabStop = false;
             this.grpBxTst1.Text = "Fixture # 1";
+            // 
+            // btnAbort1
+            // 
+            this.btnAbort1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnAbort1.Location = new System.Drawing.Point(217, 99);
+            this.btnAbort1.Name = "btnAbort1";
+            this.btnAbort1.Size = new System.Drawing.Size(127, 34);
+            this.btnAbort1.TabIndex = 7;
+            this.btnAbort1.Text = "Abort Test";
+            this.btnAbort1.UseVisualStyleBackColor = true;
+            this.btnAbort1.Click += new System.EventHandler(this.btnAbort1_Click);
             // 
             // chkBxRma1
             // 
@@ -368,10 +389,10 @@
             // 
             // tabTools
             // 
-            this.tabTools.Controls.Add(this.rfshEqBtn);
+            this.tabTools.Controls.Add(this.rfshEquipBtn);
+            this.tabTools.Controls.Add(this.textBox2);
             this.tabTools.Controls.Add(this.btnCanCmd);
             this.tabTools.Controls.Add(this.label1);
-            this.tabTools.Controls.Add(this.textBox2);
             this.tabTools.Controls.Add(this.mainStsTxtBx);
             this.tabTools.Controls.Add(this.cboBxSlctFx);
             this.tabTools.Controls.Add(this.btnAsgnDevId);
@@ -382,22 +403,52 @@
             this.tabTools.Text = "Tools";
             this.tabTools.UseVisualStyleBackColor = true;
             // 
+            // rfshEquipBtn
+            // 
+            this.rfshEquipBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.rfshEquipBtn.Location = new System.Drawing.Point(7, 154);
+            this.rfshEquipBtn.Name = "rfshEquipBtn";
+            this.rfshEquipBtn.Size = new System.Drawing.Size(293, 72);
+            this.rfshEquipBtn.TabIndex = 5;
+            this.rfshEquipBtn.Text = "Refresh Test Equipment Connections";
+            this.rfshEquipBtn.UseVisualStyleBackColor = true;
+            this.rfshEquipBtn.Click += new System.EventHandler(this.rfshEquipBtn_Click);
+            // 
             // btnCanCmd
             // 
             this.btnCanCmd.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnCanCmd.Location = new System.Drawing.Point(266, 42);
+            this.btnCanCmd.Location = new System.Drawing.Point(525, 285);
             this.btnCanCmd.Name = "btnCanCmd";
             this.btnCanCmd.Size = new System.Drawing.Size(219, 30);
             this.btnCanCmd.TabIndex = 5;
             this.btnCanCmd.Text = "Send Can Command";
             this.btnCanCmd.UseVisualStyleBackColor = true;
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(3, 0);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(169, 20);
+            this.label1.TabIndex = 4;
+            this.label1.Text = "Equipment Status Info";
+            // 
             // textBox2
             // 
-            this.textBox2.Location = new System.Drawing.Point(266, 16);
+            this.textBox2.Location = new System.Drawing.Point(525, 321);
             this.textBox2.Name = "textBox2";
             this.textBox2.Size = new System.Drawing.Size(219, 20);
             this.textBox2.TabIndex = 4;
+            // 
+            // mainStsTxtBx
+            // 
+            this.mainStsTxtBx.Location = new System.Drawing.Point(7, 23);
+            this.mainStsTxtBx.Multiline = true;
+            this.mainStsTxtBx.Name = "mainStsTxtBx";
+            this.mainStsTxtBx.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.mainStsTxtBx.Size = new System.Drawing.Size(737, 125);
+            this.mainStsTxtBx.TabIndex = 3;
             // 
             // cboBxSlctFx
             // 
@@ -407,7 +458,7 @@
             "Select Fixture",
             "Fixture #1",
             "Fixture #2"});
-            this.cboBxSlctFx.Location = new System.Drawing.Point(13, 15);
+            this.cboBxSlctFx.Location = new System.Drawing.Point(7, 245);
             this.cboBxSlctFx.Name = "cboBxSlctFx";
             this.cboBxSlctFx.Size = new System.Drawing.Size(209, 21);
             this.cboBxSlctFx.TabIndex = 3;
@@ -415,7 +466,7 @@
             // btnAsgnDevId
             // 
             this.btnAsgnDevId.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnAsgnDevId.Location = new System.Drawing.Point(13, 42);
+            this.btnAsgnDevId.Location = new System.Drawing.Point(7, 272);
             this.btnAsgnDevId.Name = "btnAsgnDevId";
             this.btnAsgnDevId.Size = new System.Drawing.Size(209, 69);
             this.btnAsgnDevId.TabIndex = 2;
@@ -432,77 +483,15 @@
             this.pictureBox3.TabIndex = 2;
             this.pictureBox3.TabStop = false;
             // 
-            // btnAbort1
-            // 
-            this.btnAbort1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnAbort1.Location = new System.Drawing.Point(217, 99);
-            this.btnAbort1.Name = "btnAbort1";
-            this.btnAbort1.Size = new System.Drawing.Size(127, 34);
-            this.btnAbort1.TabIndex = 7;
-            this.btnAbort1.Text = "Abort Test";
-            this.btnAbort1.UseVisualStyleBackColor = true;
-            this.btnAbort1.Click += new System.EventHandler(this.btnAbort1_Click);
-            // 
-            // btnAbort2
-            // 
-            this.btnAbort2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnAbort2.Location = new System.Drawing.Point(217, 99);
-            this.btnAbort2.Name = "btnAbort2";
-            this.btnAbort2.Size = new System.Drawing.Size(127, 34);
-            this.btnAbort2.TabIndex = 8;
-            this.btnAbort2.Text = "Abort Test";
-            this.btnAbort2.UseVisualStyleBackColor = true;
-            this.btnAbort2.Click += new System.EventHandler(this.btnAbort2_Click);
-            // 
-            // mainStsTxtBx
-            // 
-            this.mainStsTxtBx.Location = new System.Drawing.Point(13, 277);
-            this.mainStsTxtBx.Multiline = true;
-            this.mainStsTxtBx.Name = "mainStsTxtBx";
-            this.mainStsTxtBx.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.mainStsTxtBx.Size = new System.Drawing.Size(257, 72);
-            this.mainStsTxtBx.TabIndex = 3;
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(9, 254);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(169, 20);
-            this.label1.TabIndex = 4;
-            this.label1.Text = "Equipment Status Info";
-            // 
-            // rfshEqBtn
-            // 
-            this.rfshEqBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.rfshEqBtn.Location = new System.Drawing.Point(276, 277);
-            this.rfshEqBtn.Name = "rfshEqBtn";
-            this.rfshEqBtn.Size = new System.Drawing.Size(111, 72);
-            this.rfshEqBtn.TabIndex = 5;
-            this.rfshEqBtn.Text = "Refresh Test Equip. Connections";
-            this.rfshEqBtn.UseVisualStyleBackColor = true;
-            this.rfshEqBtn.Click += new System.EventHandler(this.rfshEqBtn_Click);
-            // 
             // eqStsLbl
             // 
             this.eqStsLbl.AutoSize = true;
             this.eqStsLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.eqStsLbl.Location = new System.Drawing.Point(18, 393);
+            this.eqStsLbl.Location = new System.Drawing.Point(12, 393);
             this.eqStsLbl.Name = "eqStsLbl";
             this.eqStsLbl.Size = new System.Drawing.Size(206, 20);
             this.eqStsLbl.TabIndex = 3;
             this.eqStsLbl.Text = "Initializing Test Equipment...";
-            // 
-            // button1
-            // 
-            this.button1.Location = new System.Drawing.Point(238, 418);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 4;
-            this.button1.Text = "button1";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // Form1
             // 
@@ -510,7 +499,6 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(793, 485);
-            this.Controls.Add(this.button1);
             this.Controls.Add(this.eqStsLbl);
             this.Controls.Add(this.pictureBox3);
             this.Controls.Add(this.tabControl1);
@@ -577,9 +565,8 @@
         private System.Windows.Forms.Button btnAbort2;
         private System.Windows.Forms.TextBox mainStsTxtBx;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button rfshEqBtn;
+        private System.Windows.Forms.Button rfshEquipBtn;
         private System.Windows.Forms.Label eqStsLbl;
-        private System.Windows.Forms.Button button1;
     }
 }
 
