@@ -188,6 +188,10 @@ namespace HydroFunctionalTest
                         foundPwrSup = true;
                         stopSearch = true;
                         mainStsTxtBx.AppendText("Power Supply attached to: " + s + Environment.NewLine);
+                        //turn DUT power outputs off and 5V output on
+                        PwrSup.TurnOutputOnOff(1, false, 0, 0);
+                        PwrSup.TurnOutputOnOff(2, false, 0, 0);
+                        PwrSup.TurnOutputOnOff(3, true, 5, 3); //set to 5 volts and maximum current (3A)
                     }
                 }                
                 if (!stopSearch && !foundDmm)
@@ -235,7 +239,13 @@ namespace HydroFunctionalTest
             if (foundDmm)
                 Dmm.CloseComport();
             if (foundPwrSup)
+            {
+                //turn all power outputs off
+                PwrSup.TurnOutputOnOff(1, false, 0, 0);
+                PwrSup.TurnOutputOnOff(2, false, 0, 0);
+                PwrSup.TurnOutputOnOff(3, false, 0, 0);
                 PwrSup.CloseComport();
+            }
             if (foundEload)
             {
 
@@ -408,6 +418,10 @@ namespace HydroFunctionalTest
                             //    uutObj.InformationAvailable += OnInformationAvailable;
                             //    uutObj.TestComplete += OnTestComplete;
                             //    await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                            //    //unsubscribe from uut events
+                            //    uutObj.InformationAvailable -= OnInformationAvailable;
+                            //    uutObj.TestComplete -= OnTestComplete;
+                            //    PwrSup.TurnOutputOnOff(fix1Designator, false, 0, 0);
                             //}
                             //else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
                             //{
@@ -672,8 +686,7 @@ namespace HydroFunctionalTest
             //
             if (fixPos == fix1Designator)
             {
-                
-                //lock down the GUI so no other input can be received other than to cancel the task
+                //unlock the GUI so no other input can be received
                 BtnThreadCtrl(fix1Designator, true);
                 SerialBxThreadCtrl(fix1Designator, true);
                 EndofTestRoutine(fixPos, allTestsPass);
@@ -682,7 +695,7 @@ namespace HydroFunctionalTest
             }
             else if (fixPos == fix2Designator)
             {
-                //lock down the GUI so no other input can be received other than to cancel the task
+                //unlock the GUI so no other input can be received
                 BtnThreadCtrl(fix2Designator, true);
                 SerialBxThreadCtrl(fix2Designator, true);
                 EndofTestRoutine(fixPos, allTestsPass);
