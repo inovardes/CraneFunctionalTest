@@ -190,8 +190,8 @@ namespace HydroFunctionalTest
                         mainStsTxtBx.AppendText("Power Supply attached to: " + s + Environment.NewLine);
                         //turn DUT power outputs off and 5V output on
                         PwrSup.TurnOutputOnOff(1, false, 0, 0);
-                        PwrSup.TurnOutputOnOff(2, false, 0, 0);
-                        PwrSup.TurnOutputOnOff(3, true, 5, 3); //set to 5 volts and maximum current (3A)
+                        PwrSup.TurnOutputOnOff(2, false, 0, 0);                        
+                        PwrSup.TurnOutputOnOff(3, true, 5, .6); //set to 5 volts and maximum current (3A)
                     }
                 }                
                 if (!stopSearch && !foundDmm)
@@ -256,7 +256,6 @@ namespace HydroFunctionalTest
             foundPcanDev1 = false;
             foundPcanDev2 = false;
         }
-
      
         public void PrintDataToTxtBox(int fixPos, List<string> dataToPrint, string optString = "", bool clearTxtBox = false)
         {
@@ -319,21 +318,21 @@ namespace HydroFunctionalTest
             bool foundGpio = gpioObj[uut1_index].ScanForDevs(fix1Designator);
             if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev1)
             {
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " +
-                    fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
+                SetGpioInitValue(fix1Designator);
+                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut1_index].GpioRead(1, 1);
-                if (limitSw == 1)
+                if (limitSw == 0)
                 {
                     PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
-                    //Depending on fixture ID, instantiate specific UUT in object array:
-                    double dmmMeasuredValue = 5; //read value from dmm
+                    double dmmMeas = FixtureID(fix1Designator);//returns -1 if error occurs                    
                     bool tmpFoundFixture = false;
                     foreach (var pair in fxtIDs)
                     {
-                        if ((dmmMeasuredValue < pair.Value[0]) && (dmmMeasuredValue > pair.Value[1]))
+                        //Depending on fixture ID, instantiate specific UUT in object array:
+                        if ((dmmMeas < pair.Value[0]) && (dmmMeas > pair.Value[1]))
                         {
                             tmpFoundFixture = true;
                             //lock down the GUI so no other input can be received other than to cancel the task
@@ -351,6 +350,8 @@ namespace HydroFunctionalTest
                                 //unsubscribe from uut events
                                 uutObj.InformationAvailable -= OnInformationAvailable;
                                 uutObj.TestComplete -= OnTestComplete;
+                                //jump out of foreach loop
+                                break;
                             }
                             else if (fxtIDs.ContainsKey("SAM_55207"))
                             {
@@ -363,6 +364,8 @@ namespace HydroFunctionalTest
                                 //unsubscribe from uut events
                                 uutObj.InformationAvailable -= OnInformationAvailable;
                                 uutObj.TestComplete -= OnTestComplete;
+                                //jump out of foreach loop
+                                break;
                             }
                             //else if (fxtIDs.ContainsKey("PCM_90707"))
                             //{
@@ -375,6 +378,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("AIM_90807"))
                             //{
@@ -387,6 +392,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("LUM_15607"))
                             //{
@@ -399,6 +406,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
                             //{
@@ -411,6 +420,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
                             //{
@@ -421,7 +432,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
-                            //    PwrSup.TurnOutputOnOff(fix1Designator, false, 0, 0);
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
                             //{
@@ -434,6 +446,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
                             //{
@@ -446,6 +460,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
                             //{
@@ -458,6 +474,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             else
                             {
@@ -467,18 +485,18 @@ namespace HydroFunctionalTest
                     }
                     if (!tmpFoundFixture)
                     {
-                        PrintDataToTxtBox(fix1Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeasuredValue.ToString() + " Volts.");
+                        PrintDataToTxtBox(fix1Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeas.ToString() + " Volts.");
                         List<String> tmpList = new List<string>();
                         foreach (var couple in fxtIDs)
                         {
-                            tmpList.Add("Expecting measurements between: " + couple.Value[0].ToString() + " and " + couple.Value[1].ToString() + " Volts for the " + couple.Key + " fixture.");
+                            tmpList.Add("\r\nExpecting measurements between: " + couple.Value[0].ToString() + " and " + couple.Value[1].ToString() + " Volts for the " + couple.Key + " fixture.");
                         }
                         PrintDataToTxtBox(fix1Designator, tmpList);
                     }
                 }
                 else
                 {
-                    if (!foundGpio)
+                    if (!foundGpio | (limitSw == 1))
                         PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
                     else
                         PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
@@ -503,23 +521,22 @@ namespace HydroFunctionalTest
             bool foundGpio = gpioObj[uut2_index].ScanForDevs(fix2Designator);
             if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev2)
             {
+                SetGpioInitValue(fix2Designator);
                 PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, " (Fixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId() + ")");
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut2_index].GpioRead(1, 1);
-                if (limitSw == 1)
+                if (limitSw == 0)
                 {
                     PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
-                    //Depending on fixture ID, instantiate specific UUT in object array:
-                    double dmmMeasuredValue = 5; //read value from dmm
-
-
+                    double dmmMeas = FixtureID(fix2Designator);//returns -1 if error occurs                    
                     //Type classInstanceType = Type.GetType(fxtIDs.Keys.First());
                     bool tmpFoundFixture = false;
                     foreach (var pair in fxtIDs)
                     {
-                        if ((dmmMeasuredValue < pair.Value[0]) && (dmmMeasuredValue > pair.Value[1]))
+                        //Depending on fixture ID, instantiate specific UUT in object array:
+                        if ((dmmMeas <= pair.Value[0]) && (dmmMeas >= pair.Value[1]))
                         {
                             tmpFoundFixture = true;
                             //lock down the GUI so no other input can be received other than to cancel the task
@@ -536,6 +553,8 @@ namespace HydroFunctionalTest
                                 //unsubscribe from uut events
                                 uutObj.InformationAvailable -= OnInformationAvailable;
                                 uutObj.TestComplete -= OnTestComplete;
+                                //jump out of foreach loop
+                                break;
                             }
                             else if (fxtIDs.ContainsKey("SAM_55207"))
                             {
@@ -548,6 +567,8 @@ namespace HydroFunctionalTest
                                 //unsubscribe from uut events
                                 uutObj.InformationAvailable -= OnInformationAvailable;
                                 uutObj.TestComplete -= OnTestComplete;
+                                //jump out of foreach loop
+                                break;
                             }
                             //else if (fxtIDs.ContainsKey("PCM_90707"))
                             //{
@@ -560,6 +581,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("AIM_90807"))
                             //{
@@ -572,6 +595,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("LUM_15607"))
                             //{
@@ -584,6 +609,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("PSM_85307_Gen3"))
                             //{
@@ -596,6 +623,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("SAM_55207_Gen3"))
                             //{
@@ -608,6 +637,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("PCM_90707_Gen3"))
                             //{
@@ -620,6 +651,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("AIM_90807_Gen3"))
                             //{
@@ -632,6 +665,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             //else if (fxtIDs.ContainsKey("LUM_15607_Gen3"))
                             //{
@@ -644,6 +679,8 @@ namespace HydroFunctionalTest
                             //    //unsubscribe from uut events
                             //    uutObj.InformationAvailable -= OnInformationAvailable;
                             //    uutObj.TestComplete -= OnTestComplete;
+                            //    //jump out of foreach loop
+                            //    break;
                             //}
                             else
                             {
@@ -653,7 +690,7 @@ namespace HydroFunctionalTest
                     }
                     if (!tmpFoundFixture)
                     {
-                        PrintDataToTxtBox(fix2Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeasuredValue.ToString() + " Volts.");
+                        PrintDataToTxtBox(fix2Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeas.ToString() + " Volts.");
                         List<String> tmpList = new List<string>();
                         foreach (var couple in fxtIDs)
                         {
@@ -664,8 +701,8 @@ namespace HydroFunctionalTest
                 }
                 else
                 {
-                    if (!foundGpio)
-                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
+                    if (!foundGpio | (limitSw == 1))
+                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Not Detected");
                     else
                         PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
                 }
@@ -946,12 +983,94 @@ namespace HydroFunctionalTest
             SetupHardware();
         }
 
-        private bool NullCheck(String tmpStr)
+        private void SetGpioInitValue(int fixPos)
         {
-            if (tmpStr == null)
-                return true;
+            if (fixPos == 1)
+            {
+                //set all GPIO ports initially low
+                gpioObj[uut1_index].GpioWrite(0, 0);
+                gpioObj[uut1_index].GpioWrite(2, 7);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.3 & P2.4 & P2.5
+                gpioObj[uut1_index].GpioWrite(2, 56);
+                gpioObj[uut1_index].GpioWrite(2, 7);
+            }
+            else if(fixPos == 2)
+            {
+                //set all GPIO ports initially low
+                gpioObj[uut2_index].GpioWrite(0, 0);
+                gpioObj[uut2_index].GpioWrite(2, 7);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.3 & P2.4 & P2.5
+                gpioObj[uut2_index].GpioWrite(2, 56);
+                gpioObj[uut2_index].GpioWrite(2, 7);
+            }
             else
-                return false;
+            {
+                MessageBox.Show("Incorrect fixture number parameter sent to 'SetGpioInitValue()' method in main UI: " + fixPos.ToString());
+            }
+        }
+
+        private double FixtureID(int fixPos)
+        {
+            double rtnData = -1;
+            if (fixPos == 1)
+            {
+                //enable FXTR_ID_EN
+                gpioObj[uut1_index].GpioWrite(0, 16);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.5
+                gpioObj[uut1_index].GpioWrite(2, 39);
+                gpioObj[uut1_index].GpioWrite(2, 7);
+
+                //enable 5V_GND_EN
+                gpioObj[uut1_index].GpioWrite(0, 8);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4
+                gpioObj[uut1_index].GpioWrite(2, 23);
+                gpioObj[uut1_index].GpioWrite(2, 7);
+
+                String tmpDmmStr = Dmm.Measure("meas:volt:dc?", gpioObj[uut1_index], 7, false);
+
+                //disable both 5V_GND_EN & FXTR_ID_EN
+                gpioObj[uut1_index].GpioWrite(0, 0);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4 & P2.5
+                gpioObj[uut1_index].GpioWrite(2, 55);
+                gpioObj[uut1_index].GpioWrite(2, 7);
+
+                if (tmpDmmStr != null)
+                {
+                    rtnData = double.Parse(tmpDmmStr);
+                }
+            }
+            else if (fixPos == 2)
+            {
+                //enable FXTR_ID_EN
+                gpioObj[uut2_index].GpioWrite(0, 16);
+                //latch the input (rising edge of pin 11 (CP) of flip flops)` P2.5
+                gpioObj[uut2_index].GpioWrite(2, 39);
+                gpioObj[uut2_index].GpioWrite(2, 7);
+
+                //enable 5V_GND_EN
+                gpioObj[uut2_index].GpioWrite(0, 8);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4 & P2.5
+                gpioObj[uut2_index].GpioWrite(2, 23);
+                gpioObj[uut2_index].GpioWrite(2, 7);
+
+                String tmpDmmStr = Dmm.Measure("meas:volt:dc?", gpioObj[uut2_index], 7, true);
+
+                //disable both 5V_GND_EN & FXTR_ID_EN
+                gpioObj[uut2_index].GpioWrite(0, 0);
+                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4 & P2.5
+                gpioObj[uut2_index].GpioWrite(2, 55);
+                gpioObj[uut2_index].GpioWrite(2, 7);
+
+                if (tmpDmmStr != null)
+                {
+                    rtnData = double.Parse(tmpDmmStr);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Incorrect fixture number parameter sent to 'FixtureID()' method: " + fixPos.ToString());
+            }
+            return rtnData;
         }
 
     }

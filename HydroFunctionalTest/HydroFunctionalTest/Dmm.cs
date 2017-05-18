@@ -59,6 +59,7 @@ namespace HydroFunctionalTest
         {
             lock (lockRoutine)
             {
+                IsBusy = true;
                 dmmReturnData.Clear();
                 bool rtnValue = false;
                 dmmDev = new SerialPort();
@@ -115,6 +116,7 @@ namespace HydroFunctionalTest
                     if (dmmDev.IsOpen)
                         dmmDev.Close();
                 }
+                IsBusy = false;
                 return rtnValue;
             }
         }
@@ -127,15 +129,25 @@ namespace HydroFunctionalTest
         /// </summary>
         /// <param name="cmd"></param>
         /// <returns></returns>
-        static public String Measure(String cmd)
+        static public String Measure(String cmd, UsbToGpio gpioDev, Byte port2CtrlByte, bool select_UUT2)
         {
             lock (lockRoutine)
             {
+                IsBusy = true;
                 dmmReturnData.Clear();
                 String rtnData = null;
                 int loopCount = 0;
                 int loopMax = 3;
+
+                //take the received byte and create a new byte that can clear the port pin (2.7) for setting the relay which connectes UUT1 or UUT2
+                //port 2.7 is responsible for changing between UUT1 & UUT2
+                Byte clearBit = (Byte)((~128) & port2CtrlByte);
+                //if UUT2 is calling this routine, enable the relay to UUT2
+                if(select_UUT2)
+                    gpioDev.GpioWrite(2, port2CtrlByte);
+
                 //send command and then loop till response is received or loopMax
+                System.Threading.Thread.Sleep(1000);
                 dmmDev.WriteLine(cmd);
                 while ((rtnData == null) && (loopCount < loopMax))
                 {
@@ -167,6 +179,11 @@ namespace HydroFunctionalTest
                     dmmReturnData.Add("DMM didn't return a numeric value: " + rtnData);
                     rtnData = null;
                 }
+                //if UUT is selected, disable the DMM connection to UUT2
+                if (select_UUT2)
+                    gpioDev.GpioWrite(2, clearBit);
+
+                IsBusy = false;
                 return rtnData;
             }
         }
