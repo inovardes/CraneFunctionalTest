@@ -53,8 +53,8 @@ namespace HydroFunctionalTest
         //GPIO port and pin names for code readability
         private struct gpioConst
         {
-            public const Byte port2InitState = 63; //set P2.7 & P2.6 low, everything else goes high
-            public const Byte muxOutCtrl = 7;  //set P2.0, P2.1 and P2.2 to enable the mux output
+            public const Byte port2InitState = 5; //set P2.0 & P2.2 high (MUX ctrl lines low enabled), P2.1(latch) & everything else goes low
+            public const Byte muxOutCtrl = 5;  //set P2.0 & P2.2 to enable the mux output, keep P2.1(latch) low to prevent latching input data
             public const Byte USB_PORT_EN = 1;
             public const Byte USB_PORT_SLCT = 2;
             public const Byte PRGMR_EN = 4;
@@ -84,12 +84,12 @@ namespace HydroFunctionalTest
             public const Byte bit5 = 32;
             public const Byte bit6 = 64;
             public const Byte bit7 = 128;
-            public const int muxLatch = 0;
-            public const int u2Latch = 3;
-            public const int u3Latch = 4;
-            public const int u4Latch = 5;
-            public const bool set = true;
-            public const bool clear = false;
+            public const int muxRefDes = 1;
+            public const int u2RefDes = 2;
+            public const int u3RefDes = 3;
+            public const int u4RefDes = 4;
+            public const Byte setBits = 1;
+            public const Byte clearBits = 0;
         }
 
         #endregion Structures unique to this assembly
@@ -143,6 +143,7 @@ namespace HydroFunctionalTest
         public List<String> testDataCSV = new List<string>();
         private const string testPrgmPath = "C:\\Crane Functional Test\\";
         private const string testDataFilePath = testPrgmPath + "Test Data\\";
+        private const long bootWaitDelay = 8000; //8 second wait
         /// <summary>
         /// Store test progress here to send back to the main UI to update the user of status
         /// </summary>
@@ -397,9 +398,9 @@ namespace HydroFunctionalTest
             #region Initialize Dictionary containing pass/fail status for all tests
             testRoutineInformation = new Dictionary<string, int>
             {
-                { "PowerUp", -1 },
                 //{ "FlashBootloader", -1 },
                 //{ "LoadFirmware", -1 },
+                { "PowerUp", -1 },
                 { "PowerRegulators", -1 },
                 { "PowerLoss", -1 },
                 { "SeatIDSwitch", -1 },
@@ -460,7 +461,7 @@ namespace HydroFunctionalTest
             //ensure outputs are all disconnected
             GpioInitState();
             //turn the power off
-            bool tempBool = PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
+            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
             //convert the passFailStatus dictionary to a string before sending to main UI
             List<String> tmpList = new List<string>();
             bool tmpAllTestsPass = false;
@@ -532,9 +533,11 @@ namespace HydroFunctionalTest
                 hardwAbort = false;
                 bool tempAbort = false;
                 testStatusInfo.Add("\r\n**********Begin Testing " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "**********\r\n");
-                //loop until all tests have been complete or user aborts test.
+                //loop until all tests have been complete or test is aborted.
                 while (!allTestsDone && (!tempAbort))
                 {
+                    //if test routine contains a value of -1, the test is incomplete
+                    //if the value is never set to a value other than -1, the test will run indefinitely or until aborted
                     if (!testRoutineInformation.ContainsValue(-1))
                         allTestsDone = true;//testing completed
                     else
@@ -557,7 +560,7 @@ namespace HydroFunctionalTest
                                 Type thisType = this.GetType();//gets this instance type which then has access to the functions
                                 MethodInfo theMethod = thisType.GetMethod(key);
                                 //delay before calling next test
-                                System.Threading.Thread.Sleep(1000);
+                                StandardDelay();
                                 theMethod.Invoke(this, new object[0]);
                                 //Fire the OnInformationAvailable event to update the main UI with test status from the testStatusInfo List
                                 //Each function puts test status in the List --> testStatusInfo.Add("test status")
@@ -596,52 +599,25 @@ namespace HydroFunctionalTest
             //check to see limit switch is activated
             UInt32 limitSw = gpioObj.GpioRead(1, 1);
 
-
             //check to see if abort button has been enabled
-            //(change the value representing the latched output status before writing to GPIO)
-            //Enable _28V_RTN_EN 
-            u3FlipFlopInputByte = SetBits(u3FlipFlopInputByte, gpioConst._28V_RTN_EN);
-            gpioObj.GpioWrite(gpioConst.port0, u3FlipFlopInputByte);
-            LatchInput(gpioConst.u3Latch);
-            //Enable PWR_CHK_EN
-            u4FlipFlopInputByte = SetBits(u4FlipFlopInputByte, gpioConst.PWR_CHK_EN);
-            gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
-            LatchInput(gpioConst.u4Latch);
-            //measure the voltage
-            StandardDelay(1000);
-            String tmpDmmStr = DmmMeasure();
-            //Disable _28V_RTN_EN
-            u3FlipFlopInputByte = ClearBits(u3FlipFlopInputByte, gpioConst._28V_RTN_EN);
-            gpioObj.GpioWrite(gpioConst.port0, u3FlipFlopInputByte);
-            LatchInput(gpioConst.u3Latch);
-            //Disable PWR_CHK_EN
-            u4FlipFlopInputByte = ClearBits(u4FlipFlopInputByte, gpioConst.PWR_CHK_EN);
-            gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);            
-            LatchInput(gpioConst.u4Latch);
-
-            double dmmMeas = 0;//initial value will force failure if DMM measurement fails
-            if (tmpDmmStr != null)
+            //read the value of port 1 and mask the don't care bits (all bits except P1.6)
+            UInt32 abortButton = gpioObj.GpioRead(1);
+            abortButton = (Byte)(64 & abortButton);
+            if (abortButton != 64)
             {
-                dmmMeas = double.Parse(tmpDmmStr);                
-            }
-            else
-            {
-                softwAbort = true;
-                testStatusInfo.Add("Unable to get voltage measurement from DMM in the 'AbortCheck' Method\r\nTest Aborted");
+                testStatusInfo.Add("Abort button used by operator\r\nTest Aborted");
+                hardwAbort = rtnResult = true;
             }
 
+            //check to see if program subroutines have requested an abort
             if (softwAbort)
             {                
                 rtnResult = true;
-            }            
+            }
+            //make sure the fixture lid is still engaged (down)
             else if (limitSw == 1)
             {
                 testStatusInfo.Add("Lid Down Not Detected\r\nTest Aborted\r\n");
-                hardwAbort = rtnResult = true;
-            }
-            else if (dmmMeas < 27 )//if DMM measures +28V not present, abort test
-            {
-                testStatusInfo.Add("+28V main power not detected\r\nTest Aborted\r\n");
                 hardwAbort = rtnResult = true;
             }
             return rtnResult;
@@ -768,18 +744,25 @@ namespace HydroFunctionalTest
             }
 
             //enable JTAG USB port
-            //(change the value representing the latched output status before writing to GPIO)
-            u2FlipFlopInputByte = SetBits(u2FlipFlopInputByte, gpioConst.bit2);
-            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
-            LatchInput(gpioConst.u2Latch);
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.setBits);
+            StandardDelay(1000);
+
+            //turn power on
+            PwrSup.TurnOutputOnOff(fixPosition, true, 28, .250); //turn output on - 28V .5A
+
+            //Initiate a command line script that runs the bootloader routine
             //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
             Dictionary<bool, String> tmpDict = ProgrammingControl.ProgramBootloader(testPrgmPath, this, gpioObj);
+
+            //turn power off
+            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
+            StandardDelay(1000);
+
             //disable JTAG USB port
-            u2FlipFlopInputByte = ClearBits(u2FlipFlopInputByte, gpioConst.bit2);
-            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
-            LatchInput(gpioConst.u2Latch);
-            //
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.clearBits);
+
             //set the method status flag in the testRoutineInformation Dictionary
+            //check the first dictinoary value returned from the ProgrammingControl.ProgramBootloader routine returned true
             if (tmpDict.Keys.First())
                 testRoutineInformation["FlashBootloader"] = 1; // Successfully flashed bootloader
             else
@@ -790,9 +773,7 @@ namespace HydroFunctionalTest
                 //discontinue test by setting softwAbort to true;
                 softwAbort = true;
             }
-                
-
-
+            testStatusInfo.Add(tmpDict.Values.First());
         }
 
         public void LoadFirmware()
@@ -803,9 +784,24 @@ namespace HydroFunctionalTest
 
             //}
 
+            //enable UUT USB port
+            //(change the value representing the last byte value latched on the flip flop output before writing to GPIO)
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
+            StandardDelay(1000);
+
+            //turn power on
+            PwrSup.TurnOutputOnOff(fixPosition, true, 28, .250); //turn output on - 28V .250A
+
             //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
             Dictionary<bool, String> tmpDict =  ProgrammingControl.LoadFirmwareViaAutoit(testPrgmPath, this);
-            //
+
+            //turn power off
+            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
+            StandardDelay(1000);
+
+            //disable UUT USB port
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.clearBits);
+
             //set the method status flag in the testRoutineInformation Dictionary
             if (tmpDict.Keys.First())
                 testRoutineInformation["LoadFirmware"] = 1;  //Successfully programmed
@@ -817,6 +813,7 @@ namespace HydroFunctionalTest
                 //discontinue test by setting softwAbort to true;
                 softwAbort = true;
             }
+            testStatusInfo.Add(tmpDict.Values.First());
 
         }
 
@@ -824,24 +821,14 @@ namespace HydroFunctionalTest
         {
             if (ledsOff)
             {
-                u4FlipFlopInputByte = SetBits(u4FlipFlopInputByte, 6);
-                gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
-                LatchInput(gpioConst.u4Latch);
+                IC_ChangeOutputState(gpioConst.u4RefDes, 6, gpioConst.setBits); //Set P2.1 & P2.2 high to turn off
             }
             else
             {
                 if (passedAllTests)
-                {
-                    u4FlipFlopInputByte = ClearBits(u4FlipFlopInputByte, gpioConst.bit1);
-                    gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
-                    LatchInput(gpioConst.u4Latch);
-                }
+                    IC_ChangeOutputState(gpioConst.u4RefDes, gpioConst.bit1, gpioConst.clearBits); //Set P2.1 low to turn Green
                 else
-                {
-                    u4FlipFlopInputByte = ClearBits(u4FlipFlopInputByte, gpioConst.bit2);
-                    gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
-                    LatchInput(gpioConst.u4Latch);
-                }
+                    IC_ChangeOutputState(gpioConst.u4RefDes, gpioConst.bit2, gpioConst.clearBits); //Set P2.2 low to turn Red
             }
         }
 
@@ -873,34 +860,80 @@ namespace HydroFunctionalTest
             return newByte;
         }
 
-        public void LatchInput(int port2LatchCtrlNum)
+        public void IC_ChangeOutputState(int IC_refDesignator, Byte bitOrBitsToChange, Byte setBits)
         {
-            if(port2LatchCtrlNum < 3)
+            if(IC_refDesignator == 1)
             {
-
+                if(setBits == 1)
+                {
+                    //turn mux output on
+                    gpioObj.GpioWrite(gpioConst.port0, bitOrBitsToChange);
+                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.muxOutCtrl); //disable the mux output
+                    gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+                }
+                else
+                {
+                    //turn mux output off
+                    gpioObj.GpioWrite(gpioConst.port0, bitOrBitsToChange);
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.muxOutCtrl); //enable the mux output
+                    gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+                }
             }
-            else if(port2LatchCtrlNum == 3)
+            else if(IC_refDesignator == 2)
             {
-                //U2 flip flop
+                //change the variable holding the flip flop latched output
+                if(setBits == 1)
+                    u2FlipFlopInputByte = SetBits(u2FlipFlopInputByte, bitOrBitsToChange);
+                else
+                    u2FlipFlopInputByte = ClearBits(u2FlipFlopInputByte, bitOrBitsToChange);
+
+                //write the new byte to the GPIO port
+                gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
+
+                //Latch Input of U2 flip flop by toggling the control bit P2.3
+                StandardDelay();
                 gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit3));
+                StandardDelay(750);
                 gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit3));
 
             }
-            else if(port2LatchCtrlNum == 4)
+            else if(IC_refDesignator == 3)
             {
-                //U3 Flip Flop
+                //change the variable holding the flip flop latched output
+                if (setBits == 1)
+                    u3FlipFlopInputByte = SetBits(u3FlipFlopInputByte, bitOrBitsToChange);
+                else
+                    u3FlipFlopInputByte = ClearBits(u3FlipFlopInputByte, bitOrBitsToChange);
+
+                //write the new byte to the GPIO port
+                gpioObj.GpioWrite(gpioConst.port0, u3FlipFlopInputByte);
+
+                ///Latch Input of U3 Flip Flop by toggling the control bit P2.4
+                StandardDelay();
                 gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit4));
+                StandardDelay(750);
                 gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit4));
             }
-            else if (port2LatchCtrlNum == 5)
+            else if (IC_refDesignator == 4)
             {
-                //U4 Flip Flop
+                //change the variable holding the flip flop latched output
+                if (setBits == 1)
+                    u4FlipFlopInputByte = SetBits(u4FlipFlopInputByte, bitOrBitsToChange);
+                else
+                    u4FlipFlopInputByte = ClearBits(u4FlipFlopInputByte, bitOrBitsToChange);
+
+                //write the new byte to the GPIO port
+                gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
+
+                ///Latch Input of U3 Flip Flop by toggling the control bit P2.5
+                StandardDelay();
                 gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit5));
+                StandardDelay(750);
                 gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit5));
             }
             else
             {
-                MessageBox.Show("Invalid flip flop control pin designator for latching input.");
+                MessageBox.Show("Invalid flip flop reference designator in 'IC_ChangeOutputState' method.");
                 softwAbort = true;
             }            
         }
@@ -919,24 +952,21 @@ namespace HydroFunctionalTest
 
             //set port 2 control pins all high except for P2.6 & P2.7 that control the Eload and DMM
             //This will disable or latch all the latchable devices in their current state and disable the MUX
-            //StandardDelay();
-            //port2CtrlByte = gpioConst.port2InitState;  //save the changes to the port status variable
-            //gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+
+            port2CtrlByte = gpioConst.port2InitState;  //save the changes to the port status variable
+            gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
 
             //U2 Flip Flop
             u2FlipFlopInputByte = 0; //all outputs low
-            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);            
-            LatchInput(gpioConst.u2Latch);
+            IC_ChangeOutputState(gpioConst.u2RefDes, 0, gpioConst.clearBits);
 
             //U3 Flip Flop
             u3FlipFlopInputByte = 0; //all outputs low
-            gpioObj.GpioWrite(gpioConst.port0, u3FlipFlopInputByte);
-            LatchInput(gpioConst.u3Latch);
+            IC_ChangeOutputState(gpioConst.u3RefDes, 0, gpioConst.clearBits);
 
             //U4 Flip Flop
             u4FlipFlopInputByte = 6;//all outputs low except ones controlling pass/fail LEDs
-            gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
-            LatchInput(gpioConst.u4Latch);
+            IC_ChangeOutputState(gpioConst.u4RefDes, 0, gpioConst.clearBits);
         }
 
         public void PowerUp()
@@ -946,43 +976,56 @@ namespace HydroFunctionalTest
             //ensure Seat ID switches are all open
             OpenSeatIDSwitches();
             //set voltage limit to 28 Volts and current to 1.5 amps
-            StandardDelay();
-            PwrSup.SetPwrSupVoltLimits(28, 28, 5);//CH1= 28Volts, CH2=28Volts, CH3=5Volts
-            StandardDelay();
+            bool pwrSupResult = PwrSup.SetPwrSupVoltLimits(28, 28, 5);//CH1= 28Volts, CH2=28Volts, CH3=5Volts
             //turn the output on, if false abort test
-            if (!PwrSup.TurnOutputOnOff(fixPosition, true, 28, 1.5))//Turn output on, 28Volts, 1.5Amp limit
+            pwrSupResult = pwrSupResult & PwrSup.TurnOutputOnOff(fixPosition, true, 28, 1.5); ////Turn output on, 28Volts, 1.5Amp limit
+            foreach (String s in PwrSup.pwrSupReturnData)
+            {
+                testStatusInfo.Add("\t" + s);
+            }
+            testStatusInfo.Add(System.Environment.NewLine);
+            if (!pwrSupResult)
             {
                 softwAbort = true;
-                //
                 //set the method status flag in the testRoutineInformation Dictionary
                 testRoutineInformation["PowerUp"] = 0;
                 testStatusInfo.Add("\t***PowerUp routine failed***\r\n");
-                foreach (String s in PwrSup.pwrSupReturnData)
-                {
-                    testStatusInfo.Add("\t" + s);
-                }
-                testStatusInfo.Add(System.Environment.NewLine);
             }
             else
             {
-                //
-                //set the method status flag in the testRoutineInformation Dictionary
-                testRoutineInformation["PowerUp"] = 1;
-                foreach (String s in PwrSup.pwrSupReturnData)
+                //wait for CAN communication from UUT or until timeout
+                bool foundCanData = false;
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit3, gpioConst.setBits);
+                while (!foundCanData)//&& (stopwatch.ElapsedMilliseconds < bootWaitDelay)
                 {
-                    testStatusInfo.Add("\t" + s);
+                    StandardDelay();                    
+                    pCanObj.CanRead(1);
+                    int temp = pCanObj.DevID;
+                    Dictionary<UInt32, Dictionary<List<UInt32>, UInt32>> tempDic = new Dictionary<uint, Dictionary<List<uint>, uint>>();
+                    tempDic = pCanObj.canReadRtnData;
+                    int tempCount = tempDic.Count();
                 }
-                testStatusInfo.Add("\t***PowerUp routine passed***");
+                if(foundCanData)
+                {
+                    //set the method status flag in the testRoutineInformation Dictionary
+                    testRoutineInformation["PowerUp"] = 1;
+                    testStatusInfo.Add("\t***PowerUp routine passed***");
+                }
+                else
+                {
+                    //set the method status flag in the testRoutineInformation Dictionary
+                    testRoutineInformation["PowerUp"] = 0;
+                    testStatusInfo.Add("\t***No CAN data found.  Unable to communicate with UUT***\r\n");
+                }
             }
         }
 
         private void OpenSeatIDSwitches()
         {
-            StandardDelay();
             //U2 Flip Flop
-            u2FlipFlopInputByte = ClearBits(u2FlipFlopInputByte, gpioConst.SeatID_EN); //set P2.6
-            gpioObj.GpioWrite(gpioConst.port0, u2FlipFlopInputByte);
-            LatchInput(gpioConst.u2Latch);
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.SeatID_EN, gpioConst.clearBits); //clear P2.6
         }
 
         public void PowerRegulators()
@@ -991,17 +1034,12 @@ namespace HydroFunctionalTest
             double dmmMeas = 0;
             //check the 5VDC, 3.3VDC and 2.5VDC voltage levels
 
-            StandardDelay();
-            //enable the Mux output control
-            port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.muxOutCtrl);//save the changes to the port status variable
-            gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
             //count how many tests are to be executed for to verify all passed at end of method
             int howManyFailures = powerRegTest.Count();
             foreach (var pair in powerRegTest)
             {
-                //Select the Mux output
-                StandardDelay();
-                gpioObj.GpioWrite(gpioConst.port0, (Byte)pair.Value[2]);
+                //Mux output - Select output node and enable mux output
+                IC_ChangeOutputState(gpioConst.muxRefDes, (Byte)pair.Value[2], gpioConst.clearBits);
                 //measure via DMM
                 StandardDelay();
                 String tmpDmmStr = null;
@@ -1024,11 +1062,8 @@ namespace HydroFunctionalTest
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
-            //select Mux output disconnected from all nodes
-            gpioObj.GpioWrite(gpioConst.port0, 0);//value of 0 in second parameter represents a node disconnected from all nets
-            //disable the Mux output
-            port2CtrlByte = SetBits(port2CtrlByte, gpioConst.muxOutCtrl);
-            gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+            //Mux output - select output node and disable mux output
+            IC_ChangeOutputState(gpioConst.muxRefDes, 0, gpioConst.setBits);//value of 0 in second parameter represents a node disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
 
             if(howManyFailures <= 0)
             {

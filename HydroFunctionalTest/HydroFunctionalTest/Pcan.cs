@@ -1240,6 +1240,7 @@ namespace HydroFunctionalTest
 
         #region Crane Test Members
 
+        public UInt16 devHandleCount { get; set; } = 0x51; //0x51 represents the first value given to the PCAN-USB type adapters in the handles definition section(region)
         public UInt16 DevHandle { get; set; }
         public UInt16 DevID { get; set; }
         /// <summary>
@@ -1252,7 +1253,7 @@ namespace HydroFunctionalTest
         TPCANBaudrate canUSBBaudRate = TPCANBaudrate.PCAN_BAUD_1M;
         /// <summary>
         /// nested dictionary will contain the CAN ID as the key and a dictionary as 
-        /// the value( key= data frame, value=timestamp) or the main UI to sort through CAN data if desired.
+        /// the value( key= data frame, value=timestamp) for the main UI to sort through CAN data if desired.
         /// </summary>
         public Dictionary<UInt32, Dictionary<List<UInt32>, UInt32>> canReadRtnData = new Dictionary<UInt32, 
             Dictionary<List<UInt32>, UInt32>>();
@@ -1286,12 +1287,12 @@ namespace HydroFunctionalTest
                 // Checks for a Plug&Play Handle and, depending with the return value, adds it to the pcanDeviceIds List.
                 //
                 //search for maximum of 8 devices.  This loop count is arbitrary, just need to find one that matches the device ID passed to the method
-                for (System.UInt16 i = 0x51; i < 0x58; i++) //0x51 represents the first value given to the PCAN-USB type adapters in the handles definition section(region)
+                for (System.UInt16 i = 0x51; i < 0x58; i++)
                 {
                     stsResult = Pcan.GetValue(i, TPCANParameter.PCAN_CHANNEL_CONDITION, out iBuffer, sizeof(UInt32));                    
                     if ((stsResult == TPCANStatus.PCAN_ERROR_OK) && ((iBuffer & Pcan.PCAN_CHANNEL_AVAILABLE) == Pcan.PCAN_CHANNEL_AVAILABLE))
                     {
-                        DevHandle = i;
+                        DevHandle = i; 
                         // the following code carried over from PCAN example code, may not be needed... --> stsResult = Pcan.GetValue(m_HandlesArray[i], TPCANParameter.PCAN_CHANNEL_FEATURES, out iBuffer, sizeof(UInt32));
                         if (ActivateDevice())
                         {                            
@@ -1302,6 +1303,7 @@ namespace HydroFunctionalTest
                             {
                                 pcanReturnData.Add("Found PCAN-USB device with device ID: " + devId.ToString());
                                 returnValue = true;
+                                break;
                             }
                             else
                                 DeactivateDevice();
@@ -1426,14 +1428,13 @@ namespace HydroFunctionalTest
             bool returnValue = false;       //the method's return variable.
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
             tempCanDataFrame.Clear();           //List will contain the most recent CAN data if the desired CAN ID is found
-            TPCANStatus stsResult;          //holds return info from returning methods - applies to native PCAN code not Crane test code methods            
 
             try
             {
-                TPCANMsg CanMsg = new TPCANMsg();
+                TPCANMsg CanMsg; // = new TPCANMsg()
                 TPCANTimestamp timeStamp;
+                TPCANStatus stsResult;          //holds return info from returning methods - applies to native PCAN code not Crane test code methods         
 
-                //change the following line to a read command
                 stsResult = Read(DevHandle, out CanMsg, out timeStamp);
                 if (stsResult == TPCANStatus.PCAN_ERROR_OK)
                 {

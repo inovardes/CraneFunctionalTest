@@ -67,20 +67,20 @@ namespace HydroFunctionalTest
 
 
         /// <summary>
-        /// Measurement Limits for Fixture ID voltage divider circuit. Key = assembly name, value[] = High limit(volts), Low limit(volts)
+        /// Byte value for Fixture IDs but only 4 bits (2-5) are used, all others must be masked (set to zero). Key = assembly name, value = 4 bit value using bits: P1.2, P1.3, P1.4, P2.5
         /// </summary>
-        public Dictionary<string, double[]> fxtIDs = new Dictionary<string, double[]>
+        public Dictionary<string, int> fxtIDs = new Dictionary<string, int>
         {
-            { "PSM_85307", new double[] { 5.2, 4.8 } },
-            { "SAM_55207", new double[] { 4.2, 3.8 } },
-            { "PCM_90707", new double[] { 3.2, 2.8 } },
-            { "AIM_90807", new double[] { 2.2, 3.8 } },
-            { "LUM_15607", new double[] { 1.2, .8 } },
-            { "PSM_85307_Gen3", new double[] { 4.7, 4.3 } },
-            { "SAM_55207_Gen3", new double[] { 3.7, 3.3 } },
-            { "PCM_90707_Gen3", new double[] { 2.7, 2.3 } },
-            { "AIM_90807_Gen3", new double[] { 1.7, 1.3 } },
-            { "LUM_15607_Gen3", new double[] { .7, .3 } },
+            { "PSM_85307", 60 }, //1111 (P1.2, P1.3, P1.4, P2.5)
+            { "SAM_55207", 56 }, //1110 (P1.2, P1.3, P1.4, P2.5)
+            { "PCM_90707", 52 }, //1101 (P1.2, P1.3, P1.4, P2.5)
+            { "AIM_90807", 48 }, //1100 (P1.2, P1.3, P1.4, P2.5)
+            { "LUM_15607", 44 }, //1011 (P1.2, P1.3, P1.4, P2.5)
+            { "PSM_85307_Gen3", 40 }, //1010 (P1.2, P1.3, P1.4, P2.5)
+            { "SAM_55207_Gen3", 36 }, //1001 (P1.2, P1.3, P1.4, P2.5)
+            { "PCM_90707_Gen3", 32 }, //1000 (P1.2, P1.3, P1.4, P2.5)
+            { "AIM_90807_Gen3", 28 }, //0111 (P1.2, P1.3, P1.4, P2.5)
+            { "LUM_15607_Gen3", 24 }, //0110 (P1.2, P1.3, P1.4, P2.5)
         };
 
         #region Flip Flop control commands
@@ -327,12 +327,12 @@ namespace HydroFunctionalTest
                 {
                     PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
-                    double dmmMeas = FixtureID(fix1Designator);//returns -1 if error occurs                    
+                    Byte tempFixID = FixtureID(fix1Designator);//returns 0 if error occurs                    
                     bool tmpFoundFixture = false;
                     foreach (var pair in fxtIDs)
                     {
                         //Depending on fixture ID, instantiate specific UUT in object array:
-                        if ((dmmMeas < pair.Value[0]) && (dmmMeas > pair.Value[1]))
+                        if ((tempFixID == pair.Value))
                         {
                             tmpFoundFixture = true;
                             //lock down the GUI so no other input can be received other than to cancel the task
@@ -485,11 +485,11 @@ namespace HydroFunctionalTest
                     }
                     if (!tmpFoundFixture)
                     {
-                        PrintDataToTxtBox(fix1Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeas.ToString() + " Volts.");
+                        PrintDataToTxtBox(fix1Designator, null, "Unable to detect a fixture\r\nDMM measured: " + tempFixID.ToString() + " Volts.");
                         List<String> tmpList = new List<string>();
                         foreach (var couple in fxtIDs)
                         {
-                            tmpList.Add("\r\nExpecting measurements between: " + couple.Value[0].ToString() + " and " + couple.Value[1].ToString() + " Volts for the " + couple.Key + " fixture.");
+                            tmpList.Add("\r\nExpecting measurements between: " + couple.Value.ToString() + " and " + couple.Value.ToString() + " Volts for the " + couple.Key + " fixture.");
                         }
                         PrintDataToTxtBox(fix1Designator, tmpList);
                     }
@@ -530,13 +530,13 @@ namespace HydroFunctionalTest
                 {
                     PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
-                    double dmmMeas = FixtureID(fix2Designator);//returns -1 if error occurs                    
+                    Byte tempFixID = FixtureID(fix2Designator);//returns 0 if error occurs                    
                     //Type classInstanceType = Type.GetType(fxtIDs.Keys.First());
                     bool tmpFoundFixture = false;
                     foreach (var pair in fxtIDs)
                     {
                         //Depending on fixture ID, instantiate specific UUT in object array:
-                        if ((dmmMeas <= pair.Value[0]) && (dmmMeas >= pair.Value[1]))
+                        if ((tempFixID == pair.Value))
                         {
                             tmpFoundFixture = true;
                             //lock down the GUI so no other input can be received other than to cancel the task
@@ -690,11 +690,11 @@ namespace HydroFunctionalTest
                     }
                     if (!tmpFoundFixture)
                     {
-                        PrintDataToTxtBox(fix2Designator, null, "Unable to detect a fixture\r\nDMM measured: " + dmmMeas.ToString() + " Volts.");
+                        PrintDataToTxtBox(fix2Designator, null, "Unable to detect a fixture\r\nDMM measured: " + tempFixID.ToString() + " Volts.");
                         List<String> tmpList = new List<string>();
                         foreach (var couple in fxtIDs)
                         {
-                            tmpList.Add("Expecting measurements between: " + couple.Value[0].ToString() + " and " + couple.Value[1].ToString() + " Volts for the " + couple.Key + " fixture.");
+                            tmpList.Add("Expecting measurements between: " + couple.Value.ToString() + " and " + couple.Value.ToString() + " Volts for the " + couple.Key + " fixture.");
                         }
                         PrintDataToTxtBox(fix2Designator, tmpList);
                     }
@@ -987,21 +987,21 @@ namespace HydroFunctionalTest
         {
             if (fixPos == 1)
             {
-                //set all GPIO ports initially low
+                //set all GPIO ports initially low except Port 1 which are all digital inputs
                 gpioObj[uut1_index].GpioWrite(0, 0);
-                gpioObj[uut1_index].GpioWrite(2, 7);
+                gpioObj[uut1_index].GpioWrite(2, 5);  //Port 2 bits all low except for P2.0 & P2.2 connected to the MUX control lines which are active low.  P2.1(latch) should stay low
                 //latch the input (rising edge of pin 11 (CP) of flip flops) P2.3 & P2.4 & P2.5
-                gpioObj[uut1_index].GpioWrite(2, 56);
-                gpioObj[uut1_index].GpioWrite(2, 7);
+                gpioObj[uut1_index].GpioWrite(2, 61); //Set bits P2.3, P2.4 & P2.5 high, keep P2.0, P2.1 & P2.2 high and keep P2.1, P2.6 & P2.7 low 
+                gpioObj[uut1_index].GpioWrite(2, 5);  //Return Port 2 to initial state
             }
             else if(fixPos == 2)
             {
-                //set all GPIO ports initially low
+                //set all GPIO ports initially low except Port 1 which are all digital inputs
                 gpioObj[uut2_index].GpioWrite(0, 0);
-                gpioObj[uut2_index].GpioWrite(2, 7);
+                gpioObj[uut2_index].GpioWrite(2, 5);  //Port 2 bits all low except for P2.0 & P2.2 connected to the MUX control lines which are active low.  P2.1(latch) should stay low
                 //latch the input (rising edge of pin 11 (CP) of flip flops) P2.3 & P2.4 & P2.5
-                gpioObj[uut2_index].GpioWrite(2, 56);
-                gpioObj[uut2_index].GpioWrite(2, 7);
+                gpioObj[uut2_index].GpioWrite(2, 61); //Set bits P2.3, P2.4 & P2.5 high, keep P2.0 & P2.2 high and keep P2.1, P2.6 & P2.7 low 
+                gpioObj[uut2_index].GpioWrite(2, 5);  //Return Port 2 to initial state
             }
             else
             {
@@ -1009,62 +1009,20 @@ namespace HydroFunctionalTest
             }
         }
 
-        private double FixtureID(int fixPos)
+        private Byte FixtureID(int fixPos)
         {
-            double rtnData = -1;
+            Byte rtnData = 0;
             if (fixPos == 1)
             {
-                //enable FXTR_ID_EN
-                gpioObj[uut1_index].GpioWrite(0, 16);
-                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.5
-                gpioObj[uut1_index].GpioWrite(2, 39);
-                gpioObj[uut1_index].GpioWrite(2, 7);
-
-                //enable 5V_GND_EN
-                gpioObj[uut1_index].GpioWrite(0, 8);
-                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4
-                gpioObj[uut1_index].GpioWrite(2, 23);
-                gpioObj[uut1_index].GpioWrite(2, 7);
-
-                String tmpDmmStr = Dmm.Measure("meas:volt:dc?", gpioObj[uut1_index], 7, false);
-
-                //disable both 5V_GND_EN & FXTR_ID_EN
-                gpioObj[uut1_index].GpioWrite(0, 0);
-                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4 & P2.5
-                gpioObj[uut1_index].GpioWrite(2, 55);
-                gpioObj[uut1_index].GpioWrite(2, 7);
-
-                if (tmpDmmStr != null)
-                {
-                    rtnData = double.Parse(tmpDmmStr);
-                }
+                //read the value of port 1 and mask the don't care bits (P1.0, P1.1, P1.6 & P1.7)
+                UInt32 tmpRead = gpioObj[uut1_index].GpioRead(1);
+                rtnData = (Byte)(60 & tmpRead);
             }
             else if (fixPos == 2)
             {
-                //enable FXTR_ID_EN
-                gpioObj[uut2_index].GpioWrite(0, 16);
-                //latch the input (rising edge of pin 11 (CP) of flip flops)` P2.5
-                gpioObj[uut2_index].GpioWrite(2, 39);
-                gpioObj[uut2_index].GpioWrite(2, 7);
-
-                //enable 5V_GND_EN
-                gpioObj[uut2_index].GpioWrite(0, 8);
-                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4 & P2.5
-                gpioObj[uut2_index].GpioWrite(2, 23);
-                gpioObj[uut2_index].GpioWrite(2, 7);
-
-                String tmpDmmStr = Dmm.Measure("meas:volt:dc?", gpioObj[uut2_index], 7, true);
-
-                //disable both 5V_GND_EN & FXTR_ID_EN
-                gpioObj[uut2_index].GpioWrite(0, 0);
-                //latch the input (rising edge of pin 11 (CP) of flip flops) P2.4 & P2.5
-                gpioObj[uut2_index].GpioWrite(2, 55);
-                gpioObj[uut2_index].GpioWrite(2, 7);
-
-                if (tmpDmmStr != null)
-                {
-                    rtnData = double.Parse(tmpDmmStr);
-                }
+                //read the value of port 1 and mask the don't care bits (P1.0, P1.1, P1.6 & P1.7)
+                UInt32 tmpRead = gpioObj[uut2_index].GpioRead(1);
+                rtnData = (Byte)(60 & tmpRead);
             }
             else
             {

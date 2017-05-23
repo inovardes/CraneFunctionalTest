@@ -239,7 +239,7 @@ namespace HydroFunctionalTest
                                     //verify command was received
                                     String tmpQuery = Query("source:apply? CH" + outputChan.ToString());
                                     if ((tmpQuery.Contains(startVoltage.ToString())) && (tmpQuery.Contains(setCurrLimit.ToString())))
-                                        //Turn on the output
+                                        //Turn on/off the output
                                         if (Command("source:channel:output:state " + convertedBool.ToString()))
                                             //verify command was received
                                             if (Query("source:channel:output:state?").Contains(convertedBool.ToString()))
@@ -248,8 +248,10 @@ namespace HydroFunctionalTest
                             }
                         if (turnOn)
                         {
+                            //now that output is on, ramp the voltage to desired level
                             voltSlowRampSuccess = RampVoltage(setVolt);
                             String tmpVolt = Query("measure:voltage?");
+                            //if the output voltage doesn't reach .5V from the desired value, shut power off and return false
                             if(double.Parse(tmpVolt) < (setVolt - .5))
                             {
                                 pwrSupReturnData.Add("Output voltage failed to reach the desired output voltage (+- .5V)\r\nChannel #" + outputChan.ToString() + " output voltage set to: " + tmpVolt + "V, " + setCurrLimit.ToString() + "A");
