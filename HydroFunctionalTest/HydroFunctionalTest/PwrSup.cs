@@ -17,7 +17,7 @@ namespace HydroFunctionalTest
         /// </summary>
         static private SerialPort pwrSupDev;
         /// <summary>
-        /// 
+        /// Provides external classes info about the power supply settings
         /// </summary>
         static public String pwrSupSettings;
         /// <summary>
@@ -278,6 +278,40 @@ namespace HydroFunctionalTest
                     pwrSupReturnData.Add("Invalid Channel parameter: " + outputChan.ToString() + "\r\nMust be an integer value 1, 2 or 3");
                 IsBusy = false;
                 return (outputCorrectlySet & voltSlowRampSuccess);
+            }
+        }
+
+        static public String CheckCurrent(int outputChan)
+        {
+            lock (lockRoutine)
+            {
+                IsBusy = true;
+                pwrSupReturnData.Clear();
+                String PowerSupCurrent = null;
+                if (Command("instrument:select CH" + outputChan.ToString()))
+                    if (Query("instrument:select?").Contains("CH" + outputChan.ToString()))//verify command was received
+                    {
+                        PowerSupCurrent = Query("measure:current?");
+                    }
+                IsBusy = false;
+                return PowerSupCurrent;
+            }
+        }
+
+        static public String CheckVoltage(int outputChan)
+        {
+            lock (lockRoutine)
+            {
+                IsBusy = true;
+                pwrSupReturnData.Clear();
+                String PowerSupVoltage = null;
+                if (Command("instrument:select CH" + outputChan.ToString()))
+                    if (Query("instrument:select?").Contains("CH" + outputChan.ToString()))//verify command was received
+                    {
+                        PowerSupVoltage = Query("measure:voltage?");
+                    }
+                IsBusy = false;
+                return PowerSupVoltage;
             }
         }
 

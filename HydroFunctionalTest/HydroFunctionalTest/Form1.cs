@@ -319,13 +319,16 @@ namespace HydroFunctionalTest
             if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev1)
             {
                 SetGpioInitValue(fix1Designator);
-                PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, " (Fixture " + fix1Designator.ToString() + " connected to " + gpioObj[uut1_index].GetDeviceId() + ")");
+                PrintDataToTxtBox(fix1Designator, null, "Fixture " + fix1Designator.ToString() + " connected to GPIO --> " + gpioObj[uut1_index].GetDeviceId());
+
+                //clear the PCAN adapter data buffers
+                pCanObj[uut1_index].ClearDataBuffers();
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut1_index].GpioRead(1, 1);
                 if (limitSw == 0)
                 {
-                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Detected");
+                    PrintDataToTxtBox(fix1Designator, null, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
                     Byte tempFixID = FixtureID(fix1Designator);//returns 0 if error occurs                    
                     bool tmpFoundFixture = false;
@@ -522,13 +525,16 @@ namespace HydroFunctionalTest
             if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev2)
             {
                 SetGpioInitValue(fix2Designator);
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, " (Fixture " + fix2Designator.ToString() + " connected to " + gpioObj[uut2_index].GetDeviceId() + ")");
+                PrintDataToTxtBox(fix2Designator, null, "Fixture " + fix2Designator.ToString() + "connected to GPIO --> " + gpioObj[uut2_index].GetDeviceId());
+
+                //clear the PCAN adapter data buffers
+                pCanObj[uut2_index].ClearDataBuffers();
 
                 //check to see limit switch is activated
                 UInt32 limitSw = gpioObj[uut2_index].GpioRead(1, 1);
                 if (limitSw == 0)
                 {
-                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nLid Down Detected");
+                    PrintDataToTxtBox(fix2Designator, null, "\r\nLid Down Detected");
                     //Get the fixture ID (which asssembly is being tested)
                     Byte tempFixID = FixtureID(fix2Designator);//returns 0 if error occurs                    
                     //Type classInstanceType = Type.GetType(fxtIDs.Keys.First());
