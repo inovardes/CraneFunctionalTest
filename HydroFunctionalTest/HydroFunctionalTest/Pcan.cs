@@ -1244,6 +1244,11 @@ namespace HydroFunctionalTest
         public UInt16 DevHandle { get; set; }
         public UInt16 DevID { get; set; }
         /// <summary>
+        /// this object is used in conjunction with the 'lock()' statement.  
+        /// It manages access to the Dictionary which contains CAN data, preventing inadvertent modification of CAN data.
+        /// </summary>
+        static private Object lockRoutine = new Object();
+        /// <summary>
         /// store method operation results for the Main UI to view
         /// </summary>
         public List<string> pcanReturnData = new List<string>();
@@ -1255,12 +1260,7 @@ namespace HydroFunctionalTest
         /// nested dictionary will contain the CAN ID as the key and a dictionary as 
         /// the value( key= data frame, value=Frame byte size) for the main UI to sort through CAN data if desired.
         /// </summary>
-        public Dictionary<UInt32, Dictionary<List<UInt32>, Byte>> canReadRtnData = new Dictionary<UInt32, Dictionary<List<UInt32>, Byte>>();
-        /// <summary>
-        /// List will contain the most recent CAN data if the desired CAN ID is found
-        /// </summary>
-        public List<UInt32> mostRecentCanDataFrame = new List<UInt32>();
-        public UInt32 mostRecentCANID;
+        public Dictionary<UInt32, Dictionary<Byte[], uint>> canReadRtnData = new Dictionary<UInt32, Dictionary<Byte[], uint>>();
         #endregion Crane Test Members
 
         #region Crane Test Methods
@@ -1423,12 +1423,8 @@ namespace HydroFunctionalTest
         /// </summary>
         /// <param name="messageIdToMatch"></param>
         /// <returns></returns>
-        public bool CanRead()
+        public bool CanRead(out UInt32 tempCanID, out Byte[] tempCanMessage, out double tempTimeStamp)
         {
-            bool returnValue = true;       //the method's return variable.
-            pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
-            mostRecentCanDataFrame.Clear(); //List will contain the most recent CAN data if the desired CAN ID is found
-
             try
             {
                 TPCANMsg CanMsg; // = new TPCANMsg()
@@ -1436,39 +1432,46 @@ namespace HydroFunctionalTest
                 TPCANStatus stsResult;          //holds return info from returning methods - applies to native PCAN code not Crane test code methods         
 
                 stsResult = Read(DevHandle, out CanMsg, out timeStamp);
+                tempCanID = CanMsg.ID;
+                tempCanMessage = CanMsg.DATA;
+                tempTimeStamp = timeStamp.millis;
+
+                if (stsResult == TPCANStatus.PCAN_ERROR_QRCVEMPTY)
+                    return false;
+                else
+                    return true;
+
                 //as long as there is data to read, continue to loop through and store the CAN data in canReadRtnData Dictionary
-                while (stsResult != TPCANStatus.PCAN_ERROR_QRCVEMPTY)
-                {
-                    //System.Threading.Thread.Sleep(10);
-                    if (stsResult == TPCANStatus.PCAN_ERROR_OK)
-                    {
-                        List<UInt32> tempList = new List<UInt32>();
-                        //sort through the data byte and load into a List<UInt32>                        
-                        foreach (byte b in CanMsg.DATA)
-                        {
-                            tempList.Add((UInt32)b);
-                        }
+                //while (stsResult == TPCANStatus.PCAN_ERROR_OK)
+                //{
+                //    if (stsResult == TPCANStatus.PCAN_ERROR_QOVERRUN)
+                //        MessageBox.Show("Buffer overflow");
+                    //if (stsResult != TPCANStatus.PCAN_ERROR_QRCVEMPTY)
+                    //    MessageBox.Show("Buffer Empty");
 
-                        //load the can message data into the nested dictionary for the main UI to sort through if desired
-                        Dictionary<List<UInt32>, Byte> tempDic = new Dictionary<List<UInt32>, Byte> { { tempList, CanMsg.LEN } };
-                        canReadRtnData.Add(CanMsg.ID, tempDic);
-                    }
-                    else
-                    {
-                        returnValue = false;
-                        pcanReturnData.Add("PCAN Error returned while attempting to read from the PCAN-USB adapter:" + Environment.NewLine + stsResult.ToString());
-                    }
+                    ////load the can message data into the nested dictionary for the main UI to sort through if desired
+                    //Dictionary<Byte[], uint> tempDic = new Dictionary<Byte[], uint> { { CanMsg.DATA, timeStamp.millis } };
+                    //lock (lockRoutine)
+                    //    canReadRtnData.Add(CanMsg.ID, tempDic);
+                    
+                    //else
+                    //{
+                    //    returnValue = false;
+                    //    pcanReturnData.Add("PCAN Error returned while attempting to read from the PCAN-USB adapter:" + Environment.NewLine + stsResult.ToString());
+                    //}
 
-                    stsResult = Read(DevHandle, out CanMsg, out timeStamp);
-                }
+                    //stsResult = Read(DevHandle, out CanMsg, out timeStamp);
+                //}
             }
             catch(Exception ex)
             {
-                returnValue = false;
-                pcanReturnData.Add("Error in CanRead() function" + Environment.NewLine + ex.Message);
-            }
+                tempCanID = 0;
+                tempCanMessage = null;
+                tempTimeStamp = 0;
 
-            return returnValue;
+                pcanReturnData.Add("Error in CanRead() function" + Environment.NewLine + ex.Message);
+                return false;
+            }
         }
         #endregion CanRead()
 
@@ -1487,6 +1490,7 @@ namespace HydroFunctionalTest
             {
                 //Initialize the attached device and check for errors
                 stsResult = Initialize(DevHandle, canUSBBaudRate);
+                stsResult = FilterMessages(DevHandle, 0x000, 0x7FF, TPCANMode.PCAN_MODE_STANDARD);
                 if (stsResult != TPCANStatus.PCAN_ERROR_OK)
                 {
                     if (stsResult != TPCANStatus.PCAN_ERROR_CAUTION)
@@ -1551,9 +1555,6 @@ namespace HydroFunctionalTest
             pcanReturnData.Clear();         //List must be cleared upon entry into every Crane Test code method
             TPCANStatus stsResult;          //holds return info from returning methods - applies to native PCAN code not Crane test code methods
             canReadRtnData.Clear();         //for the main UI to sort through CAN data if desired.  Nested dictionary will contain the CAN ID as the key and a dictionary as the value( key= data frame, value=timestamp)
-            mostRecentCanDataFrame.Clear();       //List will contain the most recent CAN data if the desired CAN ID is found
-            mostRecentCANID = 0;
-
             try
             {
                 //Reset the attached device and check for errors

@@ -31,7 +31,6 @@ namespace HydroFunctionalTest
         /// <summary>
         /// 
         /// </summary>
-        //Eload eLoadObj = new Eload;
         #endregion Hardware Class objects
 
         /// <summary>
@@ -64,6 +63,7 @@ namespace HydroFunctionalTest
         public bool foundPwrSup;
         public bool foundPcanDev1 = false;
         public bool foundPcanDev2 = false;
+        private const String testPrgmPath = "C:\\CraneFunctionalTest\\";
 
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace HydroFunctionalTest
         private void Form1_Load(object sender, EventArgs e)
         {
             foundDmm = false;
-            foundEload = true;
+            foundEload = false;
             foundPwrSup = false;
             foundPcanDev1 = false;
             foundPcanDev2 = false;
@@ -207,7 +207,12 @@ namespace HydroFunctionalTest
                 if (!stopSearch && !foundEload)
                 {
                     System.Threading.Thread.Sleep(250);
-
+                    if (Eload.TalkToLoad(s))
+                    {
+                        foundEload = true;
+                        stopSearch = true;
+                        mainStsTxtBx.AppendText("Eload attached to: " + s + Environment.NewLine);
+                    }
                 }
             }
             if (!foundDmm)
@@ -252,7 +257,7 @@ namespace HydroFunctionalTest
             }
             foundDmm = false;
             foundPwrSup = false;
-            foundEload = true;
+            foundEload = false;
             foundPcanDev1 = false;
             foundPcanDev2 = false;
         }
@@ -509,7 +514,7 @@ namespace HydroFunctionalTest
             {
                 //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
                 //if ((gpioObj[uut1_index].ScanForDevs(fix1Designator)) & (foundDmm & foundPwrSup & foundEload & foundPcanDev1))
-                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nFixture " + fix1Designator.ToString() + " not connected");
+                PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
             }
         }
 
@@ -715,7 +720,7 @@ namespace HydroFunctionalTest
             }
             else
             {
-                PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "\r\nFixture " + fix2Designator.ToString() + " not connected");
+                PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
             }
         }
 

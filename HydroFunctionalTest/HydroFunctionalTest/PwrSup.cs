@@ -26,7 +26,7 @@ namespace HydroFunctionalTest
         static public List<string> pwrSupReturnData = new List<string>();
         /// <summary>
         /// this object is used in conjunction with the 'lock()' statement and the IsBusy property.  
-        /// Together they manage access to the power supply resource, preventing simultaeous requests.
+        /// Together they manage access to the power supply resource, preventing simultaneous requests.
         /// </summary>
         static private Object lockRoutine = new Object();
         /// <summary>

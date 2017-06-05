@@ -18,6 +18,51 @@ namespace HydroFunctionalTest
         //  DMM class - must connect equipment (enable relays) to fixture depending on the fixture position
         //  File output - setup the CSV dictionary to be common among all assemblies but the dictionary contents are specific to the assembly.  This makes output universal
 
+        /// <summary>
+        /// Class used to track the Pcan class data and also contains a bollean which controls when the thread in this program that continuously calls the Pcan class CanRead() method
+        /// When CAN data is needed, it must be copied over from the Pcan class into a new Dictionary to avoid corrupting the data
+        /// </summary>
+        static class CanDataManagement
+        {
+            /// <summary>
+            /// Keeps track of the last size of the CAN data as it grows.  This allows access to only most recent data
+            /// </summary>
+            static public int recentDataIndex = 0;
+            /// <summary>
+            /// Bool used to exit the thread which continually loops and extracts data from the CAN Adpt.
+            /// </summary>
+            static public bool exitThread = false;
+            /// <summary>
+            /// After searching for a specific CanID, store it's value here 
+            /// </summary>
+            static public UInt32 CanId;
+            /// <summary>
+            /// After searching for a specific CanID, store it's message info here 
+            /// </summary>
+            static public List<Byte> CanMessage = new List<Byte>();
+            /// <summary>
+            /// After searching for a specific CanID, store it's message length here 
+            /// </summary>
+            static public double timeStamp;
+            
+            static public Dictionary<UInt32, Dictionary<Byte[], uint>> canReadRtnData = new Dictionary<UInt32, Dictionary<Byte[], uint>>();
+            
+            static public Object lockRoutine = new Object();
+        }
+        /// <summary>
+        /// Data type will be implemeted using a List of this data type.  This will make indexing the CAN data code safe and easier to search (hopefully)
+        /// </summary>
+        public struct CanDataStruct
+        {
+            public UInt32 canID;
+            public Byte[] canMessage;
+            public double timeStamp;
+            //public UInt32 messageLength;
+        }
+        /// <summary>
+        /// Create the List that will contain the struct holding all CAN data with different data types
+        /// </summary>
+        static public List<CanDataStruct> canDataRepo = new List<CanDataStruct>();
 
         #region Structures unique to this assembly
         /// <summary>
@@ -52,8 +97,7 @@ namespace HydroFunctionalTest
         /// </summary>
         private struct gpioConst
         {
-            public const Byte port2InitState = 5; //set P2.0 & P2.2 high (MUX ctrl lines low enabled), P2.1(latch) & everything else goes low
-            public const Byte muxOutCtrl = 5;  //set P2.0 & P2.2 to enable the mux output, keep P2.1(latch) low to prevent latching input data
+            public const Byte port2InitState = 63; 
             public const Byte USB_PORT_EN = 1;
             public const Byte USB_PORT_SLCT = 2;
             public const Byte PRGMR_EN = 4;
@@ -98,7 +142,8 @@ namespace HydroFunctionalTest
         public struct muxOutputEn
         {
             //the values are byte representation of GPIO pin set/clear values depending on which desired output to be enabled
-            public const int outputOff = 0;
+            public const int outCtrl = 7;
+            public const int latchInput = 2;
             public const int aux0 = 1;
             public const int aux1 = 2;
             public const int aux2 = 3;
@@ -107,14 +152,14 @@ namespace HydroFunctionalTest
             public const int aux5 = 6;
             public const int _28vSW = 7;
             public const int _5vaSW = 8;
-            public const int digOut0 = 9;
-            public const int digOut1 = 10;
-            public const int digOut2 = 11;
-            public const int digOut3 = 12;
-            public const int digOut4 = 13;
-            public const int digOut5 = 14;
-            public const int digOut6 = 15;
-            public const int digOut7 = 16;
+            public const int DOUT_0C = 9;
+            public const int DOUT_1C = 10;
+            public const int DOUT_2C = 11;
+            public const int DOUT_3C = 12;
+            public const int DOUT_4C = 13;
+            public const int DOUT_5C = 14;
+            public const int DOUT_6C = 15;
+            public const int DOUT_7C = 16;
             public const int _5VDC = 17;
             public const int _3_3VDC = 18;
             public const int _2_5VDC = 19;
@@ -189,7 +234,7 @@ namespace HydroFunctionalTest
         /// Initialize in this class constructor
         /// </summary>
         private String uutSerialNum;
-        private const String testPrgmPath = "C:\\Crane Functional Test\\";
+        private const String testPrgmPath = "C:\\CraneFunctionalTest\\";
         private const String testDataFilePath = testPrgmPath + "Test Data\\";
         private const long bootWaitDelay = 8000; //8 second wait
         /// <summary>
@@ -207,6 +252,21 @@ namespace HydroFunctionalTest
         /// CAN commands to disable outputs.  Key = output name, Value[] = CAN frame1, CAN frame2
         /// </summary>
         public Dictionary<String, String[]> nEnOutput;
+        /// <summary>
+        /// Holds measurement values for 28V adjustable output
+        /// //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
+        /// </summary>
+        OutputTestParams auxOut28vTst = new OutputTestParams();
+        /// <summary>
+        /// Holds measurement values for 12V adjustable output
+        /// //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
+        /// </summary>
+        OutputTestParams auxOut12vTst = new OutputTestParams();
+        /// <summary>
+        /// Holds measurement values for 5V adjustable output
+        /// //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
+        /// </summary>
+        OutputTestParams auxOut5vTst = new OutputTestParams();
         /// <summary>
         /// static variable that holds U2 flip flop desired output.  This value is a 8 bit value and must be set for the desired output for Port 0
         /// </summary>
@@ -232,9 +292,13 @@ namespace HydroFunctionalTest
         /// </summary>
         public const double uutDigOut_L = 2;      //Voltage Out Low limit for UUT digital outputs
         /// <summary>
-        /// Holds the name of the net in schematic and the high/low tolerance.  Key --> Net Name, Value[] = High limit(volts), Low limit(volts), Mux output Byte to enable output
+        /// Holds the name of the net in schematic and the high/low tolerance.  //1st Element-->Output On, 2nd Element-->Output Off, 3rd Element-->Mux output Byte to enable output
         /// </summary>
         public Dictionary<String, int[]> digitalInputTest;
+        /// <summary>
+        /// Holds the name of the net in schematic and the high/low tolerance.  //1st Element-->Output On, 2nd Element-->Output Off, 3rd Element-->Mux output Byte to enable output
+        /// </summary>
+        public Dictionary<String, int[]> digitalOutputTest;
         /// <summary>
         /// Holds the name of the net in schematic and the high/low tolerance.  Key --> Net Name, Value[] = High limit(volts), Low limit(volts), Mux output Byte to enable output
         /// </summary>
@@ -275,11 +339,13 @@ namespace HydroFunctionalTest
             //deactivate all relays/controls, i.e., assert GPIO lines to put relays/controls in passive or non-active state
             GpioInitState();
 
-            //initialize structs containing information specific to 28v, 12v & 5v adjustable output voltage tests
-            OutputTestParams auxOut28vTst = new OutputTestParams();
-            OutputTestParams auxOut12vTst = new OutputTestParams();
-            OutputTestParams auxOut5vTst = new OutputTestParams();
+            //set/reset the variables that manage the CAN data
+            CanDataManagement.exitThread = false;
+            CanDataManagement.recentDataIndex = 0;
+            canDataRepo.Clear();
 
+            //initialize structs containing information specific to 28v, 12v & 5v adjustable output voltage tests
+            
             #region Initialize variables holding UUT current & voltage limits
             //Measurement Limits for ELoad
             auxOut28vTst.eLoadMeasLimits = new Dictionary<string, double[]>
@@ -359,14 +425,14 @@ namespace HydroFunctionalTest
                 { "Aux5", new string[] { "413144064:8:74;129;0;5;0;9;7;0", "413143040:2:0;0" } },
                 { "28vSW", new string[] { "413144064:8:74;129;0;5;0;9;16;0", "413143040:2:0;0" } },
                 { "5vaSW", new string[] { "413144064:8:74;129;0;5;0;9;17;0", "413143040:2:0;0" } },
-                { "digOut0", new string[] { "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0" } },
-                { "digOut1", new string[] { "413144064:8:74;129;0;5;0;9;14;0", "413143040:2:0;0" } },
-                { "digOut2", new string[] { "413144064:8:74;129;0;5;0;9;13;0", "413143040:2:0;0" } },
-                { "digOut3", new string[] { "413144064:8:74;129;0;5;0;9;12;0", "413143040:2:0;0" } },
-                { "digOut4", new string[] { "413144064:8:74;129;0;5;0;9;11;0", "413143040:2:0;0" } },
-                { "digOut5", new string[] { "413144064:8:74;129;0;5;0;9;10;0", "413143040:2:0;0" } },
-                { "digOut6", new string[] { "413144064:8:74;129;0;5;0;9;9;0", "413143040:2:0;0" } },
-                { "digOut7", new string[] { "413144064:8:74;129;0;5;0;9;8;0", "413143040:2:0;0" } },
+                { "DOUT_0C", new string[] { "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0" } },
+                { "DOUT_1C", new string[] { "413144064:8:74;129;0;5;0;9;14;0", "413143040:2:0;0" } },
+                { "DOUT_2C", new string[] { "413144064:8:74;129;0;5;0;9;13;0", "413143040:2:0;0" } },
+                { "DOUT_3C", new string[] { "413144064:8:74;129;0;5;0;9;12;0", "413143040:2:0;0" } },
+                { "DOUT_4C", new string[] { "413144064:8:74;129;0;5;0;9;11;0", "413143040:2:0;0" } },
+                { "DOUT_5C", new string[] { "413144064:8:74;129;0;5;0;9;10;0", "413143040:2:0;0" } },
+                { "DOUT_6C", new string[] { "413144064:8:74;129;0;5;0;9;9;0", "413143040:2:0;0" } },
+                { "DOUT_7C", new string[] { "413144064:8:74;129;0;5;0;9;8;0", "413143040:2:0;0" } },
             };
             nEnOutput = new Dictionary<string, string[]>
             {
@@ -378,14 +444,14 @@ namespace HydroFunctionalTest
                 { "Aux5", new string[] { "413144064:8:74;129;0;5;0;8;7;0", "413143040:2:0;0" } },
                 { "28vSW", new string[] { "413144064:8:74;129;0;5;0;8;16;0", "413143040:2:0;0" } },
                 { "5vaSW", new string[] { "413144064:8:74;129;0;5;0;8;17;0", "413143040:2:0;0" } },
-                { "digOut0", new string[] { "413144064:8:74;129;0;5;0;8;15;0", "413143040:2:0;0" } },
-                { "digOut1", new string[] { "413144064:8:74;129;0;5;0;8;14;0", "413143040:2:0;0" } },
-                { "digOut2", new string[] { "413144064:8:74;129;0;5;0;8;13;0", "413143040:2:0;0" } },
-                { "digOut3", new string[] { "413144064:8:74;129;0;5;0;8;12;0", "413143040:2:0;0" } },
-                { "digOut4", new string[] { "413144064:8:74;129;0;5;0;8;11;0", "413143040:2:0;0" } },
-                { "digOut5", new string[] { "413144064:8:74;129;0;5;0;8;10;0", "413143040:2:0;0" } },
-                { "digOut6", new string[] { "413144064:8:74;129;0;5;0;8;9;0", "413143040:2:0;0" } },
-                { "digOut7", new string[] { "413144064:8:74;129;0;5;0;8;8;0", "413143040:2:0;0" } },
+                { "DOUT_0C", new string[] { "413144064:8:74;129;0;5;0;8;15;0", "413143040:2:0;0" } },
+                { "DOUT_1C", new string[] { "413144064:8:74;129;0;5;0;8;14;0", "413143040:2:0;0" } },
+                { "DOUT_2C", new string[] { "413144064:8:74;129;0;5;0;8;13;0", "413143040:2:0;0" } },
+                { "DOUT_3C", new string[] { "413144064:8:74;129;0;5;0;8;12;0", "413143040:2:0;0" } },
+                { "DOUT_4C", new string[] { "413144064:8:74;129;0;5;0;8;11;0", "413143040:2:0;0" } },
+                { "DOUT_5C", new string[] { "413144064:8:74;129;0;5;0;8;10;0", "413143040:2:0;0" } },
+                { "DOUT_6C", new string[] { "413144064:8:74;129;0;5;0;8;9;0", "413143040:2:0;0" } },
+                { "DOUT_7C", new string[] { "413144064:8:74;129;0;5;0;8;8;0", "413143040:2:0;0" } },
             };
             auxOut28vTst.canSetVoltCmd = new Dictionary<string, string[]>
             {
@@ -423,13 +489,27 @@ namespace HydroFunctionalTest
 
             digitalInputTest = new Dictionary<String, int[]>
             {
-                //1st Element-->High limit(volt), 2nd Element-->Low limit(volt), 3rd Element-->Mux output Byte to enable output
-                { "DIN_0C", new int[] { 1, 0, muxOutputEn.dIN_0C } },
-                { "DIN_1C", new int[] { 1, 0, muxOutputEn.dIN_1C } },
-                { "DIN_2C", new int[] { 1, 0, muxOutputEn.dIN_2C } },
-                { "DIN_3C", new int[] { 1, 0, muxOutputEn.dIN_3C } },
-                { "DIN_4C", new int[] { 1, 0, muxOutputEn.dIN_4C } },
-                { "DIN_5C", new int[] { 1, 0, muxOutputEn.dIN_5C } },
+                //1st Element-->Output On, 2nd Element-->Output Off, 3rd Element-->Mux output Byte to enable output
+                //Digital input changes have message ID = 41.  example: DIN0 output on, CAN data = 0xFE or 11111110
+                { "DIN_0C", new int[] { 0xFE, 0xFF, muxOutputEn.dIN_0C } },
+                { "DIN_1C", new int[] { 0xFD, 0xFF, muxOutputEn.dIN_1C } },
+                { "DIN_2C", new int[] { 0xFB, 0xFF, muxOutputEn.dIN_2C } },
+                { "DIN_3C", new int[] { 0xF7, 0xFF, muxOutputEn.dIN_3C } },
+                { "DIN_4C", new int[] { 0xEF, 0xFF, muxOutputEn.dIN_4C } },
+                { "DIN_5C", new int[] { 0xDF, 0xFF, muxOutputEn.dIN_5C } },
+            };
+
+            digitalOutputTest = new Dictionary<String, int[]>
+            {
+                //1st Element-->Output On Low limit, 2nd Element-->Output Off High limit, 3rd Element-->Mux output Byte to enable output
+                { "DOUT_0C", new int[] { 3, 1, muxOutputEn.DOUT_0C } },
+                { "DOUT_1C", new int[] { 3, 1, muxOutputEn.DOUT_1C } },
+                { "DOUT_2C", new int[] { 3, 1, muxOutputEn.DOUT_2C } },
+                { "DOUT_3C", new int[] { 3, 1, muxOutputEn.DOUT_3C } },
+                { "DOUT_4C", new int[] { 3, 1, muxOutputEn.DOUT_4C } },
+                { "DOUT_5C", new int[] { 3, 1, muxOutputEn.DOUT_5C } },
+                { "DOUT_6C", new int[] { 3, 1, muxOutputEn.DOUT_6C } },
+                { "DOUT_7C", new int[] { 3, 1, muxOutputEn.DOUT_7C } },
             };
 
             #region Initialize Dictionary containing pass/fail status for all tests
@@ -442,9 +522,9 @@ namespace HydroFunctionalTest
                 //{ "AdjAuxOutputs", -1 },
                 //{ "NonAdjAuxOutputs", -1 },
                 //{ "DigitalInputs", -1 },
-                //{ "DigitalOutputs", -1 },
+                { "DigitalOutputs", -1 },
                 //{ "PowerLoss", -1 },
-                { "SeatIDSwitch", -1 },
+                //{ "SeatIDSwitch", -1 },
                 //{ "CANComm", -1 },
                 //{ "USBComm", -1 },
                 //{ "CANID", -1 },
@@ -764,7 +844,7 @@ namespace HydroFunctionalTest
                     foreach (var pair in testDataCSV)
                     {
                         //write the test Method name
-                        String tempString = pair.Key + ",";                       
+                        String tempString = pair.Key + "\r\n";                       
                         //now list the comma seperated details about the test
                         for (int i = 0; i < pair.Value.Count; i++)
                         {
@@ -784,6 +864,8 @@ namespace HydroFunctionalTest
 
         private void SendCanDataToFile()
         {
+            //stop the thread that loops through and collects CAN data
+            CanDataManagement.exitThread = true;
             String dateTime = (System.DateTime.Now.ToString().Replace("/", "_")).Replace(":", ".");
             String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) +
                 "\\CAN DATA\\" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) +
@@ -798,20 +880,19 @@ namespace HydroFunctionalTest
                 testStatusInfo.Clear();
                 using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + fileName))
                 {
-                    file.WriteLine("CAN-ID,Length,Data");
-                    foreach (var pair in pCanObj.canReadRtnData)
+                    file.WriteLine("TimeStamp,CAN-ID,Length,Data");
+                    //copy the contents of the CAN data to a new variable
+                    List<CanDataStruct> tempCanReadData;
+                    GetCanData(out tempCanReadData);
+                    for (int i = 0; i < tempCanReadData.Count; i++)
                     {
-                        String stringToWrite = pair.Key.ToString("X");
-                        foreach (var set in pair.Value)
-                        {
-                            String tempString = "";
-                            for (int i = 0; i < set.Key.Count; i++)
-                            {
-                                tempString = tempString + set.Key[i].ToString("X") + " ";
-                            }
-                            stringToWrite = stringToWrite + "," + set.Value.ToString("X") + "," + string.Join(" ", tempString);
-                        }
-                        file.WriteLine(stringToWrite);
+                        CanDataStruct tempDataStruct = tempCanReadData[i];
+                        String canID = tempDataStruct.canID.ToString("X");
+                        String canMessage = "";
+                        for (int j = 0; j < tempDataStruct.canMessage.Length; j++)
+                            canMessage = canMessage + tempDataStruct.canMessage[j].ToString("X") + " ";
+                        canID = tempDataStruct.timeStamp.ToString() + "," + canID + "," + tempDataStruct.canMessage.Length.ToString() + "," + canMessage;
+                        file.WriteLine(canID);
                     }
                 }
             }
@@ -827,7 +908,7 @@ namespace HydroFunctionalTest
         {
             bool testResultRecorded = false;
             //load the results into one string
-            String tempString = testDescrip + "," + result + "," + highLimit + "," + lowLimit + "," + measurement + "," + units + "," + notes;
+            String tempString = testDescrip + "," + result + "," + highLimit + "," + lowLimit + "," + measurement + "," + units + "," + notes + "\r\n";
             //find the test method in the testDataCSV dictionary
             foreach(var pair in testDataCSV)
             {
@@ -926,16 +1007,28 @@ namespace HydroFunctionalTest
             {
                 if(setBits == 1)
                 {
-                    //turn mux output on
+                    //turn on the node of interest
                     gpioObj.GpioWrite(gpioConst.port0, bitOrBitsToChange);
-                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.muxOutCtrl); //disable the mux output
+                    //turn mux output on
+                    port2CtrlByte = ClearBits(port2CtrlByte, muxOutputEn.outCtrl);
+                    gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+                    //Latch the input
+                    port2CtrlByte = SetBits(port2CtrlByte, muxOutputEn.latchInput);
                     gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
                 }
                 else
                 {
-                    //turn mux output off
+                    //turn all output nodes off
+                    bitOrBitsToChange = 0;
                     gpioObj.GpioWrite(gpioConst.port0, bitOrBitsToChange);
-                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.muxOutCtrl); //enable the mux output
+                    //turn mux output on
+                    port2CtrlByte = ClearBits(port2CtrlByte, muxOutputEn.outCtrl);
+                    gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+                    //Latch the input
+                    port2CtrlByte = SetBits(port2CtrlByte, muxOutputEn.latchInput);
+                    gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
+                    //turn mux off
+                    port2CtrlByte = SetBits(port2CtrlByte, muxOutputEn.outCtrl);
                     gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
                 }
             }
@@ -952,9 +1045,10 @@ namespace HydroFunctionalTest
 
                 //Latch Input of U2 flip flop by toggling the control bit P2.3
                 StandardDelay();
-                gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit3));
-                StandardDelay(1000);
                 gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit3));
+                StandardDelay(1000);
+                gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit3));
+
 
             }
             else if(IC_refDesignator == 3)
@@ -970,9 +1064,10 @@ namespace HydroFunctionalTest
 
                 ///Latch Input of U3 Flip Flop by toggling the control bit P2.4
                 StandardDelay();
-                gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit4));
-                StandardDelay(750);
                 gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit4));
+                StandardDelay(1000);
+                gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit4));
+
             }
             else if (IC_refDesignator == 4)
             {
@@ -985,11 +1080,11 @@ namespace HydroFunctionalTest
                 //write the new byte to the GPIO port
                 gpioObj.GpioWrite(gpioConst.port0, u4FlipFlopInputByte);
 
-                ///Latch Input of U3 Flip Flop by toggling the control bit P2.5
+                ///Latch Input of U4 Flip Flop by toggling the control bit P2.5
                 StandardDelay();
-                gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit5));
-                StandardDelay(750);
                 gpioObj.GpioWrite(gpioConst.port2, ClearBits(port2CtrlByte, gpioConst.bit5));
+                StandardDelay(1000);
+                gpioObj.GpioWrite(gpioConst.port2, SetBits(port2CtrlByte, gpioConst.bit5));
             }
             else
             {
@@ -1012,7 +1107,8 @@ namespace HydroFunctionalTest
 
             //set port 2 control pins all high except for P2.6 & P2.7 that control the Eload and DMM
             //This will disable or latch all the latchable devices in their current state and disable the MUX
-
+            
+            //set initial state of GPIO port 2
             port2CtrlByte = gpioConst.port2InitState;  //save the changes to the port status variable
             gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
 
@@ -1029,7 +1125,7 @@ namespace HydroFunctionalTest
             IC_ChangeOutputState(gpioConst.u4RefDes, 0, gpioConst.clearBits);
         }
 
-        private UInt16 CheckStandbyCurrent(List<UInt32> canData)
+        private UInt16 CheckStandbyCurrent(Byte[] canData)
         {
             //query the power supply for current
 
@@ -1046,10 +1142,42 @@ namespace HydroFunctionalTest
         /// </summary>
         private void CollectCanData()
         {
-            //continously load CAN data onto the Pcan class buffer
-            //methods from this class will use the buffer to search for data.
-            while (pCanObj.CanRead()) { }
-            MessageBox.Show("Error while reading CAN data");
+            //continously load CAN data onto the CanDataManagement class buffer until exitThread is true
+            //other methods will use the buffer to search for data.
+            
+            UInt32 tempCanID;
+            Byte[] tempCanData;
+            double tempTimStamp;
+            while (!CanDataManagement.exitThread)
+            {
+                if (pCanObj.CanRead(out tempCanID, out tempCanData, out tempTimStamp))
+                {
+                    //lock access to the Dictionary that collects data continuously (This prevents inadvertant simultaneous access to the data from different threads)
+                    lock (CanDataManagement.lockRoutine)
+                    {
+                        CanDataStruct canStorage = new CanDataStruct();
+                        canStorage.canID = tempCanID;
+                        canStorage.canMessage = tempCanData;
+                        canStorage.timeStamp = tempTimStamp;
+                        canDataRepo.Add(canStorage);
+                    }
+                }
+                else
+                {
+                    //CAN buffer empty, no data received
+                }
+            }            
+        }
+
+        /// <summary>
+        /// Method prevents inadvertant simultaneous access to the CAN data from different threads
+        /// send a List of data type 'CanDataStruct' as a paramater to safely copy the CAN data
+        /// </summary>
+        /// <param name="tempCanData"></param>
+        private void GetCanData(out List<CanDataStruct> tempCanData)
+        {
+            lock (CanDataManagement.lockRoutine)
+                tempCanData = new List<CanDataStruct>(canDataRepo);
         }
 
         /// <summary>
@@ -1065,32 +1193,42 @@ namespace HydroFunctionalTest
             stopwatch.Start();
             while ((!foundMessageID) && (stopwatch.ElapsedMilliseconds < millisecondsToWait))
             {
-                Dictionary<UInt32, Dictionary<List<UInt32>, Byte>> tempCanReadRtnData = new Dictionary<UInt32, Dictionary<List<UInt32>, Byte>>();
-                tempCanReadRtnData = pCanObj.canReadRtnData;
-                List<UInt32> canIDs = new List<UInt32>();
-                foreach(var pair in tempCanReadRtnData)
+                //copy the contents of the CAN data to a new variable
+                List<CanDataStruct> tempCanReadData;
+                GetCanData(out tempCanReadData);
+
+                //shift the CAN data indexer down to the most recent data so old data isn't searched repeatedly
+                CanDataManagement.recentDataIndex = tempCanReadData.Count - CanDataManagement.recentDataIndex;
+                int countLoops = 0;
+                //search the dictionary in reverse order
+                for (int i = (tempCanReadData.Count - 1); i > 0; i--)
                 {
-                    canIDs.Add(pair.Key);
-                }
-                int i = (canIDs.Count() - 1);
-                if (i > 0)
-                {
-                    //search the CAN IDs in reverse
-                    while ((i >= 0) | (!foundMessageID)) //var pair in tempCanReadRtnData
+                    //look for the CAN heartbeat ID:
+                    //Strip out the Message ID (bits 9-15) from the CAN ID 
+                    UInt32 mask = 0xFA00;  //mask all bits except for bits 9-15;
+                    CanDataStruct tempDataStruct = tempCanReadData[i];
+                    UInt32 tempMessageID = tempDataStruct.canID;
+                    tempMessageID = tempMessageID & mask;  //mask the upper 2 bytes and the lower byte + the LSB bit of the 2nd byte
+                    tempMessageID = tempMessageID >> 9;     //shift the new value down 9 bits - this should now represent the Message ID per Crane CAN frame description
+                    if (messageID == tempMessageID)
                     {
-                        //look for the CAN heartbeat ID:
-                        //Strip out the Message ID (bits 9-15) from the CAN ID 
-                        UInt32 mask = 0xFA00;  //mask all bits except for bits 9-15;
-                        UInt32 tempMessageID = canIDs[i];
-                        tempMessageID = tempMessageID & mask;  //mask the upper 2 bytes and the lower byte + the LSB bit of the 2nd byte
-                        tempMessageID = tempMessageID >> 9;     //shift the new value down 9 bits - this should now represent the Message ID per Crane CAN frame description
-                        if (messageID == tempMessageID)
+                        //match found to the Message ID (bits 9 - 15 of CAN ID)
+                        foundMessageID = true;
+                        CanDataManagement.CanId = tempDataStruct.canID;
+                        CanDataManagement.CanMessage.Clear();
+                        for (int j = 0; j < tempDataStruct.canMessage.Length; j++)
                         {
-                            //match found to the Message ID (bits 9 - 15 of CAN ID)
-                            foundMessageID = true;
+                            CanDataManagement.CanMessage.Add(tempDataStruct.canMessage[j]);
                         }
-                        i--;
+                        //save the CAN message length to the CanDataManagment class if needed for analysis
+                        CanDataManagement.timeStamp = tempDataStruct.timeStamp;
+                        //stop searching if the message ID is found
+                        break;
                     }
+                    //check to see if the loop has cycled through all available new data, if true, break out of the loop
+                    if (countLoops > CanDataManagement.recentDataIndex)
+                        break;
+                    countLoops++;
                 }
             }
             return foundMessageID;
@@ -1215,11 +1353,11 @@ namespace HydroFunctionalTest
             }
             else
             {
-                
                 ////////////////////////////////////////////////////////////////////////////
                 //Remember to change this line of code.  It was put here because the VGA gender
                 //changer is missing one of the CAN pin connections.  So the other pin has to be selected
-                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit3, gpioConst.setBits);
+                //IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit3, gpioConst.setBits);
+                testRoutineInformation["PowerUp"] = 1;
                 /////////////////////////////////////////////////////////////////////////////
                 if (AwaitMessageID(messageIDs.heartbeat))
                 {
@@ -1275,7 +1413,7 @@ namespace HydroFunctionalTest
                 testStatusInfo.Clear();
             }
             //Mux output - select output node and disable mux output
-            IC_ChangeOutputState(gpioConst.u1RefDes, muxOutputEn.outputOff, gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
+            IC_ChangeOutputState(gpioConst.u1RefDes, 0, gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
 
 
             //watch the CAN bus heartbeat and verify that the standby current has stablized to a specific value for 5 consecutive status updates
@@ -1290,7 +1428,7 @@ namespace HydroFunctionalTest
                 if (AwaitMessageID(messageIDs.heartbeat))
                 {
                     //send the last CAN data found w/ heartbeat message id to check that standby current is within tolerance
-                    tempStbyCurrent = CheckStandbyCurrent(pCanObj.mostRecentCanDataFrame);
+                    tempStbyCurrent = CheckStandbyCurrent(CanDataManagement.CanMessage.ToArray());
                     if ((tempStbyCurrent < standbyCurrent_H) && (tempStbyCurrent > standbyCurrent_L))
                         stbyCurrStableCount++;
                     else
@@ -1340,9 +1478,67 @@ namespace HydroFunctionalTest
 
         public void AdjAuxOutputs()
         {
+            int maxWait = 1000; //amount of time in seconds to wait for Eload to become available
+            
+            //wait maxWait for Eload to become available and return to run other tests if wait exceeds maxWait
+            if (Eload.IsBusy)
+            {
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+                while ((Eload.IsBusy) && (stopwatch.ElapsedMilliseconds < maxWait))
+                {
+                    
+                };
+                if (stopwatch.ElapsedMilliseconds > maxWait)
+                    return;
+            }
+
+            //Eload should be available now, execute the following tests
+            foreach (var pair in auxOut28vTst.eLoadMeasLimits)
+            {
+                //jump out of the loop if test is aborted
+                if (softwAbort | hardwAbort)
+                    break;
+
+                //turn the adjustable output on by sending the output specific CAN command
+                //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
+                //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
+                //Example of the array with CAN frames that are colon and semicolon delimited "413144064:8:74;129;0;5;0;9;2;0", "413143040:2:0;0"
+                String tempCanFrame1 = enOutput[pair.Key][0]; //the first frame
+                String tempCanFrame2 = enOutput[pair.Key][1]; //the second frame
+
+                SendCanFrame(tempCanFrame1);
+                SendCanFrame(tempCanFrame2);
+                System.Threading.Thread.Sleep(3000);
+            }
+            
             //set the method status flag in the testRoutineInformation Dictionary
             testRoutineInformation["AdjAuxOutputs"] = 1;
             testStatusInfo.Add("\t***AdjAuxOutputs Test Passed***");
+        }
+
+        public void SendCanFrame(String tempCanFrame)
+        {
+            //parse the CAN frame
+            int index = tempCanFrame.IndexOf(":");
+            UInt32 tempCanId = UInt32.Parse(tempCanFrame.Remove(index));
+            tempCanFrame = tempCanFrame.Substring(index + 1);
+            index = tempCanFrame.IndexOf(":");
+            UInt32 tempMessageLength = UInt32.Parse(tempCanFrame.Remove(index));
+            tempCanFrame = tempCanFrame.Substring(index + 1);
+            List<Byte> tempCanMessage1 = new List<Byte>();
+            while (index > 0)
+            {
+                index = tempCanFrame.IndexOf(";");
+                if (index > 0)
+                {
+                    tempCanMessage1.Add(Byte.Parse(tempCanFrame.Remove(index)));
+                    tempCanFrame = tempCanFrame.Substring(index + 1);
+                }
+                else
+                    tempCanMessage1.Add(Byte.Parse(tempCanFrame));
+            }
+            pCanObj.CanWrite(tempCanMessage1.ToArray(), tempCanId, (Byte)tempMessageLength);
         }
 
         public void NonAdjAuxOutputs()
@@ -1374,72 +1570,93 @@ namespace HydroFunctionalTest
         public void DigitalInputs()
         {
             int howManyInputFailures = digitalInputTest.Count()*2; //double the test number since test checks the high and low logic value seperately
+            //switch the relay connecting the digital inputs to 5V_RTN and connect to 5V instead
+            IC_ChangeOutputState(gpioConst.u4RefDes, gpioConst.TOGL_DIN_EN, gpioConst.setBits);
+            //also enable relay connecting the isolated grounds (DIN_GND_EN) to provide the needed ground reference for digital inputs 0-3, also enable _28V_RTN_EN to tie these grounds together
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst.DIN_GND_EN, gpioConst.setBits);
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.setBits);
+
+            //Test all the digital inputs in high condition
             foreach (var pair in digitalInputTest)
             {
-                //Mux output - Select output node and enable mux output
+                //Mux output - Select output node and enable mux output                
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
                 StandardDelay();
-                //Clear any old data that may be lingering
-                AwaitMessageID(messageIDs.digitalInputsStatus);
 
                 //find the digital input High status in the CAN data
                 if (AwaitMessageID(messageIDs.digitalInputsStatus, 3000))
                 {
                     //Extract the logic value from the CAN data
-                    uint logicValue = pCanObj.mostRecentCanDataFrame[1];
+                    uint logicValue = CanDataManagement.CanMessage[1];
                     //verify logic value is high
                     if (logicValue == pair.Value[0])
                     {
                         howManyInputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                        testStatusInfo.Add("\t" + pair.Key + " digital input High passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
+                        testStatusInfo.Add("\t" + pair.Key + " digital Input High passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
                         RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
                     }
                     else
                     {
-                        testStatusInfo.Add("\t" + pair.Key + " digital input High failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
+                        testStatusInfo.Add("\t" + pair.Key + " digital Input High failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
                         RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/LOW");
                     }
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + " digital input High failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
-                    RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), "No CAN data found", "Logic-High/LOW", "Failed to find message ID " + messageIDs.digitalInputsStatus);
+                    RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), "No CAN data found", "Logic-High/LOW\r\n", "Failed to find message ID " + messageIDs.digitalInputsStatus);
                 }
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                if (softwAbort || hardwAbort)
+                    break;
+            }
 
-                //Mux output - disable mux output
-                IC_ChangeOutputState(gpioConst.u1RefDes, muxOutputEn.outputOff, gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
+            //Now toggle the input to test the other digital input logic condition
+            //switch the relay connecting the digital inputs to 5V and connect to 5V_RTN
+            IC_ChangeOutputState(gpioConst.u4RefDes, gpioConst.TOGL_DIN_EN, gpioConst.clearBits);
+            foreach (var pair in digitalInputTest)
+            {
+
+                //Mux output - Select output node and enable mux output                
+                IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
                 StandardDelay();
-                //Clear any old data that may be lingering
-                AwaitMessageID(messageIDs.digitalInputsStatus);
 
                 //find the digital input Low status in the CAN data
                 if (AwaitMessageID(messageIDs.digitalInputsStatus, 3000))
                 {
                     //Extract the logic value from the CAN data
-                    uint logicValue = pCanObj.mostRecentCanDataFrame[1];
+                    uint logicValue = CanDataManagement.CanMessage[1];
                     //verify logic value is low
                     if (logicValue == pair.Value[1])
                     {
                         howManyInputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                        testStatusInfo.Add("\t" + pair.Key + " digital input Low passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
+                        testStatusInfo.Add("\t" + pair.Key + " digital Input Low passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
                         RecordTestResults("DigitalInputs", pair.Key + " Digital Input Low", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
                     }
                     else
                     {
-                        testStatusInfo.Add("\t" + pair.Key + " digital input Low failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
+                        testStatusInfo.Add("\t" + pair.Key + " digital Input Low failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
                         RecordTestResults("DigitalInputs", pair.Key + " Digital Input Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), logicValue.ToString(), "Logic-High/LOW");
                     }
                 }
                 else
                 {
-                    testStatusInfo.Add("\t" + pair.Key + " digital input Low failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
+                    testStatusInfo.Add("\t" + pair.Key + " digital Input Low failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
                     RecordTestResults("DigitalInputs", pair.Key + " Digital Input Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), "No CAN data found", "Logic-High/LOW", "Failed to find message ID " + messageIDs.digitalInputsStatus);
                 }
 
                 OnInformationAvailable();
                 testStatusInfo.Clear();
+                if (softwAbort || hardwAbort)
+                    break;
             }
-            
+            //Mux output - disable mux output                
+            IC_ChangeOutputState(gpioConst.u1RefDes, 0, gpioConst.clearBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.clearBits commands the contol lines to their high disabled state
+            //disable relay connecting the isolated grounds (DIN_GND_EN) to digital inputs 0-3 & also disable 28V_Rtn connection also
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst.DIN_GND_EN, gpioConst.clearBits);
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.clearBits);
+
             if (howManyInputFailures <= 0)
             {
                 //set the method status flag in the testRoutineInformation Dictionary
@@ -1457,9 +1674,112 @@ namespace HydroFunctionalTest
 
         public void DigitalOutputs()
         {
-            //set the method status flag in the testRoutineInformation Dictionary
-            testRoutineInformation["DigitalOutputs"] = 1;
-            testStatusInfo.Add("\t***DigitalOutputs Test Passed***");
+            int howManyOutputFailures = digitalOutputTest.Count() * 2; //double the test number since test checks the high and low logic value seperately
+            //also enable relay connecting the isolated grounds (DOUT_GND_EN) to provide the needed ground reference for digital inputs 0-3, also enable _5V_GND_EN to tie these grounds together
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst.DOUT_GND_EN, gpioConst.setBits);
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.setBits);
+
+            //Test all the digital Output in high condition
+            foreach (var pair in digitalOutputTest)
+            {
+
+                //Mux output - Select output node and enable mux output                
+                IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
+                StandardDelay();
+
+                //turn the digital output on by sending the output specific CAN command
+                //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
+                //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
+                //Example of the array with CAN frames that are colon and semicolon delimited "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0"
+                String tempCanFrame1 = enOutput[pair.Key][0]; //the first frame
+                String tempCanFrame2 = enOutput[pair.Key][1]; //the second frame
+
+                SendCanFrame(tempCanFrame1);
+                //StandardDelay();
+                SendCanFrame(tempCanFrame2);
+                //StandardDelay();
+
+                //initial voltage value to force failure if DMM measurement fails
+                double dmmMeas = 0;
+                String tmpDmmStr = null;
+                tmpDmmStr = DmmMeasure();
+                if (tmpDmmStr != null)
+                {
+                    dmmMeas = double.Parse(tmpDmmStr);
+                }
+
+                //verify measurements are within tolerance
+                if (dmmMeas >= pair.Value[0])
+                {
+                    howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output High passed\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High >" + pair.Value[0].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output High", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                }
+                else
+                {
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output High is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High >" + pair.Value[0].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output High", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                }
+
+                //turn the digital output off by sending the output specific CAN command
+                //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
+                //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
+                //Example of the array with CAN frames that are colon and semicolon delimited "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0"
+                tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
+                tempCanFrame2 = nEnOutput[pair.Key][1]; //the second frame
+
+                SendCanFrame(tempCanFrame1);
+                //StandardDelay();
+                SendCanFrame(tempCanFrame2);
+                //StandardDelay();
+                
+                //initial voltage value to force failure if DMM measurement fails
+                dmmMeas = 5;
+                tmpDmmStr = null;
+                tmpDmmStr = DmmMeasure();
+                if (tmpDmmStr != null)
+                {
+                    dmmMeas = double.Parse(tmpDmmStr);
+                }
+
+                //verify measurements are within tolerance
+                if (dmmMeas <= pair.Value[1])
+                {
+                    howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Low passed\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High=" + pair.Value[0].ToString() + ",Low=" + pair.Value[1] + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output Low", "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
+                }
+                else
+                {
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Low is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High=" + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output Low", "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
+                }
+                
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                if (softwAbort || hardwAbort)
+                    break;
+            }
+
+            //Mux output - disable mux output                
+            IC_ChangeOutputState(gpioConst.u1RefDes, 0, gpioConst.clearBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.clearBits commands the contol lines to their high disabled state
+            //disable relay connecting the isolated grounds (DOUT_GND_EN) and ground reference for digital inputs 0-3, also enable _5V_GND_EN
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst.DOUT_GND_EN, gpioConst.clearBits);
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.clearBits);
+
+            if (howManyOutputFailures <= 0)
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["DigitalOutputs"] = 1;
+                testStatusInfo.Add("\t***DigitalOutputs Test Passed***");
+            }
+            else
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["DigitalOutputs"] = 0;
+                testStatusInfo.Add("\r\n\t***DigitalOutputs Test Failed***");
+            }
+
         }
 
         public void SeatIDSwitch()
@@ -1469,9 +1789,7 @@ namespace HydroFunctionalTest
 
             //turn power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0); ////Turn output on, 28Volts, 100mAmp limit
-            //read the remaining CAN data in the CAN adapter register
-            while (AwaitMessageID(messageIDs.heartbeat, 500)) ;
-            UInt32 switchPosition = (UInt32)(pCanObj.mostRecentCANID & 0xFF000000);
+            UInt32 switchPosition = (UInt32)(CanDataManagement.CanId & 0xFF000000);
             if ((switchPosition != 0x08000000) | (switchPosition != 0x18000000))
             {
                 //make sure both relays for Seat ID testing are disabled(disconnected)
@@ -1482,12 +1800,11 @@ namespace HydroFunctionalTest
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.SeatID_EN, gpioConst.setBits);
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
-            StandardDelay();
             //get the status of the Seat ID
             //look for the CAN heartbeat with CAN ID MSB = 0x0900 0000 or 0x1900 0000:
             if (AwaitMessageID(messageIDs.heartbeat))
             {
-                UInt32 tempCanID = pCanObj.mostRecentCANID;
+                UInt32 tempCanID = CanDataManagement.CanId;
                 //mask the 4 bytes with the bits that should be set with current switch configuration
                 tempCanID = (uint)tempCanID & 0xFF000000;
                 if ((tempCanID == 0x19000000) | (tempCanID == 0x09000000))
@@ -1496,8 +1813,6 @@ namespace HydroFunctionalTest
 
             //turn power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0); ////Turn output on, 28Volts, 100mAmp limit
-            //read the remaining CAN data in the CAN adapter register
-            while (AwaitMessageID(messageIDs.heartbeat, 500)) ;
             //enable the seat ID toggle relay - //enable the Seat ID relay - SW1 & SW3 open, SW2 & SW4 closed
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.TOGL_SeatID, gpioConst.setBits);
             //turn power on
@@ -1507,7 +1822,7 @@ namespace HydroFunctionalTest
             //look for the CAN heartbeat with CAN ID MSB = 0xAF00 0000: 
             if (AwaitMessageID(messageIDs.heartbeat))
             {
-                UInt32 tempCanID = pCanObj.mostRecentCANID;
+                UInt32 tempCanID = CanDataManagement.CanId;
                 //mask the 4 bytes with the bits that should be set with current switch configuration
                 tempCanID = (uint)tempCanID & 0xFF000000;
                 if ((tempCanID == 0x1A000000) | (tempCanID == 0x0A000000))
@@ -1523,21 +1838,21 @@ namespace HydroFunctionalTest
             {
                 testRoutineInformation["SeatIDSwitch"] = 1;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Passed***");
-                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: ", "", "CAN ID value = " + pCanObj.mostRecentCANID.ToString());
-                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: ", "", "CAN ID value = " + pCanObj.mostRecentCANID.ToString());
+                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
+                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
             }
             else
             {
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 if (!statusBit1)
                 {
-                    testStatusInfo.Add("Unexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: " + pCanObj.mostRecentCANID.ToString());
-                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: ", "", "CAN ID value = " + pCanObj.mostRecentCANID.ToString());
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: " + CanDataManagement.CanId.ToString());
+                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
                 }
                 else
                 {
-                    testStatusInfo.Add("Unexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: " + pCanObj.mostRecentCANID.ToString());
-                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: ", "", "CAN ID value = " + pCanObj.mostRecentCANID.ToString());
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: " + CanDataManagement.CanId.ToString());
+                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
                 }
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Failed***");
