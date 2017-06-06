@@ -298,7 +298,7 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Holds the name of the net in schematic and the high/low tolerance.  //1st Element-->Output On, 2nd Element-->Output Off, 3rd Element-->Mux output Byte to enable output
         /// </summary>
-        public Dictionary<String, int[]> digitalOutputTest;
+        public Dictionary<String, double[]> digitalOutputTest;
         /// <summary>
         /// Holds the name of the net in schematic and the high/low tolerance.  Key --> Net Name, Value[] = High limit(volts), Low limit(volts), Mux output Byte to enable output
         /// </summary>
@@ -425,14 +425,15 @@ namespace HydroFunctionalTest
                 { "Aux5", new string[] { "413144064:8:74;129;0;5;0;9;7;0", "413143040:2:0;0" } },
                 { "28vSW", new string[] { "413144064:8:74;129;0;5;0;9;16;0", "413143040:2:0;0" } },
                 { "5vaSW", new string[] { "413144064:8:74;129;0;5;0;9;17;0", "413143040:2:0;0" } },
-                { "DOUT_0C", new string[] { "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0" } },
+                { "DOUT_0C", new string[] { "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0" } }, 
                 { "DOUT_1C", new string[] { "413144064:8:74;129;0;5;0;9;14;0", "413143040:2:0;0" } },
-                { "DOUT_2C", new string[] { "413144064:8:74;129;0;5;0;9;13;0", "413143040:2:0;0" } },
-                { "DOUT_3C", new string[] { "413144064:8:74;129;0;5;0;9;12;0", "413143040:2:0;0" } },
-                { "DOUT_4C", new string[] { "413144064:8:74;129;0;5;0;9;11;0", "413143040:2:0;0" } },
-                { "DOUT_5C", new string[] { "413144064:8:74;129;0;5;0;9;10;0", "413143040:2:0;0" } },
-                { "DOUT_6C", new string[] { "413144064:8:74;129;0;5;0;9;9;0", "413143040:2:0;0" } },
-                { "DOUT_7C", new string[] { "413144064:8:74;129;0;5;0;9;8;0", "413143040:2:0;0" } },
+                //NOTE!!!! - DOUT_2C - DOUT_7C CAN frames are not enable commands but disable since their outputs are open collector with a pullup to 5V
+                { "DOUT_2C", new string[] { "413144064:8:74;129;0;5;0;8;13;0", "413143040:2:0;0" } },
+                { "DOUT_3C", new string[] { "413144064:8:74;129;0;5;0;8;12;0", "413143040:2:0;0" } },
+                { "DOUT_4C", new string[] { "413144064:8:74;129;0;5;0;8;11;0", "413143040:2:0;0" } },
+                { "DOUT_5C", new string[] { "413144064:8:74;129;0;5;0;8;10;0", "413143040:2:0;0" } },
+                { "DOUT_6C", new string[] { "413144064:8:74;129;0;5;0;8;9;0", "413143040:2:0;0" } },
+                { "DOUT_7C", new string[] { "413144064:8:74;129;0;5;0;8;8;0", "413143040:2:0;0" } },
             };
             nEnOutput = new Dictionary<string, string[]>
             {
@@ -446,12 +447,13 @@ namespace HydroFunctionalTest
                 { "5vaSW", new string[] { "413144064:8:74;129;0;5;0;8;17;0", "413143040:2:0;0" } },
                 { "DOUT_0C", new string[] { "413144064:8:74;129;0;5;0;8;15;0", "413143040:2:0;0" } },
                 { "DOUT_1C", new string[] { "413144064:8:74;129;0;5;0;8;14;0", "413143040:2:0;0" } },
-                { "DOUT_2C", new string[] { "413144064:8:74;129;0;5;0;8;13;0", "413143040:2:0;0" } },
-                { "DOUT_3C", new string[] { "413144064:8:74;129;0;5;0;8;12;0", "413143040:2:0;0" } },
-                { "DOUT_4C", new string[] { "413144064:8:74;129;0;5;0;8;11;0", "413143040:2:0;0" } },
-                { "DOUT_5C", new string[] { "413144064:8:74;129;0;5;0;8;10;0", "413143040:2:0;0" } },
-                { "DOUT_6C", new string[] { "413144064:8:74;129;0;5;0;8;9;0", "413143040:2:0;0" } },
-                { "DOUT_7C", new string[] { "413144064:8:74;129;0;5;0;8;8;0", "413143040:2:0;0" } },
+                //NOTE!!!! - DOUT_2C - DOUT_7C CAN frames are not disable commands but enable since their outputs are open collector with a pullup to 5V
+                { "DOUT_2C", new string[] { "413144064:8:74;129;0;5;0;9;13;0", "413143040:2:0;0" } },
+                { "DOUT_3C", new string[] { "413144064:8:74;129;0;5;0;9;12;0", "413143040:2:0;0" } },
+                { "DOUT_4C", new string[] { "413144064:8:74;129;0;5;0;9;11;0", "413143040:2:0;0" } },
+                { "DOUT_5C", new string[] { "413144064:8:74;129;0;5;0;9;10;0", "413143040:2:0;0" } },
+                { "DOUT_6C", new string[] { "413144064:8:74;129;0;5;0;9;9;0", "413143040:2:0;0" } },
+                { "DOUT_7C", new string[] { "413144064:8:74;129;0;5;0;9;8;0", "413143040:2:0;0" } },
             };
             auxOut28vTst.canSetVoltCmd = new Dictionary<string, string[]>
             {
@@ -499,17 +501,17 @@ namespace HydroFunctionalTest
                 { "DIN_5C", new int[] { 0xDF, 0xFF, muxOutputEn.dIN_5C } },
             };
 
-            digitalOutputTest = new Dictionary<String, int[]>
+            digitalOutputTest = new Dictionary<String, double[]>
             {
-                //1st Element-->Output On Low limit, 2nd Element-->Output Off High limit, 3rd Element-->Mux output Byte to enable output
-                { "DOUT_0C", new int[] { 3, 1, muxOutputEn.DOUT_0C } },
-                { "DOUT_1C", new int[] { 3, 1, muxOutputEn.DOUT_1C } },
-                { "DOUT_2C", new int[] { 3, 1, muxOutputEn.DOUT_2C } },
-                { "DOUT_3C", new int[] { 3, 1, muxOutputEn.DOUT_3C } },
-                { "DOUT_4C", new int[] { 3, 1, muxOutputEn.DOUT_4C } },
-                { "DOUT_5C", new int[] { 3, 1, muxOutputEn.DOUT_5C } },
-                { "DOUT_6C", new int[] { 3, 1, muxOutputEn.DOUT_6C } },
-                { "DOUT_7C", new int[] { 3, 1, muxOutputEn.DOUT_7C } },
+                //1st Element-->Output Enabled Low limit, 2nd Element-->Output Disabled High limit, 3rd Element-->Mux output Byte to enable output
+                { "DOUT_0C", new double[] { 4.5, .5, muxOutputEn.DOUT_0C } },
+                { "DOUT_1C", new double[] { 4.5, .5, muxOutputEn.DOUT_1C } },
+                { "DOUT_2C", new double[] { 4.5, .5, muxOutputEn.DOUT_2C } },
+                { "DOUT_3C", new double[] { 4.5, .5, muxOutputEn.DOUT_3C } },
+                { "DOUT_4C", new double[] { 4.5, .5, muxOutputEn.DOUT_4C } },
+                { "DOUT_5C", new double[] { 4.5, .5, muxOutputEn.DOUT_5C } },
+                { "DOUT_6C", new double[] { 4.5, .5, muxOutputEn.DOUT_6C } },
+                { "DOUT_7C", new double[] { 4.5, .5, muxOutputEn.DOUT_7C } },
             };
 
             #region Initialize Dictionary containing pass/fail status for all tests
@@ -521,7 +523,7 @@ namespace HydroFunctionalTest
                 //{ "PowerRegulators", -1 },
                 //{ "AdjAuxOutputs", -1 },
                 //{ "NonAdjAuxOutputs", -1 },
-                //{ "DigitalInputs", -1 },
+                { "DigitalInputs", -1 },
                 { "DigitalOutputs", -1 },
                 //{ "PowerLoss", -1 },
                 //{ "SeatIDSwitch", -1 },
@@ -534,7 +536,7 @@ namespace HydroFunctionalTest
             #region Initialize Dictionary CSV test data
             testDataCSV = new Dictionary<String, List<String>>
             {
-                { "Test Routine", new List<String> { "Test Description,Result,High Limit,Low Limit,Measurement,Units,Notes" } }, // header for the test data to follow
+                { "", new List<String> { "Test Description,Result,High Limit,Low Limit,Measurement,Units,Notes" } }, // header for the test data to follow
                 { "FlashBootloader", new List<String> { "" } },
                 { "LoadFirmware",  new List<String> { "" } },
                 { "PowerUp", new List<String> { "" } },
@@ -677,10 +679,10 @@ namespace HydroFunctionalTest
                 bool allTestsDone = false;
                 softwAbort = false;
                 hardwAbort = false;
-                bool tempAbort = false;
+                bool abortTesting = false;
                 testStatusInfo.Add("\r\n**********Begin Testing " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "**********\r\n");
                 //loop until all tests have been complete or test is aborted.
-                while (!allTestsDone && (!tempAbort))
+                while (!allTestsDone && (!abortTesting))
                 {
                     //if test routine contains a value of -1, the test is incomplete
                     //if the value is never set to a value other than -1, the test will run indefinitely or until aborted
@@ -694,7 +696,7 @@ namespace HydroFunctionalTest
                         foreach (String key in keys)
                         {
                             //break out of the loop if user has aborted the test
-                            if (tempAbort)
+                            if (abortTesting)
                                 break;
                             if (testRoutineInformation[key] == -1)
                             {
@@ -712,9 +714,9 @@ namespace HydroFunctionalTest
                                 //Each function puts test status in the List --> testStatusInfo.Add("test status")
                                 OnInformationAvailable();
                                 testStatusInfo.Clear();
-                                if (testRoutineInformation[key] == -1)
+                                abortTesting = AbortCheck();
+                                if ((testRoutineInformation[key] == -1) && !abortTesting)
                                     testStatusInfo.Add("Resource busy, jumping to next test...\r\n");
-                                tempAbort = AbortCheck();
                             }
                         }
                     }
@@ -735,7 +737,7 @@ namespace HydroFunctionalTest
 
         /// <summary>
         /// Checks the status of the class variable 'softwAbort' as well as checks two different hardware abort triggers: 1) Limit switch not activated, 2) Button on fixture activated.  
-        /// This method is checked within a while loop inside the 'RunTests' method.  If AbortCheck returns false, the 'RunTests' method will break out of the loop and end the test
+        /// This method is checked within a while loop inside the 'RunTests' method.  If AbortCheck returns true, the 'RunTests' method will break out of the loop and end the test
         /// softwAbort can be set by any test method if the test encounters a failure that requires the test to end.
         /// </summary>
         /// <returns></returns>
@@ -844,7 +846,7 @@ namespace HydroFunctionalTest
                     foreach (var pair in testDataCSV)
                     {
                         //write the test Method name
-                        String tempString = pair.Key + "\r\n";                       
+                        String tempString = "****" + pair.Key + "****\r\n";                       
                         //now list the comma seperated details about the test
                         for (int i = 0; i < pair.Value.Count; i++)
                         {
@@ -935,9 +937,9 @@ namespace HydroFunctionalTest
             String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
             response.Close();
             if (tmpServResponseStr == expectServerResponse)
-                testStatusInfo.Add("Successfully sent pass/fail status to database.\r\n"  + "Server Response: '" + tmpServResponseStr + "'");            
+                testStatusInfo.Add("\r\nSuccessfully sent pass/fail status to database.\r\n"  + "Server Response: '" + tmpServResponseStr + "'");            
             else
-                testStatusInfo.Add("Response from server does not match expected string.\r\nExpected response: '" +  expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
+                testStatusInfo.Add("\r\nResponse from server does not match expected string.\r\nExpected response: '" +  expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
             OnInformationAvailable();
             testStatusInfo.Clear();
         }
@@ -1470,16 +1472,20 @@ namespace HydroFunctionalTest
             }
             else
             {
-                //set the method status flag in the testRoutineInformation Dictionary
-                testRoutineInformation["PowerRegulators"] = 0;
-                testStatusInfo.Add("\r\n\t***PowerRegulators Test Failed***");
+                //set the method status flag in the testRoutineInformation Dictionary only if the test hasn't been aborted
+                if (!(softwAbort || hardwAbort))
+                {
+                    testRoutineInformation["PowerRegulators"] = 0;
+                    testStatusInfo.Add("\r\n\t***PowerRegulators Test Failed***");
+                }
+                else
+                    testStatusInfo.Add("\r\n\t***PowerRegulators Test Not Tested***");
             }
         }
 
         public void AdjAuxOutputs()
         {
-            int maxWait = 1000; //amount of time in seconds to wait for Eload to become available
-            
+            int maxWait = 2000; //amount of time in seconds to wait for Eload to become available            
             //wait maxWait for Eload to become available and return to run other tests if wait exceeds maxWait
             if (Eload.IsBusy)
             {
@@ -1489,6 +1495,7 @@ namespace HydroFunctionalTest
                 {
                     
                 };
+                //exit the test routine if the Eload is still busy
                 if (stopwatch.ElapsedMilliseconds > maxWait)
                     return;
             }
@@ -1509,6 +1516,7 @@ namespace HydroFunctionalTest
 
                 SendCanFrame(tempCanFrame1);
                 SendCanFrame(tempCanFrame2);
+                //wait for the output data on the CAN bus
                 System.Threading.Thread.Sleep(3000);
             }
             
@@ -1579,6 +1587,10 @@ namespace HydroFunctionalTest
             //Test all the digital inputs in high condition
             foreach (var pair in digitalInputTest)
             {
+                //jump out of the loop if test is aborted
+                if (softwAbort || hardwAbort)
+                    break;
+
                 //Mux output - Select output node and enable mux output                
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
                 StandardDelay();
@@ -1608,8 +1620,6 @@ namespace HydroFunctionalTest
                 }
                 OnInformationAvailable();
                 testStatusInfo.Clear();
-                if (softwAbort || hardwAbort)
-                    break;
             }
 
             //Now toggle the input to test the other digital input logic condition
@@ -1617,6 +1627,9 @@ namespace HydroFunctionalTest
             IC_ChangeOutputState(gpioConst.u4RefDes, gpioConst.TOGL_DIN_EN, gpioConst.clearBits);
             foreach (var pair in digitalInputTest)
             {
+                //jump out of the loop if test is aborted
+                if (softwAbort || hardwAbort)
+                    break;
 
                 //Mux output - Select output node and enable mux output                
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
@@ -1648,8 +1661,6 @@ namespace HydroFunctionalTest
 
                 OnInformationAvailable();
                 testStatusInfo.Clear();
-                if (softwAbort || hardwAbort)
-                    break;
             }
             //Mux output - disable mux output                
             IC_ChangeOutputState(gpioConst.u1RefDes, 0, gpioConst.clearBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.clearBits commands the contol lines to their high disabled state
@@ -1665,9 +1676,14 @@ namespace HydroFunctionalTest
             }
             else
             {
-                //set the method status flag in the testRoutineInformation Dictionary
-                testRoutineInformation["DigitalInputs"] = 0;
-                testStatusInfo.Add("\r\n\t***DigitalInputs Test Failed***");
+                //set the method status flag in the testRoutineInformation Dictionary only if the test hasn't been aborted
+                if (!(softwAbort || hardwAbort))
+                {
+                    testRoutineInformation["DigitalInputs"] = 0;
+                    testStatusInfo.Add("\r\n\t***DigitalInputs Test Failed***");
+                }
+                else
+                    testStatusInfo.Add("\r\n\t***DigitalInputs Test Untested***");
             }
 
         }
@@ -1682,6 +1698,9 @@ namespace HydroFunctionalTest
             //Test all the digital Output in high condition
             foreach (var pair in digitalOutputTest)
             {
+                //jump out of the loop if test is aborted
+                if (softwAbort || hardwAbort)
+                    break;
 
                 //Mux output - Select output node and enable mux output                
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
@@ -1690,14 +1709,12 @@ namespace HydroFunctionalTest
                 //turn the digital output on by sending the output specific CAN command
                 //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
                 //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
-                //Example of the array with CAN frames that are colon and semicolon delimited "413144064:8:74;129;0;5;0;9;15;0", "413143040:2:0;0"
+                //Example of the array with CAN frames that are colon and semicolon delimited "413144064:8:74;129;0;5;0;8;15;0", "413143040:2:0;0"
                 String tempCanFrame1 = enOutput[pair.Key][0]; //the first frame
                 String tempCanFrame2 = enOutput[pair.Key][1]; //the second frame
 
                 SendCanFrame(tempCanFrame1);
-                //StandardDelay();
                 SendCanFrame(tempCanFrame2);
-                //StandardDelay();
 
                 //initial voltage value to force failure if DMM measurement fails
                 double dmmMeas = 0;
@@ -1712,13 +1729,13 @@ namespace HydroFunctionalTest
                 if (dmmMeas >= pair.Value[0])
                 {
                     howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output High passed\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High >" + pair.Value[0].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output High", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Enabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output Enabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
                 else
                 {
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output High is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High >" + pair.Value[0].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output High", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Enabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output Enabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
 
                 //turn the digital output off by sending the output specific CAN command
@@ -1729,9 +1746,7 @@ namespace HydroFunctionalTest
                 tempCanFrame2 = nEnOutput[pair.Key][1]; //the second frame
 
                 SendCanFrame(tempCanFrame1);
-                //StandardDelay();
                 SendCanFrame(tempCanFrame2);
-                //StandardDelay();
                 
                 //initial voltage value to force failure if DMM measurement fails
                 dmmMeas = 5;
@@ -1746,19 +1761,17 @@ namespace HydroFunctionalTest
                 if (dmmMeas <= pair.Value[1])
                 {
                     howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Low passed\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High=" + pair.Value[0].ToString() + ",Low=" + pair.Value[1] + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output Low", "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Disabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output Disabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
                 else
                 {
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Low is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High=" + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output Low", "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Disabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output Disabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
                 
                 OnInformationAvailable();
                 testStatusInfo.Clear();
-                if (softwAbort || hardwAbort)
-                    break;
             }
 
             //Mux output - disable mux output                
@@ -1775,9 +1788,14 @@ namespace HydroFunctionalTest
             }
             else
             {
-                //set the method status flag in the testRoutineInformation Dictionary
-                testRoutineInformation["DigitalOutputs"] = 0;
-                testStatusInfo.Add("\r\n\t***DigitalOutputs Test Failed***");
+                //set the method status flag in the testRoutineInformation Dictionary only if the test hasn't been aborted
+                if (!(softwAbort || hardwAbort))
+                {
+                    testRoutineInformation["DigitalOutputs"] = 0;
+                    testStatusInfo.Add("\r\n\t***DigitalOutputs Test Failed***");
+                }
+                else
+                    testStatusInfo.Add("\r\n\t***DigitalOutputs Test Untested***");
             }
 
         }

@@ -1392,14 +1392,20 @@ namespace HydroFunctionalTest
             {
 
                 TPCANMsg CanMsg = new TPCANMsg();
-                CanMsg.DATA = canData;
+                CanMsg.DATA = new byte[8];
+                //CanMsg.DATA  = canData;
                 CanMsg.ID = canId;
                 CanMsg.LEN = msgLen;
                 if (!remoteFrame)
-                    CanMsg.MSGTYPE = TPCANMessageType.PCAN_MESSAGE_STANDARD;              
+                    CanMsg.MSGTYPE = TPCANMessageType.PCAN_MESSAGE_EXTENDED;//.PCAN_MESSAGE_STANDARD;              
                 else
                     CanMsg.MSGTYPE = TPCANMessageType.PCAN_MESSAGE_RTR;
-                            
+
+                for (int i = 0; i < CanMsg.LEN; i++)
+                {
+                    CanMsg.DATA[i] = canData[i];
+                }
+
                 //Write command
                 stsResult = Write(DevHandle, ref CanMsg);
                 if (stsResult == TPCANStatus.PCAN_ERROR_OK)

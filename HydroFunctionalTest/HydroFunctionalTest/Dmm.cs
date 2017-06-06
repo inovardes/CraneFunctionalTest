@@ -147,7 +147,7 @@ namespace HydroFunctionalTest
                     gpioDev.GpioWrite(2, port2CtrlByte);
 
                 //send command and then loop till response is received or loopMax
-                System.Threading.Thread.Sleep(1000);
+                //System.Threading.Thread.Sleep(500);
                 dmmDev.WriteLine(cmd);
                 while ((rtnData == null) && (loopCount < loopMax))
                 {
