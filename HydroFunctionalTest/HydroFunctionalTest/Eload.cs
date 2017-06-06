@@ -21,17 +21,42 @@ namespace HydroFunctionalTest
         /// Provides a public read boolean for external classes to allow for efficient access to the device
         /// </summary>
         static public bool IsBusy { get; private set; } = false;
+        
         /// <summary>
         /// this object is used in conjunction with the 'lock()' statement and the IsBusy property.  
         /// Together they manage access to the Eload resource, preventing simultaneous requests.
         /// </summary>
         static private Object lockRoutine = new Object();
 
+        /// <summary>
+        /// Provides a way for threads to reserve the Eload which allows other threads to know whether to run other tests while Eload in in use.
+        /// </summary>
+        /// <param name="eloadRequested"></param>
+        /// <returns></returns>
+        static public bool ReserveEload(bool eloadRequested)
+        {
+            lock (lockRoutine)
+            {
+                if (eloadRequested)
+                    if (IsBusy)
+                        return false;
+                    else
+                    {
+                        IsBusy = true;
+                        return true;
+                    }
+                else
+                {
+                    IsBusy = false;
+                    return false;
+                }
+            }
+        }
+
         static public bool TalkToLoad(String tempComPort)
         {
             lock (lockRoutine)
             {
-                IsBusy = true;
                 comPort = tempComPort.Substring(3);
                 bool rtnStatus = false;
                 returnData.Clear();
@@ -68,7 +93,6 @@ namespace HydroFunctionalTest
                 myProcess.WaitForExit();
                 myProcess.Close();
 
-                IsBusy = false;
                 return rtnStatus;
             }
         }
@@ -77,7 +101,6 @@ namespace HydroFunctionalTest
         {
             lock (lockRoutine)
             {
-                IsBusy = true;
                 bool rtnStatus = false;
                 returnData.Clear();
                 Console.WriteLine("writing E-Load setup: mode=" + mode + " value=" + modeValue);
@@ -114,7 +137,6 @@ namespace HydroFunctionalTest
                 myProcess.WaitForExit();
                 myProcess.Close();
 
-                IsBusy = false;
                 return rtnStatus;
             }
         }
@@ -124,7 +146,6 @@ namespace HydroFunctionalTest
             lock (lockRoutine)
             {
                 bool rtnStatus = false;
-                IsBusy = true;
                 returnData.Clear();
                 Console.WriteLine("Setting Eload max current...");
                 // parameters to send python app
@@ -161,7 +182,6 @@ namespace HydroFunctionalTest
                 myProcess.WaitForExit();
                 myProcess.Close();
 
-                IsBusy = false;
                 return rtnStatus;
             }
         }
@@ -170,7 +190,6 @@ namespace HydroFunctionalTest
         {
             lock (lockRoutine)
             {
-                IsBusy = true;
                 returnData.Clear();
                 Console.WriteLine("reading from E-Load...");
                 // parameters to send python app
@@ -217,9 +236,6 @@ namespace HydroFunctionalTest
                 // measured current
                 //float measuredCurrent = float.Parse(myString.Substring(aIndex+1, aIndex+2));      // having problems with this one, revisit if necessary
                 //Console.WriteLine("Measured Current: " + measuredCurrent + "A");
-
-
-                IsBusy = false;
             }
         }
 
@@ -227,7 +243,6 @@ namespace HydroFunctionalTest
         {
             lock (lockRoutine)
             {
-                IsBusy = true;
                 returnData.Clear();
                 Console.WriteLine("toggling E-Load " + state);
                 // parameters to send python app
@@ -262,8 +277,6 @@ namespace HydroFunctionalTest
                 // wait exit signal from the app we called and then close it. 
                 myProcess.WaitForExit();
                 myProcess.Close();
-
-                IsBusy = false;
             }
         }
     }

@@ -504,17 +504,15 @@ namespace HydroFunctionalTest
                 }
                 else
                 {
-                    if (!foundGpio | (limitSw == 1))
-                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
-                    else
-                        PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
+                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
                 }
             }
             else
             {
-                //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
-                //if ((gpioObj[uut1_index].ScanForDevs(fix1Designator)) & (foundDmm & foundPwrSup & foundEload & foundPcanDev1))
-                PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
+                if (!foundGpio)
+                    PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Problem communicating with GPIO adapter");
+                else
+                    PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
             }
         }
 
@@ -712,15 +710,15 @@ namespace HydroFunctionalTest
                 }
                 else
                 {
-                    if (!foundGpio | (limitSw == 1))
-                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "\r\nLid Down Not Detected");
-                    else
-                        PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
+                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Lid Down Not Detected");
                 }
             }
             else
             {
-                PrintDataToTxtBox(fix1Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
+                if (!foundGpio)
+                    PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Problem communicating with GPIO adapter");
+                else
+                    PrintDataToTxtBox(fix2Designator, null, "Test Equipment initialization needs to be resolved before beginning test\r\nSee equipment status info in tools tab");
             }
         }
 

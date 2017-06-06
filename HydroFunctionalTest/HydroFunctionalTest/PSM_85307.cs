@@ -82,7 +82,7 @@ namespace HydroFunctionalTest
             /// <summary>
             /// Create 4 enum values for indexing measurement limit dictionary elements: iHigh=0, iLow=1, vHigh=2, vLow=3
             /// </summary>
-            public enum measLimitIndex : Int32
+            public enum measLimitIndex : int
             {
                 iHigh = 0, iLow = 1, vHigh = 2, vLow = 3
             };
@@ -178,6 +178,7 @@ namespace HydroFunctionalTest
         {
             public const Byte heartbeat = 25;
             public const Byte digitalInputsStatus = 41;
+            public const Byte outputStatus = 13;
         }
 
         #endregion Structures unique to this assembly
@@ -304,6 +305,10 @@ namespace HydroFunctionalTest
         /// </summary>
         public Dictionary<String, double[]> powerRegTest;
         /// <summary>
+        /// An integer value representing a specific output ID - this will match the first byte of the CAN data of message ID 13 (still need to find why it's not message ID 19)
+        /// </summary>
+        public Dictionary<String, int> outputIds;
+        /// <summary>
         /// All Aux output off High Limits (Voltage & Current)
         /// </summary>
         public const double auxOutOff_H = .01;    //Current(amp) & Voltage(volt) High limit
@@ -350,63 +355,63 @@ namespace HydroFunctionalTest
             //Measurement Limits for ELoad
             auxOut28vTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
-                //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
-                { "Aux0", new double[] { .938, .898, 26.3, 25.2 } }, 
-                { "Aux1", new double[] { .938, .898, 26.3, 25.2 } },
-                { "Aux2", new double[] { .938, .898, 26.3, 25.2 } },
-                { "Aux3", new double[] { .938, .898, 26.3, 25.2 } },
-                { "Aux4", new double[] { .938, .898, 26.3, 25.2 } },
-                { "Aux5", new double[] { 1.070, 1.030, 27.99, 26.86 } },
-                { "28vSW", new double[] { .705, .670, 28.1, 27.0 } },
-                { "5vaSW", new double[] { .035, .029, 5.29, 4.85 } },
+                //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt), 5th Element-->Mux output Byte to enable output
+                { "Aux0", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux0 } }, 
+                { "Aux1", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux4 } },
+                { "Aux5", new double[] { 1.070, 1.030, 27.99, 26.86, muxOutputEn.aux5 } },
+                { "28vSW", new double[] { .705, .670, 28.1, 27.0, muxOutputEn._28vSW } },
+                { "5vaSW", new double[] { .035, .029, 5.29, 4.85, muxOutputEn._5vaSW } },
             };
             auxOut12vTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
-                //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
-                { "Aux0", new double[] { .436, .406, 12.22, 11.6 } },
-                { "Aux1", new double[] { .436, .406, 12.22, 11.6 } },
-                { "Aux2", new double[] { .436, .406, 12.22, 11.6 } },
-                { "Aux3", new double[] { .436, .406, 12.22, 11.6 } },
-                { "Aux4", new double[] { .436, .406, 12.22, 11.6 } },
+                //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt), 5th Element-->Mux output Byte to enable output
+                { "Aux0", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux0 } },
+                { "Aux1", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux4 } },
             };
             auxOut5vTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
-                //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
-                { "Aux0", new double[] { .191, .15, 5.35, 4.38 } },
-                { "Aux1", new double[] { .191, .15, 5.35, 4.38 } },
-                { "Aux2", new double[] { .191, .15, 5.35, 4.38 } },
-                { "Aux3", new double[] { .191, .15, 5.35, 4.38 } },
-                { "Aux4", new double[] { .191, .15, 5.35, 4.38 } },
+                //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt), 5th Element-->Mux output Byte to enable output
+                { "Aux0", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux0 } },
+                { "Aux1", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux4 } },
             };
 
             //Measurement Limits for PCBA
             auxOut28vTst.pcbaMeasLimits = new Dictionary<string, double[]>
             {
-                //1st Element-->High limit(mA), 2nd Element-->Low limit(mA), 3rd Element-->High limit(mV), 4th Element-->Low limit(mV)
-                { "Aux0", new double[] { 1018, 818, 27000, 25000 } }, 
-                { "Aux1", new double[] { 1138, 718, 27000, 25000 } },
-                { "Aux2", new double[] { 1018, 818, 27000, 25000 } },
-                { "Aux3", new double[] { 1018, 818, 27000, 25000 } },
-                { "Aux4", new double[] { 1018, 818, 27000, 25000 } },
-                { "Aux5", new double[] { 1150, 1000, 28100, 27000 } },
+                //1st Element-->High limit(mA), 2nd Element-->Low limit(mA), 3rd Element-->High limit(mV), 4th Element-->Low limit(mV), 5th Element-->Mux output Byte to enable output
+                { "Aux0", new double[] { 1018, 818, 27000, 25000, muxOutputEn.aux0 } }, 
+                { "Aux1", new double[] { 1138, 718, 27000, 25000, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { 1018, 818, 27000, 25000, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { 1018, 818, 27000, 25000, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { 1018, 818, 27000, 25000, muxOutputEn.aux4 } },
+                { "Aux5", new double[] { 1150, 1000, 28100, 27000, muxOutputEn.aux5 } },
             };
             auxOut12vTst.pcbaMeasLimits = new Dictionary<string, double[]>
             {
-                //1st Element-->High limit(mA), 2nd Element-->Low limit(mA), 3rd Element-->High limit(mV), 4th Element-->Low limit(mV)
-                { "Aux0", new double[] { 501, 341, 1300, 1100 } },
-                { "Aux1", new double[] { 524, 324, 1300, 1100 } },
-                { "Aux2", new double[] { 501, 341, 1300, 1100 } },
-                { "Aux3", new double[] { 501, 341, 1300, 1100 } },
-                { "Aux4", new double[] { 501, 341, 1300, 1100 } },
+                //1st Element-->High limit(mA), 2nd Element-->Low limit(mA), 3rd Element-->High limit(mV), 4th Element-->Low limit(mV), 5th Element-->Mux output Byte to enable output
+                { "Aux0", new double[] { 501, 341, 1300, 1100, muxOutputEn.aux0 } },
+                { "Aux1", new double[] { 524, 324, 1300, 1100, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { 501, 341, 1300, 1100, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { 501, 341, 1300, 1100, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { 501, 341, 1300, 1100, muxOutputEn.aux4 } },
             };
             auxOut5vTst.pcbaMeasLimits = new Dictionary<string, double[]>
             {
-                //1st Element-->High limit(mA), 2nd Element-->Low limit(mA), 3rd Element-->High limit(mV), 4th Element-->Low limit(mV)
-                { "Aux0", new double[] { 224, 124, 4400, 5500 } },
-                { "Aux1", new double[] { 254, 94, 4400, 5500 } },
-                { "Aux2", new double[] { 224, 124, 4400, 5500 } },
-                { "Aux3", new double[] { 224, 124, 4400, 5500 } },
-                { "Aux4", new double[] { 224, 124, 4400, 5500 } },
+                //1st Element-->High limit(mA), 2nd Element-->Low limit(mA), 3rd Element-->High limit(mV), 4th Element-->Low limit(mV), 5th Element-->Mux output Byte to enable output
+                { "Aux0", new double[] { 224, 124, 4400, 5500, muxOutputEn.aux0 } },
+                { "Aux1", new double[] { 254, 94, 4400, 5500, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { 224, 124, 4400, 5500, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { 224, 124, 4400, 5500, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { 224, 124, 4400, 5500, muxOutputEn.aux4 } },
             };
             #endregion Initialize variables holding UUT current & voltage limits
 
@@ -480,6 +485,24 @@ namespace HydroFunctionalTest
                 { "Aux4", new string[] { "413144064:8:74;129;0;5;0;22;6;0", "413143040:2:5;0" } },
             };
             #endregion Initialize variables holding CAN data Frames for UUT output control
+
+            outputIds = new Dictionary<string, int>
+            {
+                { "Aux0", 2 },
+                { "Aux1", 3 },
+                { "Aux2", 4 },
+                { "Aux3", 5 },
+                { "Aux4", 6 },
+                { "Aux5", 7 },
+                { "DOUT_0C", 15 },
+                { "DOUT_1C", 14 },
+                { "DOUT_2C", 13 },
+                { "DOUT_3C", 12 },
+                { "DOUT_4C", 11 },
+                { "DOUT_5C", 10 },
+                { "DOUT_6C", 9 },
+                { "DOUT_7C", 8 },
+            };
 
             powerRegTest = new Dictionary<String, double[]>
             {
@@ -1183,7 +1206,7 @@ namespace HydroFunctionalTest
         }
 
         /// <summary>
-        /// Searches the CAN data from the Pcan class message buffer which is collecting data continously while the test is running.
+        /// Searches the CAN data for a specific Message ID.  The CAN data is continously packed into a custom data structure for later searching.
         /// </summary>
         /// <param name="messageID"></param>
         /// <param name="millisecondsToWait"></param>
@@ -1484,48 +1507,105 @@ namespace HydroFunctionalTest
         }
 
         public void AdjAuxOutputs()
-        {
-            int maxWait = 2000; //amount of time in seconds to wait for Eload to become available            
-            //wait maxWait for Eload to become available and return to run other tests if wait exceeds maxWait
-            if (Eload.IsBusy)
-            {
-                Stopwatch stopwatch = new Stopwatch();
-                stopwatch.Start();
-                while ((Eload.IsBusy) && (stopwatch.ElapsedMilliseconds < maxWait))
-                {
-                    
-                };
-                //exit the test routine if the Eload is still busy
-                if (stopwatch.ElapsedMilliseconds > maxWait)
+        {          
+            //if Eload is busy return to run other tests
+            if (Eload.ReserveEload(true))
                     return;
-            }
 
-            //Eload should be available now, execute the following tests
+            //Eload is under this threads control now
+            int howManyAdjAuxOutputsFailures = auxOut28vTst.eLoadMeasLimits.Count();
+            //28V adjustable output test
+            //enable relay connecting _28V_RTN_EN to the Eload and DMM negative input
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.setBits);
             foreach (var pair in auxOut28vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
                 if (softwAbort | hardwAbort)
                     break;
 
-                //turn the adjustable output on by sending the output specific CAN command
+                //get all the tolerance limits for the eload
+                double eLoadV_H = pair.Key[(int)OutputTestParams.measLimitIndex.vHigh];
+                double eLoadI_H = pair.Key[(int)OutputTestParams.measLimitIndex.iHigh];
+                double eLoadV_L = pair.Key[(int)OutputTestParams.measLimitIndex.vLow];
+                double eLoadI_L = pair.Key[(int)OutputTestParams.measLimitIndex.iLow];
+
+                //Compute the constant resistance value for the eload setting
+                float constResSetting = (float)(((eLoadV_H + eLoadV_L) / 2) / ((eLoadI_H + eLoadI_L) / 2));
+                
+                //Turn on the Eload to set it to constant resistance mode
+                if (Eload.Setup("cr", constResSetting))
+                    MessageBox.Show("Eload Setup Error");
+                if (Eload.SetMaxCurrent(1))// set max current to 1 amp
+                    MessageBox.Show("Eload set max current Error");
+                Eload.Toggle("on");
+                
+                //Enable the relay connecting the UUT output to the Eload and DMM positive input
+                IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Key[4], gpioConst.setBits);
+
+                //Set the adjustable output voltage to 28 Volts by sending CAN command
                 //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
                 //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
                 //Example of the array with CAN frames that are colon and semicolon delimited "413144064:8:74;129;0;5;0;9;2;0", "413143040:2:0;0"
-                String tempCanFrame1 = enOutput[pair.Key][0]; //the first frame
-                String tempCanFrame2 = enOutput[pair.Key][1]; //the second frame
+                String tempCanFrame1 = auxOut28vTst.canSetVoltCmd[pair.Key][0]; //the first frame
+                String tempCanFrame2 = auxOut28vTst.canSetVoltCmd[pair.Key][1]; //the second frame
 
-                SendCanFrame(tempCanFrame1);
-                SendCanFrame(tempCanFrame2);
-                //wait for the output data on the CAN bus
-                System.Threading.Thread.Sleep(3000);
+                if(!SendCanFrame(tempCanFrame1))
+                    MessageBox.Show("CAN transmit Error");
+                if (!SendCanFrame(tempCanFrame2))
+                    MessageBox.Show("CAN transmit Error");
+
+                //turn the adjustable output on by sending the output specific CAN command                
+                tempCanFrame1 = enOutput[pair.Key][0]; //the first frame
+                tempCanFrame2 = enOutput[pair.Key][1]; //the second frame
+
+                if (!SendCanFrame(tempCanFrame1))
+                    MessageBox.Show("CAN transmit Error");
+                if (!SendCanFrame(tempCanFrame2))
+                    MessageBox.Show("CAN transmit Error");
+
+                //search the CAN data for the message ID that contains output status ID of interest
+                if (AwaitMessageID(messageIDs.outputStatus))
+                {
+                    //compare the first byte of the CAN message to the output ID of interest
+                    if (outputIds[pair.Key] == CanDataManagement.CanMessage[0])
+                    {
+                        //verify the voltage reported from the PCA and Electronic load are within tolerance
+                        //Verify PCA tolerances
+                        double pcaV_H = auxOut28vTst.pcbaMeasLimits[pair.Key][(int)OutputTestParams.measLimitIndex.vHigh];
+                        double pcaV_L = auxOut28vTst.pcbaMeasLimits[pair.Key][(int)OutputTestParams.measLimitIndex.vLow];
+                        if ((CanDataManagement.CanMessage[1] >= pcaV_L) && (CanDataManagement.CanMessage[1] <= pcaV_H))
+                        {
+
+                        }
+                        else
+                        {
+
+                        }
+                    } 
+                }
+                else
+                {
+                    //Couldn't find any CAN data for the given message ID
+                }
+                
+                //turn Eload off 
+                Eload.Toggle("off");
             }
-            
+
+            //disable relay connecting _28V_RTN_EN to the Eload and DMM negative input
+            IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.clearBits);
+            //Mux output - disable mux output                
+            IC_ChangeOutputState(gpioConst.u1RefDes, 0, gpioConst.clearBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.clearBits commands the contol lines to their high disabled state
+
             //set the method status flag in the testRoutineInformation Dictionary
             testRoutineInformation["AdjAuxOutputs"] = 1;
             testStatusInfo.Add("\t***AdjAuxOutputs Test Passed***");
+
+            //Release control of the Eload for another thread to use
+            Eload.ReserveEload(false);
         }
 
-        public void SendCanFrame(String tempCanFrame)
+        public bool SendCanFrame(String tempCanFrame)
         {
             //parse the CAN frame
             int index = tempCanFrame.IndexOf(":");
@@ -1546,7 +1626,7 @@ namespace HydroFunctionalTest
                 else
                     tempCanMessage1.Add(Byte.Parse(tempCanFrame));
             }
-            pCanObj.CanWrite(tempCanMessage1.ToArray(), tempCanId, (Byte)tempMessageLength);
+            return pCanObj.CanWrite(tempCanMessage1.ToArray(), tempCanId, (Byte)tempMessageLength);
         }
 
         public void NonAdjAuxOutputs()
