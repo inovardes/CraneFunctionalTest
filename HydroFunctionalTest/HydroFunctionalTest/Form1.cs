@@ -212,6 +212,8 @@ namespace HydroFunctionalTest
                         foundEload = true;
                         stopSearch = true;
                         mainStsTxtBx.AppendText("Eload attached to: " + s + Environment.NewLine);
+                        //turn Eload off
+                        Eload.Toggle("off");
                     }
                 }
             }
@@ -220,7 +222,7 @@ namespace HydroFunctionalTest
             if (!foundPwrSup)
                 mainStsTxtBx.AppendText("Problem commun. w/ Power Supply\r\nVerify RS232 settings.\r\n" + PwrSup.pwrSupSettings + "\r\n");
             if (!foundEload)
-                mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n");
+                mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n" + string.Join(" ", Eload.returnData.ToArray()));
 
             if (foundPwrSup & foundEload & foundDmm & foundPcanDev1 & foundPcanDev2)
             {
@@ -253,7 +255,7 @@ namespace HydroFunctionalTest
             }
             if (foundEload)
             {
-
+                Eload.Toggle("off");
             }
             foundDmm = false;
             foundPwrSup = false;

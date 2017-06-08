@@ -84,6 +84,7 @@ namespace HydroFunctionalTest
 
                 StreamReader myStreamReader = myProcess.StandardOutput;
                 string myString = myStreamReader.ReadToEnd();
+                myString = myString + "Verify Eload Settings:\r\nAddress=0\r\nBaudrate=" + baudRate.ToString() + "\r\nParity=Default";
                 if (myString.Contains("true") && (myString.Contains(baudRate)))
                     rtnStatus = true;
                 else
@@ -103,7 +104,6 @@ namespace HydroFunctionalTest
             {
                 bool rtnStatus = false;
                 returnData.Clear();
-                Console.WriteLine("writing E-Load setup: mode=" + mode + " value=" + modeValue);
 
                 // parameters to send python app
                 string method = "setup";    // method (setup, read, or toggle)
@@ -117,7 +117,7 @@ namespace HydroFunctionalTest
                 myProcessStartInfo.CreateNoWindow = true;
 
                 //setup
-                myProcessStartInfo.Arguments = myPythonApp + " " + connType + " " + comPort + " " + baudRate + " " + method + " " + mode + " " + modeValue;
+                myProcessStartInfo.Arguments = myPythonApp + " " + connType + " " + comPort + " " + baudRate + " " + method + " " + mode + " " + modeValue.ToString();
                 Process myProcess = new Process();
                 // assign start information to the process 
                 myProcess.StartInfo = myProcessStartInfo;
@@ -141,13 +141,12 @@ namespace HydroFunctionalTest
             }
         }
 
-        static public bool SetMaxCurrent(int maxCurrent)
+        static public bool SetMaxCurrent(double maxCurrent)
         {
             lock (lockRoutine)
             {
                 bool rtnStatus = false;
                 returnData.Clear();
-                Console.WriteLine("Setting Eload max current...");
                 // parameters to send python app
                 string method = "setMaxCurrent";    // method (setup, read, or toggle)
 
@@ -160,7 +159,7 @@ namespace HydroFunctionalTest
                 myProcessStartInfo.CreateNoWindow = true;
 
                 //read
-                myProcessStartInfo.Arguments = myPythonApp + " " + connType + " " + comPort + " " + baudRate + " " + method + " " + maxCurrent;
+                myProcessStartInfo.Arguments = myPythonApp + " " + connType + " " + comPort + " " + baudRate + " " + method + " " + maxCurrent.ToString();
                 Process myProcess = new Process();
                 // assign start information to the process 
                 myProcess.StartInfo = myProcessStartInfo;
@@ -175,6 +174,50 @@ namespace HydroFunctionalTest
                 StreamReader myStreamReader = myProcess.StandardOutput;
                 string myString = myStreamReader.ReadToEnd();
                 if (myString.Contains("true") && (myString.Contains(maxCurrent.ToString())))
+                    rtnStatus = true;
+                returnData.Add(myString); //save the output we got from python app 
+
+                // wait exit signal from the app we called and then close it. 
+                myProcess.WaitForExit();
+                myProcess.Close();
+
+                return rtnStatus;
+            }
+        }
+
+        static public bool SetMaxVoltage(double maxVoltage)
+        {
+            lock (lockRoutine)
+            {
+                bool rtnStatus = false;
+                returnData.Clear();
+                // parameters to send python app
+                string method = "setMaxVoltage";    // method (setup, read, or toggle)
+
+                // Create new process start info
+                ProcessStartInfo myProcessStartInfo = new ProcessStartInfo(python);
+
+                // make sure we can read the output from stdout 
+                myProcessStartInfo.UseShellExecute = false;
+                myProcessStartInfo.RedirectStandardOutput = true;
+                myProcessStartInfo.CreateNoWindow = true;
+
+                //read
+                myProcessStartInfo.Arguments = myPythonApp + " " + connType + " " + comPort + " " + baudRate + " " + method + " " + maxVoltage.ToString();
+                Process myProcess = new Process();
+                // assign start information to the process 
+                myProcess.StartInfo = myProcessStartInfo;
+
+                //Console.WriteLine("Calling Python script with arguments: {0}, {1}, {2}, {3}", connType, comPort, baudRate, method);
+                // start the process 
+                myProcess.Start();
+
+                // Read the standard output of the app we called.  
+                // in order to avoid deadlock we will read output first 
+                // and then wait for process terminate: 
+                StreamReader myStreamReader = myProcess.StandardOutput;
+                string myString = myStreamReader.ReadToEnd();
+                if (myString.Contains("true") && (myString.Contains(maxVoltage.ToString())))
                     rtnStatus = true;
                 returnData.Add(myString); //save the output we got from python app 
 
