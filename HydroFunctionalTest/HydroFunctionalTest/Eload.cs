@@ -229,7 +229,7 @@ namespace HydroFunctionalTest
             }
         }
 
-        static public void Read()
+        static public void Read(out double measuredVoltage, out double measuredCurrent)
         {
             lock (lockRoutine)
             {
@@ -270,15 +270,14 @@ namespace HydroFunctionalTest
                 //indexes for accessing data returned in the string
                 int vIndex = myString.IndexOf("V");
                 int aIndex = myString.IndexOf("A");
-                int wIndex = myString.IndexOf("W");
+                //int wIndex = myString.IndexOf("W");
 
                 // measured voltage
-                float measuredVoltage = float.Parse(myString.Substring(0, vIndex));         // get voltage string and convert to float
-                Console.WriteLine("Measured Voltage: " + measuredVoltage + "V");
+                measuredVoltage = double.Parse(myString.Substring(0, vIndex));         // get voltage string and convert to float
 
                 // measured current
-                //float measuredCurrent = float.Parse(myString.Substring(aIndex+1, aIndex+2));      // having problems with this one, revisit if necessary
-                //Console.WriteLine("Measured Current: " + measuredCurrent + "A");
+                String tempString = myString.Substring(vIndex + 2, (aIndex - vIndex)-3);
+                measuredCurrent = double.Parse(myString.Substring(vIndex + 2, (aIndex - vIndex)-3));
             }
         }
 
