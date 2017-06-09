@@ -7,6 +7,8 @@ using System.Windows.Forms;
 using System.Net;
 using System.Diagnostics;
 using System.Reflection;
+using System.IO.Ports;
+using System.Management;
 
 namespace HydroFunctionalTest
 {
@@ -546,22 +548,22 @@ namespace HydroFunctionalTest
                 { "DOUT_5C", 10 },
                 { "DOUT_6C", 9 },
                 { "DOUT_7C", 8 },
+                { "24V_Enable", 16 },
             };
 
             #region Initialize Dictionary containing pass/fail status for all tests
             testRoutineInformation = new Dictionary<string, int>
             {
-                { "FlashBootloader", -1 }, //test routine completed
-                { "LoadFirmware", -1 },  //test routine completed
+                //{ "FlashBootloader", -1 }, //test routine completed
+                //{ "LoadFirmware", -1 },  //test routine completed
                 { "PowerUp", -1 },  //test routine completed
-                { "PowerRegulators", -1 },  //test routine completed
-                { "AuxOutputs", -1 },   //test routine completed
-                { "DigitalInputs", -1 },  //test routine completed
-                { "DigitalOutputs", -1 },  //test routine completed
-                //{ "PowerLoss", -1 },
-                { "SeatIDSwitch", -1 },  //test routine completed
-                //{ "CANComm", -1 },
-                //{ "USBComm", -1 },
+                //{ "PowerRegulators", -1 },  //test routine completed
+                //{ "AuxOutputs", -1 },   //test routine completed
+                //{ "DigitalInputs", -1 },  //test routine completed
+                //{ "DigitalOutputs", -1 },  //test routine completed
+                //{ "PowerLoss", -1 },        //test routine completed
+                //{ "SeatIDSwitch", -1 },  //test routine completed
+                { "USBComm", -1 },
                 //{ "CANID", -1 },
             };
             #endregion Initialize Dictionary containing all test pass fail status
@@ -579,7 +581,6 @@ namespace HydroFunctionalTest
                 { "PowerRegulators",  new List<String> { "" } },
                 { "PowerLoss",  new List<String> { "" } },
                 { "SeatIDSwitch",  new List<String> { "" } },
-                { "CANComm",  new List<String> { "" } },
                 { "USBComm",  new List<String> { "" } },
                 { "CANID",  new List<String> { "" } },
             };
@@ -1163,8 +1164,6 @@ namespace HydroFunctionalTest
 
         private UInt16 CheckStandbyCurrent(Byte[] canData)
         {
-            //query the power supply for current
-
             //compare the canData parameter to the
             UInt16 mostSigByte = (Byte)canData[4];
             UInt16 leastSigByte = (Byte)canData[3];
@@ -1232,6 +1231,8 @@ namespace HydroFunctionalTest
             stopwatch.Start();
             while ((!foundMessageID) && (stopwatch.ElapsedMilliseconds < millisecondsToWait))
             {
+                if (AbortCheck())
+                    break;
                 //copy the contents of the CAN data to a new variable
                 List<CanDataStruct> tempCanReadData;
                 GetCanData(out tempCanReadData);
@@ -1242,6 +1243,8 @@ namespace HydroFunctionalTest
                 //start at the end of the list and work back till the count is: total count - the count which represents the most recent chunk of data
                 for (int i = (tempCanReadData.Count - 1); i >= (tempCanReadData.Count - CanDataManagement.recentDataCount); i--)
                 {
+                    if (AbortCheck())
+                        break;
                     //look for the CAN heartbeat ID:
                     //Strip out the Message ID (bits 9-15) from the CAN ID 
                     CanDataStruct tempDataStruct = tempCanReadData[i];
@@ -1251,7 +1254,6 @@ namespace HydroFunctionalTest
 
                     if (messageID == tempMessageID)
                     {
-                        
                         CanDataManagement.CanId = tempDataStruct.canID;
                         CanDataManagement.CanMessage.Clear();
                         //save the CAN message length to the CanDataManagment class if needed for analysis
@@ -1269,7 +1271,6 @@ namespace HydroFunctionalTest
                                 foundMessageID = true;
                                 // break out of loop if the output ID is found 
                                 break;
-                                
                             }
                         }
                         else
@@ -1439,7 +1440,6 @@ namespace HydroFunctionalTest
             //}
 
             //enable UUT USB port
-            //(change the value representing the last byte value latched on the flip flop output before writing to GPIO)
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
             StandardDelay(1000);
 
@@ -1497,31 +1497,37 @@ namespace HydroFunctionalTest
                 testRoutineInformation["PowerUp"] = 0;
                 softwAbort = true;
                 testStatusInfo.Add("\tPower Supply communication issue in 'PowerUp' method.\r\n\t***PowerUp routine failed***\r\n");
-                RecordTestResults("PowerUp", "Board power up sequence", "Fail", "", "", "", "", "Power Supply communication issue in 'PowerUp' method");
+                RecordTestResults("PowerUp", "Board power up sequence & CAN Comm", "Fail", "", "", "", "", "Power Supply communication issue in 'PowerUp' method");
             }
             else
             {
-                ////////////////////////////////////////////////////////////////////////////
-                //Remember to change this line of code.  It was put here because the VGA gender
-                //changer is missing one of the CAN pin connections.  So the other pin has to be selected
-                //IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit3, gpioConst.setBits);
-                testRoutineInformation["PowerUp"] = 1;
-                /////////////////////////////////////////////////////////////////////////////
-                if (AwaitMessageID(messageIDs.heartbeat))
+                //check both sets of pins for CAN communication to ensure good connection
+                bool otherPins = false;
+                bool defaultPins = false;
+                otherPins = CANComm(true);
+                defaultPins = CANComm(false);
+                if (otherPins & defaultPins)
                 {
                     //set the method status flag in the testRoutineInformation Dictionary
                     testRoutineInformation["PowerUp"] = 1;
                     testStatusInfo.Add("\t***PowerUp routine passed***");
-                    RecordTestResults("PowerUp", "Standby Current Verify", "Pass");
+                    RecordTestResults("PowerUp", "Board power up sequence & CAN Comm", "Pass", "", "", "", "");
                 }
                 else
                 {
+                    String whichSetOfPins = "";
+                    if (otherPins)
+                        whichSetOfPins = "J5, P10 & P5";
+                    if(defaultPins)
+                        whichSetOfPins = whichSetOfPins + " & J5, P9 & P4";
+                    //abort test if no CAN data was found
+                    if(defaultPins && otherPins)
+                        softwAbort = true;
                     //set the method status flag in the testRoutineInformation Dictionary
                     testRoutineInformation["PowerUp"] = 0;
-                    softwAbort = true;
                     testStatusInfo.Add("\tNo CAN data found.  Unable to communicate with UUT.\r\n\t***PowerUp failed.***\r\n");
-                    RecordTestResults("PowerUp", "Board power up sequence", "Fail", "", "", "", "", "No CAN data found.  Unable to communicate with UUT");
-                }
+                    RecordTestResults("PowerUp", "Board power up sequence & CAN Comm", "Fail", "", "", "", "", "CAN data not found on pins " + whichSetOfPins + ". Check connector solderability/contacts");
+                }                    
             }
         }
 
@@ -2490,20 +2496,74 @@ namespace HydroFunctionalTest
 
         public void PowerLoss()
         {
-            if (PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 23, 1.5))
+            //get the status bit (24V_Enable output ID) for the 24V power loss : 
+            Byte statusBit = 0;
+            bool powerLossCheck = false;
+            if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 23, 1.5))
             {
-                //look for the CAN heartbeat ID: 
-                if (AwaitMessageID(messageIDs.heartbeat))
+                testStatusInfo.Add("\tFailed to drop power supply voltage below 24V\r\n");
+                RecordTestResults("PowerLoss", "Power Loss Status Set", "Fail", "", "", "", "Failed to drop power supply voltage below 24V");
+            }
+            //look for the CAN Output Status message ID and the 24V_Enable 
+            if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
+            {
+                statusBit = CanDataManagement.CanMessage[6];
+                statusBit = (Byte)(statusBit >> 2);
+                if (statusBit == 1)
                 {
-                    //set the method status flag in the testRoutineInformation Dictionary
-                    testRoutineInformation["PowerLoss"] = 1;
+                    testStatusInfo.Add("\tPower loss status bit set\r\n");
+                    RecordTestResults("PowerLoss", "Power Loss Status Bit Set", "Pass", "N/A", "0", statusBit.ToString(), "Logic-High/Low", "");
+                    powerLossCheck = true;
                 }
             }
             else
             {
-                //
+                testStatusInfo.Add("\tUnable to find the power loss status bit (via CAN data) after decreasing the power supply input below 24V\r\n");
+                RecordTestResults("PowerLoss", "Power Loss Status Bit Set", "Fail", "N/A", "0", statusBit.ToString(), "Logic-High/Low", "Couldn't find Message ID or Output ID");
+            }
+
+            if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
+            {
+                testStatusInfo.Add("\tFailed to reset power supply voltage to 28V\r\n");
+                RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Fail", "", "", "", "Failed to reset power supply voltage to 28V");
+            }
+            if (AbortCheck())
+                return;
+
+            //look for the CAN Output Status message ID and the 24V_Enable status bit
+            System.Threading.Thread.Sleep(3000); //wait for the voltage to settle adn the bit to set
+            if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
+            {
+                statusBit = CanDataManagement.CanMessage[6];
+                if (statusBit == 0)
+                {
+                    testStatusInfo.Add("\tPower loss status bit cleared\r\n");
+                    RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Pass", "1", "N/A", statusBit.ToString(), "Logic-High/Low", "");
+                    powerLossCheck = powerLossCheck & true;
+                }
+                else
+                {
+                    testStatusInfo.Add("\tPower loss status bit did not clear after increasing power supply voltage above 24V\r\n");
+                    RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Fail", "1", "N/A", statusBit.ToString(), "Logic-High/Low", "Couldn't find Message ID or Output ID");
+                }
+            }
+            else
+            {
+                testStatusInfo.Add("\tUnable to find the power loss status bit (via CAN data) after decreasing the power supply input below 24V\r\n");
+                RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Fail", "", "", "", "Logic-High/Low", "Couldn't find Message ID or Output ID");
+            }
+
+            if (powerLossCheck)
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["PowerLoss"] = 1;
+                testStatusInfo.Add("\t****PowerLoss Passed****");
+            }
+            else
+            {
                 //set the method status flag in the testRoutineInformation Dictionary
                 testRoutineInformation["PowerLoss"] = 0;
+                testStatusInfo.Add("\t****PowerLoss Failed****");
             }
         }
 
@@ -2809,15 +2869,71 @@ namespace HydroFunctionalTest
             }
         }
 
-        public void CANComm()
+        public bool CANComm(bool selectOtherPins)
         {
-            //set the method status flag in the testRoutineInformation Dictionary
-            testRoutineInformation["CANComm"] = 1;
-            testStatusInfo.Add("\t***CANComm Test Passed***");
+            if (selectOtherPins)
+            {
+                //select other pins
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit3, gpioConst.setBits);
+                return AwaitMessageID(messageIDs.heartbeat);
+            }
+            else
+                return AwaitMessageID(messageIDs.heartbeat);
         }
 
         public void USBComm()
         {
+            SerialPort uutUsbCommPort = new SerialPort();
+            //get all the connected devices
+            String[] availPorts = SerialPort.GetPortNames();
+
+            //enable UUT USB port
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
+            StandardDelay(1000);
+
+            String[] availPorts_new = SerialPort.GetPortNames();
+            //see if any new ports joined
+            int countNewComPorts = 0;
+            if(availPorts_new.Length > availPorts.Length)
+            {
+                foreach (var portName in availPorts_new)
+                {
+                    for (int i = 0; i < availPorts.Length; i++)
+                    {
+                        if (!availPorts[i].Contains(portName))
+                        {
+                            uutUsbCommPort.PortName = portName;
+                            countNewComPorts++;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Couldn't find UUT; no new Comports were found connected");
+            }
+            if(countNewComPorts > 1)
+                MessageBox.Show("More than one new com port device was found");
+
+            try { uutUsbCommPort.Open(); }
+            catch (Exception ex) { MessageBox.Show("Failed to open UUT Comm. Port\r\n" + ex.Message); }
+
+            //clear out any garbage data in the receive buffer
+            uutUsbCommPort.ReadExisting();
+            Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
+            Byte[] echoRequest = { 70, 129, 0, 0, 0 };
+            //write 5 bytes representing an echo request
+            uutUsbCommPort.Write(echoRequest, 0, 5);
+            uutUsbCommPort.Read(echoResponse, 0, 5);
+
+            if(echoResponse[0] == 71)
+            {
+
+            }
+
+            //switch USB connection to other USB pins on 
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
+
             //set the method status flag in the testRoutineInformation Dictionary
             testRoutineInformation["USBComm"] = 1;
             testStatusInfo.Add("\t***USBComm Test Passed***");
