@@ -34,14 +34,14 @@
             this.grpBxTst2 = new System.Windows.Forms.GroupBox();
             this.btnAbort2 = new System.Windows.Forms.Button();
             this.chkBxRma2 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpPrg2 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpFirm2 = new System.Windows.Forms.CheckBox();
             this.btnStrTst2 = new System.Windows.Forms.Button();
             this.txtBxSerNum2 = new System.Windows.Forms.TextBox();
             this.txtBxTst2 = new System.Windows.Forms.TextBox();
             this.grpBxTst1 = new System.Windows.Forms.GroupBox();
             this.btnAbort1 = new System.Windows.Forms.Button();
             this.chkBxRma1 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpPrg1 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpFirm1 = new System.Windows.Forms.CheckBox();
             this.btnStrTst1 = new System.Windows.Forms.Button();
             this.txtBxTst1 = new System.Windows.Forms.TextBox();
             this.txtBxSerNum1 = new System.Windows.Forms.TextBox();
@@ -60,14 +60,16 @@
             this.btnDbgCmd1 = new System.Windows.Forms.Button();
             this.tabTools = new System.Windows.Forms.TabPage();
             this.rfshEquipBtn = new System.Windows.Forms.Button();
+            this.textBox2 = new System.Windows.Forms.TextBox();
             this.btnCanCmd = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
-            this.textBox2 = new System.Windows.Forms.TextBox();
             this.mainStsTxtBx = new System.Windows.Forms.TextBox();
             this.cboBxSlctFx = new System.Windows.Forms.ComboBox();
             this.btnAsgnDevId = new System.Windows.Forms.Button();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.eqStsLbl = new System.Windows.Forms.Label();
+            this.chkBxSkpBoot1 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpBoot2 = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -104,9 +106,10 @@
             // 
             // grpBxTst2
             // 
+            this.grpBxTst2.Controls.Add(this.chkBxSkpBoot2);
             this.grpBxTst2.Controls.Add(this.btnAbort2);
             this.grpBxTst2.Controls.Add(this.chkBxRma2);
-            this.grpBxTst2.Controls.Add(this.chkBxSkpPrg2);
+            this.grpBxTst2.Controls.Add(this.chkBxSkpFirm2);
             this.grpBxTst2.Controls.Add(this.btnStrTst2);
             this.grpBxTst2.Controls.Add(this.txtBxSerNum2);
             this.grpBxTst2.Controls.Add(this.txtBxTst2);
@@ -131,22 +134,22 @@
             // chkBxRma2
             // 
             this.chkBxRma2.AutoSize = true;
-            this.chkBxRma2.Location = new System.Drawing.Point(22, 68);
+            this.chkBxRma2.Location = new System.Drawing.Point(112, 19);
             this.chkBxRma2.Name = "chkBxRma2";
             this.chkBxRma2.Size = new System.Drawing.Size(50, 17);
             this.chkBxRma2.TabIndex = 7;
             this.chkBxRma2.Text = "RMA";
             this.chkBxRma2.UseVisualStyleBackColor = true;
             // 
-            // chkBxSkpPrg2
+            // chkBxSkpFirm2
             // 
-            this.chkBxSkpPrg2.AutoSize = true;
-            this.chkBxSkpPrg2.Location = new System.Drawing.Point(22, 45);
-            this.chkBxSkpPrg2.Name = "chkBxSkpPrg2";
-            this.chkBxSkpPrg2.Size = new System.Drawing.Size(111, 17);
-            this.chkBxSkpPrg2.TabIndex = 6;
-            this.chkBxSkpPrg2.Text = "Skip Programming";
-            this.chkBxSkpPrg2.UseVisualStyleBackColor = true;
+            this.chkBxSkpFirm2.AutoSize = true;
+            this.chkBxSkpFirm2.Location = new System.Drawing.Point(22, 45);
+            this.chkBxSkpFirm2.Name = "chkBxSkpFirm2";
+            this.chkBxSkpFirm2.Size = new System.Drawing.Size(92, 17);
+            this.chkBxSkpFirm2.TabIndex = 6;
+            this.chkBxSkpFirm2.Text = "Skip Firmware";
+            this.chkBxSkpFirm2.UseVisualStyleBackColor = true;
             // 
             // btnStrTst2
             // 
@@ -178,9 +181,10 @@
             // 
             // grpBxTst1
             // 
+            this.grpBxTst1.Controls.Add(this.chkBxSkpBoot1);
             this.grpBxTst1.Controls.Add(this.btnAbort1);
             this.grpBxTst1.Controls.Add(this.chkBxRma1);
-            this.grpBxTst1.Controls.Add(this.chkBxSkpPrg1);
+            this.grpBxTst1.Controls.Add(this.chkBxSkpFirm1);
             this.grpBxTst1.Controls.Add(this.btnStrTst1);
             this.grpBxTst1.Controls.Add(this.txtBxTst1);
             this.grpBxTst1.Controls.Add(this.txtBxSerNum1);
@@ -205,22 +209,22 @@
             // chkBxRma1
             // 
             this.chkBxRma1.AutoSize = true;
-            this.chkBxRma1.Location = new System.Drawing.Point(22, 68);
+            this.chkBxRma1.Location = new System.Drawing.Point(116, 21);
             this.chkBxRma1.Name = "chkBxRma1";
             this.chkBxRma1.Size = new System.Drawing.Size(50, 17);
             this.chkBxRma1.TabIndex = 6;
             this.chkBxRma1.Text = "RMA";
             this.chkBxRma1.UseVisualStyleBackColor = true;
             // 
-            // chkBxSkpPrg1
+            // chkBxSkpFirm1
             // 
-            this.chkBxSkpPrg1.AutoSize = true;
-            this.chkBxSkpPrg1.Location = new System.Drawing.Point(22, 45);
-            this.chkBxSkpPrg1.Name = "chkBxSkpPrg1";
-            this.chkBxSkpPrg1.Size = new System.Drawing.Size(111, 17);
-            this.chkBxSkpPrg1.TabIndex = 5;
-            this.chkBxSkpPrg1.Text = "Skip Programming";
-            this.chkBxSkpPrg1.UseVisualStyleBackColor = true;
+            this.chkBxSkpFirm1.AutoSize = true;
+            this.chkBxSkpFirm1.Location = new System.Drawing.Point(22, 45);
+            this.chkBxSkpFirm1.Name = "chkBxSkpFirm1";
+            this.chkBxSkpFirm1.Size = new System.Drawing.Size(92, 17);
+            this.chkBxSkpFirm1.TabIndex = 5;
+            this.chkBxSkpFirm1.Text = "Skip Firmware";
+            this.chkBxSkpFirm1.UseVisualStyleBackColor = true;
             // 
             // btnStrTst1
             // 
@@ -414,6 +418,13 @@
             this.rfshEquipBtn.UseVisualStyleBackColor = true;
             this.rfshEquipBtn.Click += new System.EventHandler(this.rfshEquipBtn_Click);
             // 
+            // textBox2
+            // 
+            this.textBox2.Location = new System.Drawing.Point(525, 321);
+            this.textBox2.Name = "textBox2";
+            this.textBox2.Size = new System.Drawing.Size(219, 20);
+            this.textBox2.TabIndex = 4;
+            // 
             // btnCanCmd
             // 
             this.btnCanCmd.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -433,13 +444,6 @@
             this.label1.Size = new System.Drawing.Size(169, 20);
             this.label1.TabIndex = 4;
             this.label1.Text = "Equipment Status Info";
-            // 
-            // textBox2
-            // 
-            this.textBox2.Location = new System.Drawing.Point(525, 321);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(219, 20);
-            this.textBox2.TabIndex = 4;
             // 
             // mainStsTxtBx
             // 
@@ -492,6 +496,26 @@
             this.eqStsLbl.Size = new System.Drawing.Size(206, 20);
             this.eqStsLbl.TabIndex = 3;
             this.eqStsLbl.Text = "Initializing Test Equipment...";
+            // 
+            // chkBxSkpBoot1
+            // 
+            this.chkBxSkpBoot1.AutoSize = true;
+            this.chkBxSkpBoot1.Location = new System.Drawing.Point(22, 68);
+            this.chkBxSkpBoot1.Name = "chkBxSkpBoot1";
+            this.chkBxSkpBoot1.Size = new System.Drawing.Size(101, 17);
+            this.chkBxSkpBoot1.TabIndex = 8;
+            this.chkBxSkpBoot1.Text = "Skip Bootloader";
+            this.chkBxSkpBoot1.UseVisualStyleBackColor = true;
+            // 
+            // chkBxSkpBoot2
+            // 
+            this.chkBxSkpBoot2.AutoSize = true;
+            this.chkBxSkpBoot2.Location = new System.Drawing.Point(22, 68);
+            this.chkBxSkpBoot2.Name = "chkBxSkpBoot2";
+            this.chkBxSkpBoot2.Size = new System.Drawing.Size(101, 17);
+            this.chkBxSkpBoot2.TabIndex = 9;
+            this.chkBxSkpBoot2.Text = "Skip Bootloader";
+            this.chkBxSkpBoot2.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
@@ -554,9 +578,9 @@
         private System.Windows.Forms.Button btnDbgTst2;
         private System.Windows.Forms.Button btnDbgTst1;
         private System.Windows.Forms.CheckBox chkBxRma2;
-        private System.Windows.Forms.CheckBox chkBxSkpPrg2;
+        private System.Windows.Forms.CheckBox chkBxSkpFirm2;
         private System.Windows.Forms.CheckBox chkBxRma1;
-        private System.Windows.Forms.CheckBox chkBxSkpPrg1;
+        private System.Windows.Forms.CheckBox chkBxSkpFirm1;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.TextBox txtBxDbg1;
         private System.Windows.Forms.Button btnCanCmd;
@@ -567,6 +591,8 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button rfshEquipBtn;
         private System.Windows.Forms.Label eqStsLbl;
+        private System.Windows.Forms.CheckBox chkBxSkpBoot1;
+        private System.Windows.Forms.CheckBox chkBxSkpBoot2;
     }
 }
 

@@ -351,7 +351,7 @@ namespace HydroFunctionalTest
                             if (fxtIDs.ContainsKey("PSM_85307"))
                             {
                                 //initialize the uut object
-                                PSM_85307 uutObj = new PSM_85307(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                                PSM_85307 uutObj = new PSM_85307(fix1Designator, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index], chkBxSkpBoot1.Checked, chkBxSkpFirm1.Checked);
                                 //subscribe to uut events
                                 uutObj.InformationAvailable += OnInformationAvailable;
                                 uutObj.TestComplete += OnTestComplete;
@@ -555,7 +555,7 @@ namespace HydroFunctionalTest
                             SerialBxThreadCtrl(fix2Designator, false);
                             if (fxtIDs.ContainsKey("PSM_85307"))
                             {
-                                PSM_85307 uutObj = new PSM_85307(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index]);
+                                PSM_85307 uutObj = new PSM_85307(fix2Designator, txtBxSerNum2.Text, gpioObj[uut2_index], pCanObj[uut2_index], chkBxSkpBoot1.Checked, chkBxSkpFirm1.Checked);
                                 //subscribe to uut events
                                 uutObj.InformationAvailable += OnInformationAvailable;
                                 uutObj.TestComplete += OnTestComplete;

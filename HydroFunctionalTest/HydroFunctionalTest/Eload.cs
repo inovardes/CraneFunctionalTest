@@ -229,10 +229,11 @@ namespace HydroFunctionalTest
             }
         }
 
-        static public void Read(out double measuredVoltage, out double measuredCurrent)
+        static public bool Read(out double measuredVoltage, out double measuredCurrent)
         {
             lock (lockRoutine)
             {
+                bool rtnStatus = false;
                 returnData.Clear();
                 Console.WriteLine("reading from E-Load...");
                 // parameters to send python app
@@ -273,11 +274,21 @@ namespace HydroFunctionalTest
                 //int wIndex = myString.IndexOf("W");
 
                 // measured voltage
-                measuredVoltage = double.Parse(myString.Substring(0, vIndex));         // get voltage string and convert to float
+                if (myString.Length > 10)
+                {
+                    measuredVoltage = double.Parse(myString.Substring(0, vIndex));         // get voltage string and convert to float
 
-                // measured current
-                String tempString = myString.Substring(vIndex + 2, (aIndex - vIndex)-3);
-                measuredCurrent = double.Parse(myString.Substring(vIndex + 2, (aIndex - vIndex)-3));
+                    // measured current
+                    String tempString = myString.Substring(vIndex + 2, (aIndex - vIndex) - 3);
+                    measuredCurrent = double.Parse(myString.Substring(vIndex + 2, (aIndex - vIndex) - 3));
+                    rtnStatus = true;
+                }
+                else
+                {
+                    measuredVoltage = -1000;
+                    measuredCurrent = -1000;
+                }
+                return rtnStatus;
             }
         }
 

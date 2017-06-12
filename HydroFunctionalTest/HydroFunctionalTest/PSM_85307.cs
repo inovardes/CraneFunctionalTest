@@ -66,6 +66,19 @@ namespace HydroFunctionalTest
         /// </summary>
         static public List<CanDataStruct> canDataRepo = new List<CanDataStruct>();
 
+        public struct ComPortInfo
+        {
+            /// <summary>
+            /// Holds the name communiction Port name when the UUT USB device port name is discovered
+            /// </summary>
+            public String CommPortName;
+            /// <summary>
+            /// Maximum times the program can recursively call itself
+            /// </summary>
+            public const int maxLoadFirmwareMethodCalls = 3;
+            public int numMethodCalls;
+        }
+
         #region Structures unique to this assembly
         /// <summary>
         /// Contains all the parameters needed to test the 5 adj auxillary outputs @26v.
@@ -211,6 +224,16 @@ namespace HydroFunctionalTest
         /// </summary>
         private Dictionary<String, List<String>> testDataCSV;
         /// <summary>
+        /// Determines whether or not to skip load firmware method.  
+        /// The main UI can change the value when this class is instantiated from the main UI
+        /// </summary>
+        public bool skipFirmware = false;
+        /// <summary>
+        /// Determines whether or not to skip load bootloader method.  
+        /// The main UI can change the value when this class is instantiated from the main UI
+        /// </summary>
+        public bool skipBootloader = false;
+        /// <summary>
         /// Provides the main UI with control to abort test via the cancel button
         /// Value is changed in the event handler function btnAbort1_Click
         /// Its value can also be changed by any method that needs to indicate to the
@@ -275,6 +298,10 @@ namespace HydroFunctionalTest
         /// //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt)
         /// </summary>
         OutputTestParams nonAdjOutTst = new OutputTestParams();
+        /// <summary>
+        /// for keeping track on details about the UUT comm. port
+        /// </summary>
+        ComPortInfo comPortInfo = new ComPortInfo();
         /// <summary>
         /// static variable that holds U2 flip flop desired output.  This value is a 8 bit value and must be set for the desired output for Port 0
         /// </summary>
@@ -341,12 +368,14 @@ namespace HydroFunctionalTest
         /// </summary>
         /// <param name="tmpGpio"></param>
         /// <param name="tmpPcan"></param>
-        public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan)
+        public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan, bool skipBootloaderMethod, bool skipFirmwareMethod)
         {
             fixPosition = tmpPos;
             pCanObj = tmpPcan;
             gpioObj = tmpGpio;
             uutSerialNum = serNum;
+
+            comPortInfo.numMethodCalls = 0;
 
             //turn the power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
@@ -554,17 +583,17 @@ namespace HydroFunctionalTest
             #region Initialize Dictionary containing pass/fail status for all tests
             testRoutineInformation = new Dictionary<string, int>
             {
-                //{ "FlashBootloader", -1 }, //test routine completed
-                //{ "LoadFirmware", -1 },  //test routine completed
+                { "FlashBootloader", -1 }, //test routine completed
+                { "LoadFirmware", -1 },  //test routine completed
                 { "PowerUp", -1 },  //test routine completed
-                //{ "PowerRegulators", -1 },  //test routine completed
-                //{ "AuxOutputs", -1 },   //test routine completed
-                //{ "DigitalInputs", -1 },  //test routine completed
-                //{ "DigitalOutputs", -1 },  //test routine completed
-                //{ "PowerLoss", -1 },        //test routine completed
-                //{ "SeatIDSwitch", -1 },  //test routine completed
-                { "USBComm", -1 },
-                //{ "CANID", -1 },
+                { "PowerRegulators", -1 },  //test routine completed
+                { "AuxOutputs", -1 },   //test routine completed
+                { "DigitalInputs", -1 },  //test routine completed
+                { "DigitalOutputs", -1 },  //test routine completed
+                { "PowerLoss", -1 },        //test routine completed
+                { "SeatIDSwitch", -1 },  //test routine completed
+                { "USBComm", -1 },          //test routine completed
+                { "CANID", -1 },
             };
             #endregion Initialize Dictionary containing all test pass fail status
 
@@ -584,6 +613,13 @@ namespace HydroFunctionalTest
                 { "USBComm",  new List<String> { "" } },
                 { "CANID",  new List<String> { "" } },
             };
+
+            skipFirmware = skipFirmwareMethod;
+            skipBootloader = skipBootloaderMethod;
+            if(skipFirmware)
+                testRoutineInformation["LoadFirmware"] = -2;  //Force programm to skip programming step
+            if (skipBootloader)
+                testRoutineInformation["FlashBootloader"] = -2;  //Force programm to skip programming step
             #endregion
         }
         #endregion Constructor/Destructor
@@ -1032,6 +1068,11 @@ namespace HydroFunctionalTest
             return newByte;
         }
 
+        #endregion Common Methods required for all assemblies
+
+        #region Methods unique to this assembly only
+        //Write methods here
+
         private void OpenSeatIDSwitches()
         {
             //U2 Flip Flop
@@ -1040,9 +1081,9 @@ namespace HydroFunctionalTest
 
         public void IC_ChangeOutputState(int IC_refDesignator, Byte bitOrBitsToChange, Byte setBits)
         {
-            if(IC_refDesignator == 1)
+            if (IC_refDesignator == 1)
             {
-                if(setBits == 1)
+                if (setBits == 1)
                 {
                     //turn on the node of interest
                     gpioObj.GpioWrite(gpioConst.port0, bitOrBitsToChange);
@@ -1069,10 +1110,10 @@ namespace HydroFunctionalTest
                     gpioObj.GpioWrite(gpioConst.port2, port2CtrlByte);
                 }
             }
-            else if(IC_refDesignator == 2)
+            else if (IC_refDesignator == 2)
             {
                 //change the variable holding the flip flop latched output
-                if(setBits == 1)
+                if (setBits == 1)
                     u2FlipFlopInputByte = SetBits(u2FlipFlopInputByte, bitOrBitsToChange);
                 else
                     u2FlipFlopInputByte = ClearBits(u2FlipFlopInputByte, bitOrBitsToChange);
@@ -1088,7 +1129,7 @@ namespace HydroFunctionalTest
 
 
             }
-            else if(IC_refDesignator == 3)
+            else if (IC_refDesignator == 3)
             {
                 //change the variable holding the flip flop latched output
                 if (setBits == 1)
@@ -1127,13 +1168,9 @@ namespace HydroFunctionalTest
             {
                 MessageBox.Show("Invalid flip flop reference designator in 'IC_ChangeOutputState' method.");
                 softwAbort = true;
-            }            
+            }
         }
 
-        #endregion Common Methods required for all assemblies
-
-        #region Methods unique to this assembly only
-        //Write methods here
         /// <summary>
         /// Determines the state of all GPIO lines to the desired state when test begins or ends.
         /// </summary>
@@ -1287,6 +1324,14 @@ namespace HydroFunctionalTest
             return foundMessageID;
         }
 
+        /// <summary>
+        /// Helper function to look for a Aux output to turn on show current draw via CAN data
+        /// </summary>
+        /// <param name="outputName"></param>
+        /// <param name="currTol_H"></param>
+        /// <param name="currTol_L"></param>
+        /// <param name="tempOutputId"></param>
+        /// <param name="pcbaMeasCurrent"></param>
         public void OutputIsOn(String outputName, double currTol_H, double currTol_L, uint tempOutputId, out double pcbaMeasCurrent)
         {
             
@@ -1328,13 +1373,19 @@ namespace HydroFunctionalTest
                 {
                     testStatusInfo.Add("\tUnable to find Message ID or Output ID for " + outputName + " Output\r\n");
                 }
-                System.Threading.Thread.Sleep(500);
+                StandardDelay(500);
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
             stopwatch.Stop();
         }
 
+        /// <summary>
+        /// Helper function to look for a Aux output to turn off show current draw via CAN data
+        /// </summary>
+        /// <param name="outputName"></param>
+        /// <param name="tempOutputId"></param>
+        /// <param name="pcbaMeasCurrent"></param>
         public void OutputIsOff(String outputName, uint tempOutputId, out double pcbaMeasCurrent)
         {
 
@@ -1376,7 +1427,7 @@ namespace HydroFunctionalTest
                 {
                     testStatusInfo.Add("\tUnable to find Message ID or Output ID for " + outputName + " Output\r\n");
                 }
-                System.Threading.Thread.Sleep(500);
+                StandardDelay(500);
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
@@ -1391,40 +1442,44 @@ namespace HydroFunctionalTest
                 testStatusInfo.Add("Waiting for other JTAG bootloader process to finish...");
                 OnInformationAvailable();
                 testStatusInfo.Clear();
-                System.Threading.Thread.Sleep(1000);
+                StandardDelay(1000);
             }
 
-            //enable JTAG USB port
-            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.setBits);
-            StandardDelay(1000);
+            Dictionary<bool, String> tmpDict = new Dictionary<bool, string>();
+            if (!skipBootloader)
+            {
+                //enable JTAG USB port
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.setBits);
+                StandardDelay(1000);
 
-            //turn power on
-            PwrSup.TurnOutputOnOff(fixPosition, true, 28, .250); //turn output on - 28V .5A
+                //turn power on
+                PwrSup.TurnOutputOnOff(fixPosition, true, 28, .250); //turn output on - 28V .5A
 
-            //Initiate a command line script that runs the bootloader routine
-            //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
-            Dictionary<bool, String> tmpDict = ProgrammingControl.ProgramBootloader(testPrgmPath, this, gpioObj);
+                //Initiate a command line script that runs the bootloader routine
+                //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
+                tmpDict = ProgrammingControl.ProgramBootloader(testPrgmPath, this, gpioObj);
 
-            //turn power off
-            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
-            StandardDelay(1000);
+                //turn power off
+                PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
+                StandardDelay(1000);
 
-            //disable JTAG USB port
-            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.clearBits);
+                //disable JTAG USB port
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.clearBits);
+            }
 
             //set the method status flag in the testRoutineInformation Dictionary
             //check the first dictinoary value returned from the ProgrammingControl.ProgramBootloader routine returned true
             if (tmpDict.Keys.First())
             {
                 testRoutineInformation["FlashBootloader"] = 1; // Successfully flashed bootloader
-                RecordTestResults("FlashBootloader", "Flash the bootloader to the device", "Pass");
+                RecordTestResults("FlashBootloader", "Flash the bootloader onto UUT", "Pass");
             }
             else
             {
                 //
                 //set the method status flag in the testRoutineInformation Dictionary
                 testRoutineInformation["FlashBootloader"] = 0; // Failed to program bootloader
-                RecordTestResults("FlashBootloader", "Flash the bootloader to the device", "Fail");
+                RecordTestResults("FlashBootloader", "Flash the bootloader onto UUT", "Fail");
                 //discontinue test by setting softwAbort to true;
                 softwAbort = true;
             }
@@ -1433,21 +1488,64 @@ namespace HydroFunctionalTest
 
         public void LoadFirmware()
         {
-            //check to see if resource is busy (optional, probably won't want to wait since no other test will run without first programming)
-            //if (!ProgrammingControl.AutoItIsBusy)
-            //{
-
-            //}
+            SerialPort uutUsbCommPort = new SerialPort();
+            String[] availPorts = SerialPort.GetPortNames();
 
             //enable UUT USB port
-            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
-            StandardDelay(1000);
-
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .250); //turn output on - 28V .250A
+            StandardDelay(1000);
+
+            String[] availPorts_new = SerialPort.GetPortNames();
+            //check for new attached devices
+            int countNewComPorts = 0;
+            if (availPorts_new.Length > availPorts.Length)
+            {
+                for (int i = 0; i < availPorts_new.Length; i++)
+                {
+                    if (!availPorts.Contains(availPorts_new[i]))
+                    {
+                        comPortInfo.CommPortName = availPorts_new[i];
+                        countNewComPorts++;
+                    }
+                }
+            }
+            else if (countNewComPorts > 1)
+            {
+                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
+                {
+                    testStatusInfo.Add("\tFound more than one new connected device.\r\n\t***Attempting to reconnect and Load Firmware...***\r\n");
+                    comPortInfo.numMethodCalls++;
+                    //wait for other devices to disconnect
+                    StandardDelay(3000);
+                    LoadFirmware();
+                }
+                else
+                {
+                    skipFirmware = true;
+                }
+
+            }
+            else
+            {
+                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
+                {
+                    testStatusInfo.Add("\tCouldn't find UUT; no new Comports were found.\r\n\t***Attempting reconnect and Load Firmware...***\r\n");
+                    comPortInfo.numMethodCalls++;
+                    //wait for other devices to disconnect
+                    StandardDelay(3000);
+                    LoadFirmware();
+                }
+                else
+                {
+                    skipFirmware = true;
+                }
+            }
 
             //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
-            Dictionary<bool, String> tmpDict = ProgrammingControl.LoadFirmwareViaAutoit(testPrgmPath, this);
+            Dictionary<bool, String> tmpDict = new Dictionary<bool, string>();
+            if (!skipFirmware) tmpDict = ProgrammingControl.LoadFirmwareViaAutoit(testPrgmPath, this);
 
             //turn power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
@@ -1460,14 +1558,14 @@ namespace HydroFunctionalTest
             if (tmpDict.Keys.First())
             {
                 testRoutineInformation["LoadFirmware"] = 1;  //Successfully programmed
-                RecordTestResults("LoadFirmware", "Load the test firmware to the device", "Pass");
+                RecordTestResults("LoadFirmware", "Load test firmware onto UUT", "Pass");
             }
             else
             {
                 //
                 //set the method status flag in the testRoutineInformation Dictionary
                 testRoutineInformation["LoadFirmware"] = 0;
-                RecordTestResults("LoadFirmware", "Load the test firmware to the device", "Fail");
+                RecordTestResults("LoadFirmware", "Load test firmware onto UUT", "Fail");
                 //discontinue test by setting softwAbort to true;
                 softwAbort = true;
             }
@@ -1529,6 +1627,64 @@ namespace HydroFunctionalTest
                     RecordTestResults("PowerUp", "Board power up sequence & CAN Comm", "Fail", "", "", "", "", "CAN data not found on pins " + whichSetOfPins + ". Check connector solderability/contacts");
                 }                    
             }
+            //Attempt to find UUT communication port
+            UsbCommInitialCheck();
+            //the LoadFirmware method will also try and connect to the UUT USB CDC comport, so clear the numMethodCalls variable
+            comPortInfo.numMethodCalls = 0;
+        }
+
+        /// <summary>
+        /// Method used to get in contact with the UUT USB
+        /// The UsbComm method will throw an exception if the UUT comm port name isn't found
+        /// </summary>
+        public void UsbCommInitialCheck()
+        {
+            SerialPort uutUsbCommPort = new SerialPort();
+            String[] availPorts = SerialPort.GetPortNames();
+
+            //enable UUT USB port
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);
+            StandardDelay(1000);
+
+            String[] availPorts_new = SerialPort.GetPortNames();
+            //check for new attached devices
+            int countNewComPorts = 0;
+            if (availPorts_new.Length > availPorts.Length)
+            {
+                for (int i = 0; i < availPorts_new.Length; i++)
+                {
+                    if (!availPorts.Contains(availPorts_new[i]))
+                    {
+                        comPortInfo.CommPortName = availPorts_new[i];
+                        countNewComPorts++;
+                    }
+                }
+            }
+            else if (countNewComPorts > 1)
+            {
+                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
+                {
+                    testStatusInfo.Add("\tFound more than one new USB connected device.\r\n\t***Attempting to reconnect UUT...***\r\n");
+                    comPortInfo.numMethodCalls++;
+                    //wait for other devices to disconnect
+                    StandardDelay(3000);
+                    UsbCommInitialCheck();
+                }
+
+            }
+            else
+            {
+                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
+                {
+                    testStatusInfo.Add("\tCouldn't find UUT USB connection; no new Comm. ports were found.\r\n\t***Attempting to reconnect UUT...***\r\n");
+                    comPortInfo.numMethodCalls++;
+                    //wait for other devices to disconnect
+                    StandardDelay(3000);
+                    UsbCommInitialCheck();
+                }
+            }
+            //disable UUT USB port
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.clearBits);
         }
 
         public void PowerRegulators()
@@ -1556,12 +1712,12 @@ namespace HydroFunctionalTest
                 {
                     howManyRegFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                     testStatusInfo.Add("\t" + pair.Key + " power regulator output passed\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High=" + pair.Value[0].ToString() + ",Low=" + pair.Value[1] + ")\r\n");
-                    RecordTestResults("PowerUp", pair.Key + " Power Regulator", "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
+                    RecordTestResults("PowerRegulators", pair.Key + " Power Regulator", "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + " power regulator output is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + "Volts (High=" + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("PowerUp", pair.Key + " Power Regulator", "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
+                    RecordTestResults("PowerRegulators", pair.Key + " Power Regulator", "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
                 }
                 OnInformationAvailable();
                 testStatusInfo.Clear();
@@ -1607,13 +1763,13 @@ namespace HydroFunctionalTest
             if (stbyCurrStableCount >= 5)
             {
                 testStatusInfo.Add("\tStandby current within tolerance");
-                RecordTestResults("PowerUp", "Standby Current Verify", "Pass", standbyCurrent_H.ToString(), standbyCurrent_L.ToString(), tempStbyCurrent.ToString(), "mA");
+                RecordTestResults("PowerRegulators", "Standby Current Verify", "Pass", standbyCurrent_H.ToString(), standbyCurrent_L.ToString(), tempStbyCurrent.ToString(), "mA");
             }
             else
             {
                 softwAbort = true;
                 testStatusInfo.Add("\tStandby current outside tolerance (High=" + standbyCurrent_H + "; Low=" + standbyCurrent_L + ")\r\n\t***PowerUp failed.***\r\n");
-                RecordTestResults("PowerUp", "Board power up sequence", "Fail", standbyCurrent_H.ToString(), standbyCurrent_L.ToString(), tempStbyCurrent.ToString(), "mA");
+                RecordTestResults("PowerRegulators", "Board power up sequence", "Fail", standbyCurrent_H.ToString(), standbyCurrent_L.ToString(), tempStbyCurrent.ToString(), "mA");
             }
 
             if ((howManyRegFailures <= 0) && (stbyCurrStableCount >= 5))
@@ -1652,6 +1808,11 @@ namespace HydroFunctionalTest
                 MessageBox.Show("Failed to change the power supply output");
                 return;
             }
+
+            //set the Eload max current
+            if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
+                MessageBox.Show("Eload set max current Error");
+
             //enable relay connecting _28V_RTN_EN to the Eload and DMM negative input
             IC_ChangeOutputState(gpioConst.u3RefDes, gpioConst._28V_RTN_EN, gpioConst.setBits);
 
@@ -1665,12 +1826,6 @@ namespace HydroFunctionalTest
             if (!AbortCheck())
                 nonAdjOutPass = NonAdjAuxOutputs();
 
-            //**** DELETE ME ****
-            //set the method status flag in the testRoutineInformation Dictionary
-            testRoutineInformation["AuxOutputs"] = 0;
-            testStatusInfo.Add("\t***AuxOutputs Test Failed***");
-            //**** DELETE ME ****
-
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -1682,7 +1837,7 @@ namespace HydroFunctionalTest
             }
             else
             {
-                if (!(softwAbort || hardwAbort))
+                if (softwAbort || hardwAbort)
                 {
                     testStatusInfo.Add("\r\n\t***AuxOutputs Test Not Tested***");
                 }
@@ -1704,7 +1859,9 @@ namespace HydroFunctionalTest
 
             int howMany26vAdjAuxOutputsFailures = auxOut26vTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
-            testStatusInfo.Add("\tVerifying Outputs (via CAN data) are ON & within tolerance\r\n");
+            StandardDelay();
+
+            testStatusInfo.Add("\tVerifying 26V Outputs are within tolerance\r\n");
             foreach (var pair in auxOut26vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -1734,13 +1891,13 @@ namespace HydroFunctionalTest
                 //Turn on the Eload to set it to constant resistance mode
                 if (Eload.Setup("cr", constResSetting))
                     MessageBox.Show("Eload Setup Error");
-                //set the Eload max current
-                if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
-                    MessageBox.Show("Eload set max current Error");
+                StandardDelay(500);
                 Eload.Toggle("on");
 
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
+
+                testStatusInfo.Add("\t26V Output On\r\n");
 
                 //Set the adjustable output voltage to 28 Volts by sending CAN command
                 //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
@@ -1770,59 +1927,64 @@ namespace HydroFunctionalTest
                 //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_ON;
                 double eLoadMeasVoltage_ON;
-                Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON);
-                #region Record the voltage reported from the PCA and Electronic load are within tolerance
-                //Verify PCA tolerances
-                if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
+                if (Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON))
                 {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via CAN data)", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
+                    #region Record the voltage reported from the PCA and Electronic load are within tolerance
+                    //Verify PCA tolerances
+                    if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    }
+
+                    if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+
+                    if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via CAN data)", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                }
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
-                if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
-                {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via CAN data)", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via CAN data)", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
-                {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
-
-                if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
-                {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                #endregion
-
+                testStatusInfo.Add("\r\n\t26V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
                 tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
                 tempCanFrame2 = nEnOutput[pair.Key][1]; //the second frame
@@ -1840,59 +2002,62 @@ namespace HydroFunctionalTest
                 pcbaMeasVoltage = CanDataManagement.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
-                //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_OFF;
                 double eLoadMeasVoltage_OFF;
-                Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF);
-                #region Verify output is off
-                //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
-                //{
-                //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                //    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                //    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via CAN data)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                //}
-                //else
-                //{
-                //    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                //    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via CAN data)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                //}
-                if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
+                if (Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF))
                 {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via CAN data)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via CAN data)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
+                    #region Verify output is off
+                    //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
+                    //{
+                    //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //}
+                    //else
+                    //{
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //}
+                    if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
 
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
-                {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
 
-                if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
-                {
-                    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
+                    if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
+                    {
+                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
-                }
-                #endregion
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
                 //turn Eload off 
                 Eload.Toggle("off");
@@ -1915,7 +2080,7 @@ namespace HydroFunctionalTest
 
             int howMany12vAdjAuxOutputsFailures = auxOut12vTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
-            testStatusInfo.Add("\tVerifying Outputs (via CAN data) are ON & within tolerance\r\n");
+            testStatusInfo.Add("\tVerifying 12V Outputs are within tolerance\r\n");
             foreach (var pair in auxOut12vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -1945,11 +2110,10 @@ namespace HydroFunctionalTest
                 //Turn on the Eload to set it to constant resistance mode
                 if (Eload.Setup("cr", constResSetting))
                     MessageBox.Show("Eload Setup Error");
-                //set the Eload max current
-                if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
-                    MessageBox.Show("Eload set max current Error");
+                StandardDelay(500);
                 Eload.Toggle("on");
 
+                testStatusInfo.Add("\t12V Output On\r\n");
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
 
@@ -1978,62 +2142,66 @@ namespace HydroFunctionalTest
                 pcbaMeasVoltage = CanDataManagement.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
-                //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_ON;
                 double eLoadMeasVoltage_ON;
-                Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON);
-                #region Record the voltage reported from the PCA and Electronic load are within tolerance
-                //Verify PCA tolerances
-                if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
+                if (Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON))
                 {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via CAN data)", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
+                    #region Record the voltage reported from the PCA and Electronic load are within tolerance
+                    //Verify PCA tolerances
+                    if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    }
+
+                    if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+
+                    if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via CAN data)", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                }
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
-                if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
-                {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via CAN data)", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via CAN data)", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
-                {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
-
-                if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
-                {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                #endregion
-
+                testStatusInfo.Add("\r\n\t12V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
                 tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
                 tempCanFrame2 = nEnOutput[pair.Key][1]; //the second frame
@@ -2054,56 +2222,60 @@ namespace HydroFunctionalTest
                 //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_OFF;
                 double eLoadMeasVoltage_OFF;
-                Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF);
-                #region Verify output is off
-                //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
-                //{
-                //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                //    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                //    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via CAN data)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                //}
-                //else
-                //{
-                //    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                //    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via CAN data)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                //}
-                if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
+                if (Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF))
                 {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via CAN data)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via CAN data)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
+                    #region Verify output is off
+                    //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
+                    //{
+                    //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //}
+                    //else
+                    //{
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //}
+                    if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
 
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
-                {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
 
-                if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
-                {
-                    howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
+                    if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
+                    {
+                        howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
-                }
-                #endregion
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
                 //turn Eload off 
                 Eload.Toggle("off");
@@ -2126,7 +2298,7 @@ namespace HydroFunctionalTest
 
             int howMany5vAdjAuxOutputsFailures = auxOut5vTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
-            testStatusInfo.Add("\tVerifying Outputs (via CAN data) are ON & within tolerance\r\n");
+            testStatusInfo.Add("\tVerifying 5V Outputs (via CAN data) are ON & within tolerance\r\n");
             foreach (var pair in auxOut5vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -2156,14 +2328,13 @@ namespace HydroFunctionalTest
                 //Turn on the Eload to set it to constant resistance mode
                 if (Eload.Setup("cr", constResSetting))
                     MessageBox.Show("Eload Setup Error");
-                //set the Eload max current
-                if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
-                    MessageBox.Show("Eload set max current Error");
+                StandardDelay(500);
                 Eload.Toggle("on");
 
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
 
+                testStatusInfo.Add("\t5V Output On\r\n");
                 //Set the adjustable output voltage to 28 Volts by sending CAN command
                 //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
                 //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
@@ -2192,59 +2363,64 @@ namespace HydroFunctionalTest
                 //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_ON;
                 double eLoadMeasVoltage_ON;
-                Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON);
-                #region Record the voltage reported from the PCA and Electronic load are within tolerance
-                //Verify PCA tolerances
-                if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
+                if (Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON))
                 {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via CAN data)", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
+                    #region Record the voltage reported from the PCA and Electronic load are within tolerance
+                    //Verify PCA tolerances
+                    if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    }
+
+                    if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+
+                    if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via CAN data)", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                }
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
-                if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
-                {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via CAN data)", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via CAN data)", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
-                {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
-
-                if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
-                {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                #endregion
-
+                testStatusInfo.Add("\r\n\t5V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
                 tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
                 tempCanFrame2 = nEnOutput[pair.Key][1]; //the second frame
@@ -2265,56 +2441,60 @@ namespace HydroFunctionalTest
                 //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_OFF;
                 double eLoadMeasVoltage_OFF;
-                Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF);
-                #region Verify output is off
-                //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
-                //{
-                //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                //    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                //    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via CAN data)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                //}
-                //else
-                //{
-                //    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                //    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via CAN data)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts");
-                //}
-                if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
+                if (Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF))
                 {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via CAN data)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via CAN data)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps");
-                }
+                    #region Verify output is off
+                    //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
+                    //{
+                    //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //}
+                    //else
+                    //{
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //}
+                    if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                    }
 
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
-                {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
 
-                if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
-                {
-                    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
+                    if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
+                    {
+                        howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
-                }
-                #endregion
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
                 //turn Eload off 
                 Eload.Toggle("off");
@@ -2361,7 +2541,7 @@ namespace HydroFunctionalTest
 
             int howManyNonAdjAuxOutputsFailures = nonAdjOutTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
-            testStatusInfo.Add("\tVerifying Outputs (via CAN data) are ON & within tolerance\r\n");
+            testStatusInfo.Add("\tVerifying Nonadjustable Outputs are ON & within tolerance\r\n");
             foreach (var pair in nonAdjOutTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -2380,14 +2560,13 @@ namespace HydroFunctionalTest
                 //Turn on the Eload to set it to constant resistance mode
                 if (Eload.Setup("cr", constResSetting))
                     MessageBox.Show("Eload Setup Error");
-                //set the Eload max current
-                if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
-                    MessageBox.Show("Eload set max current Error");
+                StandardDelay(500);
                 Eload.Toggle("on");
 
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
 
+                testStatusInfo.Add("\tOutput On\r\n");
                 //turn the adjustable output on by sending the output specific CAN command 
                 //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
                 //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
@@ -2404,35 +2583,39 @@ namespace HydroFunctionalTest
                 //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_ON;
                 double eLoadMeasVoltage_ON;
-                Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON);
-
-                #region Record the voltage reported from the PCA and Electronic load are within tolerance
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
+                if (Eload.Read(out eLoadMeasVoltage_ON, out eLoadMeasCurrent_ON))
                 {
-                    howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
+                    #region Record the voltage reported from the PCA and Electronic load are within tolerance
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
+                    {
+                        howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Pass", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout On", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts", "via Eload");
+                    }
+
+                    if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
+                    {
+                        howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout On", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_ON.ToString() + " (High=" + eLoadV_H.ToString() + ",Low=" + eLoadV_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Voltage (via Eload)", "Fail", eLoadV_H.ToString(), eLoadV_L.ToString(), eLoadMeasVoltage_ON.ToString(), "Volts");
-                }
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
-                if ((eLoadMeasCurrent_ON >= eLoadI_L) && (eLoadMeasCurrent_ON <= eLoadI_H))
-                {
-                    howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Pass", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output On Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_ON.ToString() + " (High=" + eLoadI_H.ToString() + ",Low=" + eLoadI_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output On Current (via Eload)", "Fail", eLoadI_H.ToString(), eLoadI_L.ToString(), eLoadMeasCurrent_ON.ToString(), "Amps");
-                }
-                #endregion
-
+                testStatusInfo.Add("\r\n\tOutput Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
                 tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
                 tempCanFrame2 = nEnOutput[pair.Key][1]; //the second frame
@@ -2450,34 +2633,38 @@ namespace HydroFunctionalTest
                 //The Eload.Read() method will set initial value
                 double eLoadMeasCurrent_OFF;
                 double eLoadMeasVoltage_OFF;
-                Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF);
-                #region Verify output is off
-
-                //Verify Eload tolerances
-                if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
+                if (Eload.Read(out eLoadMeasVoltage_OFF, out eLoadMeasCurrent_OFF))
                 {
-                    howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
+                    #region Verify output is off
+
+                    //Verify Eload tolerances
+                    if ((eLoadMeasVoltage_OFF >= auxOutOff_L) && (eLoadMeasVoltage_OFF <= auxOutOff_H))
+                    {
+                        howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Vout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts", "via Eload");
+                    }
+
+                    if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
+                    {
+                        howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Iout Off Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOutputs", pair.Key + " Iout Off", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps", "via Eload");
+                    }
+                    #endregion
                 }
                 else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Voltage Fail (via Eload)\r\n\tMeasured: " + eLoadMeasVoltage_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Voltage (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasVoltage_OFF.ToString(), "Volts");
-                }
-
-                if ((eLoadMeasCurrent_OFF >= auxOutOff_L) && (eLoadMeasCurrent_OFF <= auxOutOff_H))
-                {
-                    howManyNonAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Passed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
-                }
-                else
-                {
-                    testStatusInfo.Add("\r\n\t" + pair.Key + " Output off Current Failed (via Eload)\r\n\tMeasured: " + eLoadMeasCurrent_OFF.ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    RecordTestResults("AuxOutputs", pair.Key + " Output off Current (via Eload)", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), eLoadMeasCurrent_OFF.ToString(), "Amps");
-                }
-                #endregion
+                    testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
                 //turn Eload off 
                 Eload.Toggle("off");
@@ -2504,6 +2691,7 @@ namespace HydroFunctionalTest
                 testStatusInfo.Add("\tFailed to drop power supply voltage below 24V\r\n");
                 RecordTestResults("PowerLoss", "Power Loss Status Set", "Fail", "", "", "", "Failed to drop power supply voltage below 24V");
             }
+            StandardDelay(1000);
             //look for the CAN Output Status message ID and the 24V_Enable 
             if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
             {
@@ -2531,7 +2719,7 @@ namespace HydroFunctionalTest
                 return;
 
             //look for the CAN Output Status message ID and the 24V_Enable status bit
-            System.Threading.Thread.Sleep(3000); //wait for the voltage to settle adn the bit to set
+            StandardDelay(3000); //wait for the voltage to settle adn the bit to set
             if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
             {
                 statusBit = CanDataManagement.CanMessage[6];
@@ -2597,18 +2785,18 @@ namespace HydroFunctionalTest
                     {
                         howManyInputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                         testStatusInfo.Add("\t" + pair.Key + " digital Input High passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
+                        RecordTestResults("DigitalInputs", pair.Key + " High", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
                     }
                     else
                     {
                         testStatusInfo.Add("\t" + pair.Key + " digital Input High failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/LOW");
+                        RecordTestResults("DigitalInputs", pair.Key + " High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/LOW");
                     }
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + " digital input High failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
-                    RecordTestResults("DigitalInputs", pair.Key + " Digital Input High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), "No CAN data found", "Logic-High/LOW\r\n", "Failed to find message ID " + messageIDs.digitalInputsStatus);
+                    RecordTestResults("DigitalInputs", pair.Key + " High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), "No CAN data found", "Logic-High/LOW\r\n", "Failed to find message ID " + messageIDs.digitalInputsStatus);
                 }
                 OnInformationAvailable();
                 testStatusInfo.Clear();
@@ -2637,18 +2825,18 @@ namespace HydroFunctionalTest
                     {
                         howManyInputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                         testStatusInfo.Add("\t" + pair.Key + " digital Input Low passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " Digital Input Low", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
+                        RecordTestResults("DigitalInputs", pair.Key + " Low", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
                     }
                     else
                     {
                         testStatusInfo.Add("\t" + pair.Key + " digital Input Low failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " Digital Input Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), logicValue.ToString(), "Logic-High/LOW");
+                        RecordTestResults("DigitalInputs", pair.Key + " Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), logicValue.ToString(), "Logic-High/LOW");
                     }
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + " digital Input Low failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
-                    RecordTestResults("DigitalInputs", pair.Key + " Digital Input Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), "No CAN data found", "Logic-High/LOW", "Failed to find message ID " + messageIDs.digitalInputsStatus);
+                    RecordTestResults("DigitalInputs", pair.Key + " Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), "No CAN data found", "Logic-High/LOW", "Failed to find message ID " + messageIDs.digitalInputsStatus);
                 }
 
                 OnInformationAvailable();
@@ -2721,13 +2909,13 @@ namespace HydroFunctionalTest
                 if (dmmMeas >= pair.Value[0])
                 {
                     howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Enabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output Enabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + "  Enabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + " Enabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
                 else
                 {
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Enabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output Enabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + "  Enabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + " Enabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
 
                 //turn the digital output off by sending the output specific CAN command
@@ -2753,13 +2941,13 @@ namespace HydroFunctionalTest
                 if (dmmMeas <= pair.Value[1])
                 {
                     howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Disabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + " Digital Output Disabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + "  Disabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + "  Disabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
                 else
                 {
-                    testStatusInfo.Add("\t" + pair.Key + " Digital Output Disabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + "  Digital Output Disabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    testStatusInfo.Add("\t" + pair.Key + "  Disabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
+                    RecordTestResults("DigitalOutputs", pair.Key + "   Disabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
                 }
                 
                 OnInformationAvailable();
@@ -2848,21 +3036,21 @@ namespace HydroFunctionalTest
             {
                 testRoutineInformation["SeatIDSwitch"] = 1;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Passed***");
-                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
-                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
+                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X") + "\r\n");
+                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X"));
             }
             else
             {
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 if (!statusBit1)
                 {
-                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: " + CanDataManagement.CanId.ToString());
-                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: " + CanDataManagement.CanId.ToString("X") + "\r\n");
+                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X"));
                 }
-                else
+                if (!statusBit2)
                 {
-                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: " + CanDataManagement.CanId.ToString());
-                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: ", "", "CAN ID value = " + CanDataManagement.CanId.ToString());
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: " + CanDataManagement.CanId.ToString("X") + "\r\n");
+                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X"));
                 }
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Failed***");
@@ -2883,60 +3071,78 @@ namespace HydroFunctionalTest
 
         public void USBComm()
         {
-            SerialPort uutUsbCommPort = new SerialPort();
-            //get all the connected devices
-            String[] availPorts = SerialPort.GetPortNames();
-
-            //enable UUT USB port
-            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
-            StandardDelay(1000);
-
-            String[] availPorts_new = SerialPort.GetPortNames();
-            //see if any new ports joined
-            int countNewComPorts = 0;
-            if(availPorts_new.Length > availPorts.Length)
+            bool defaultPins = UsbCommSubTest(true);
+            bool otherPins = UsbCommSubTest(false);
+            if(defaultPins & otherPins)
             {
-                foreach (var portName in availPorts_new)
-                {
-                    for (int i = 0; i < availPorts.Length; i++)
-                    {
-                        if (!availPorts[i].Contains(portName))
-                        {
-                            uutUsbCommPort.PortName = portName;
-                            countNewComPorts++;
-                        }
-                    }
-                }
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["USBComm"] = 1;
+                testStatusInfo.Add("\t***USBComm Test Passed***");
             }
             else
             {
-                MessageBox.Show("Couldn't find UUT; no new Comports were found connected");
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["USBComm"] = 0;
+                if (defaultPins)
+                {
+                    testStatusInfo.Add("\tNo USB Communication.  Check J3 solderability/contacts\r\n");
+                    RecordTestResults("USBComm", "USB Comm", "Fail", "", "", "", "", "No USB communication @ J3. Check connector solderability/contacts");
+                }
+                else
+                {
+                    testStatusInfo.Add("\tNo USB Communication.  Check J4 pin solderability/contacts\r\n");
+                    RecordTestResults("USBComm", "USB Comm", "Fail", "", "", "", "", "No USB communication @ J4. Check connector solderability/contacts");
+                }
+                testStatusInfo.Add("\t***USBComm Test Failed***");
             }
-            if(countNewComPorts > 1)
-                MessageBox.Show("More than one new com port device was found");
+        }
 
-            try { uutUsbCommPort.Open(); }
-            catch (Exception ex) { MessageBox.Show("Failed to open UUT Comm. Port\r\n" + ex.Message); }
+        public bool UsbCommSubTest(bool defaultPinConnection)
+        {
+            SerialPort uutUsbCommPort = new SerialPort();
+            //the port name should have been discovered in the "LoadFirmware" method
+            uutUsbCommPort.PortName = comPortInfo.CommPortName;
 
-            //clear out any garbage data in the receive buffer
-            uutUsbCommPort.ReadExisting();
             Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
-            Byte[] echoRequest = { 70, 129, 0, 0, 0 };
-            //write 5 bytes representing an echo request
-            uutUsbCommPort.Write(echoRequest, 0, 5);
-            uutUsbCommPort.Read(echoResponse, 0, 5);
+            Byte[] echoRequest = { 70, 129, 0, 0, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
 
-            if(echoResponse[0] == 71)
+            //enable USB connection
+            if (defaultPinConnection)
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);//enable UUT USB port
+            else
             {
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_SLCT, gpioConst.setBits);//switch USB connection to other USB pins 
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);//switch USB connection to other USB pins 
+            }
+            StandardDelay(3000);
 
+            try
+            {
+                uutUsbCommPort.Open();
+                //clear out any garbage data in the receive buffer
+                uutUsbCommPort.ReadExisting();
+                //write 5 bytes representing an echo request
+                uutUsbCommPort.Write(echoRequest, 0, 5);
+                uutUsbCommPort.Read(echoResponse, 0, 5);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to open UUT Comm. Port\r\n" + ex.Message);
             }
 
-            //switch USB connection to other USB pins on 
-            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit0, gpioConst.setBits);
-
-            //set the method status flag in the testRoutineInformation Dictionary
-            testRoutineInformation["USBComm"] = 1;
-            testStatusInfo.Add("\t***USBComm Test Passed***");
+            //disable USB connections
+            if (defaultPinConnection)
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.clearBits);//enable UUT USB port
+            else
+            {
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_SLCT, gpioConst.clearBits);//switch USB connection to other USB pins 
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.clearBits);//switch USB connection to other USB pins 
+            }
+            StandardDelay(3000);
+            if (echoResponse[0] == 71)
+                return true;
+            else
+                return false;
         }
 
         public void CANID()
