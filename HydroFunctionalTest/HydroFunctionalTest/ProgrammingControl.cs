@@ -37,7 +37,6 @@ namespace HydroFunctionalTest
         /// The name of the AutoIt script that will be used to automate the loading of the firmware into the device under test
         /// </summary>
         private const string autoItExe = "LoadFirmwareViaAutoIt.exe";
-        private const string autoItFilePath = "";
 
         #region//ProgramBootloader
 
@@ -52,7 +51,7 @@ namespace HydroFunctionalTest
         /// <param name="mainTestPrgmPath"></param>
         /// <param name="cfgFileName"></param>
         /// <returns></returns>
-        static public Dictionary<bool, String> ProgramBootloader(String mainTestPrgmPath, Object cfgFileName, UsbToGpio gpioObj)
+        static public Dictionary<bool, String> ProgramBootloader(String bootSourceFilePath, Object cfgFileName, UsbToGpio gpioObj)
         {
             lock (lockJtagRoutine)
             {
@@ -67,8 +66,8 @@ namespace HydroFunctionalTest
                     {
                         StartInfo = new ProcessStartInfo
                         {
-                            WorkingDirectory = mainTestPrgmPath + jtagPrgmrFilePath,
-                            FileName = mainTestPrgmPath + jtagPrgmrFilePath + "\\" + "openocd-x64-0.8.0.exe",
+                            WorkingDirectory = bootSourceFilePath + jtagPrgmrFilePath,
+                            FileName = bootSourceFilePath + jtagPrgmrFilePath + "\\" + "openocd-x64-0.8.0.exe",
                             Arguments = "-f olimex-arm-usb-tiny-h.cfg -f " + cfgFileName.ToString().Substring(cfgFileName.ToString().IndexOf(".") + 1) + ".cfg",
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
@@ -114,7 +113,7 @@ namespace HydroFunctionalTest
         /// <param name="mainTestPrgmPath"></param>
         /// <param name="uutSpecificArguments"></param>
         /// <returns></returns>
-        static public Dictionary<bool, String> LoadFirmwareViaAutoit(String mainTestPrgmPath, Object uutSpecificArgument)
+        static public Dictionary<bool, String> LoadFirmwareViaAutoit(String autoItScriptPath, Object uutSpecificArgument)
         {
             lock (lockAutoItRoutine)
             {
@@ -129,8 +128,8 @@ namespace HydroFunctionalTest
                     {
                         StartInfo = new ProcessStartInfo
                         {
-                            WorkingDirectory = mainTestPrgmPath + autoItFilePath,
-                            FileName = mainTestPrgmPath + autoItFilePath + "\\" + autoItExe,
+                            WorkingDirectory = autoItScriptPath,
+                            FileName = autoItScriptPath + autoItExe,
                             Arguments = uutSpecificArgument.ToString().Substring(uutSpecificArgument.ToString().IndexOf(".") + 1),
                             UseShellExecute = false,
                             RedirectStandardOutput = true,

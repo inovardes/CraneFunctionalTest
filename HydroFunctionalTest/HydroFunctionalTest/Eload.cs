@@ -12,8 +12,9 @@ namespace HydroFunctionalTest
     static class Eload
     {
         static private string comPort = "9";
-        public const string python = @"C:\Python25\python.exe";  // path to python interpreter
-        static public string myPythonApp = "C:\\CraneFunctionalTest\\AccessELoad.py";      // python app to call
+        public const string python = "C:\\Python25\\python.exe";  // path to python interpreter
+        public const string pythonHelperScript = "AccessELoad.py";
+        static public string myPythonApp = "";      // python app to call
         public const string connType = "obj";                    // always keep this as 'obj' for connection type
         public const string baudRate = "9600";                   // should always be 9600 baud for the 8500 model
         static public List<String> returnData = new List<String>();
@@ -53,10 +54,11 @@ namespace HydroFunctionalTest
             }
         }
 
-        static public bool TalkToLoad(String tempComPort)
+        static public bool TalkToLoad(String tempComPort, String scriptFilePath)
         {
             lock (lockRoutine)
             {
+                myPythonApp = scriptFilePath + pythonHelperScript;
                 comPort = tempComPort.Substring(3);
                 bool rtnStatus = false;
                 returnData.Clear();
