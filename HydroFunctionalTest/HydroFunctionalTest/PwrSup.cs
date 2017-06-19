@@ -431,123 +431,137 @@ namespace HydroFunctionalTest
         /// <returns></returns>
         #region Private Methods
         
-            static private bool RampVoltage(double setVolt)
-            {
-                bool rtnStatus = false;
-                //slowly ramp up voltage
-                double voltRampStep = .5;
-                int numOfSteps = 0;
-                if (voltRampStep < setVolt)
-                    numOfSteps = (int)(setVolt / voltRampStep);
-                //set the voltage to increase in steps of voltRampStep;
+        static private bool RampVoltage(double setVolt)
+        {
+            bool rtnStatus = false;
+            //slowly ramp up voltage
+            double voltRampStep = .5;
+            int numOfSteps = 0;
+            if (voltRampStep < setVolt)
+                numOfSteps = (int)(setVolt / voltRampStep);
+            //set the voltage to increase in steps of voltRampStep;
 
-                try
+            try
+            {
+                if (Command("source:voltage:level:immediate:step:increment " + voltRampStep.ToString()))
+                    if (Query("source:voltage:level:immediate:step:increment?").Contains(voltRampStep.ToString()))
+                        for (int i = 0; i < numOfSteps; i++)
+                        {
+                            if (!Command("voltage:up"))
+                                pwrSupReturnData.Add("Command Error while ramping up power supply output voltage");
+                        }
+                System.Threading.Thread.Sleep(500);
+                //regardless of whether the ramp works, set the output voltage
+                //the previous steps that ramp the voltage is an extra precaution to prevent inrush current
+                if (Command("voltage " + setVolt.ToString()))
+                    rtnStatus = true;
+                else
                 {
-                    if (Command("source:voltage:level:immediate:step:increment " + voltRampStep.ToString()))
-                        if (Query("source:voltage:level:immediate:step:increment?").Contains(voltRampStep.ToString()))
-                            for (int i = 0; i < numOfSteps; i++)
-                            {
-                                if (!Command("voltage:up"))
-                                    pwrSupReturnData.Add("Command Error while ramping up power supply output voltage");
-                            }
-                    System.Threading.Thread.Sleep(500);
-                    //regardless of whether the ramp works, set the output voltage
-                    //the previous steps that ramp the voltage is an extra precaution to prevent inrush current
-                    if (Command("voltage " + setVolt.ToString()))
-                        rtnStatus = true;
-                    else
-                    {
-                        pwrSupReturnData.Add("Command Error while enabling output voltage");
-                        Command("source:channel:output:state 0");
-                    }
+                    pwrSupReturnData.Add("Command Error while enabling output voltage");
+                    Command("source:channel:output:state 0");
                 }
-                catch(Exception ex)
-                {
-                    pwrSupReturnData.Add("Exception occurred in 'RampVoltage' method\r\n" + ex.Message);
-                }
+            }
+            catch(Exception ex)
+            {
+                pwrSupReturnData.Add("Exception occurred in 'RampVoltage' method\r\n" + ex.Message);
+            }
             
 
-                return rtnStatus;
-            }
+            return rtnStatus;
+        }
 
-            static private String Query(String cmd)
-            {            
-                String rtnData = null;
-                try
-                {
-                    pwrSupDev.WriteLine(cmd);
-                    rtnData = pwrSupDev.ReadLine();
-                }
-                catch (TimeoutException)
-                {
-                    pwrSupReturnData.Add("Timeout while waiting for power supply to respond to Query");
-                }
-                catch(Exception ex)
-                {
-                    pwrSupReturnData.Add("Exception occurred in 'Query' method\r\n" + ex.Message);
-                }
-                return rtnData;
-            }
-
-            static private bool Command(String cmd)
+        static private String Query(String cmd)
+        {            
+            String rtnData = null;
+            try
             {
-                bool rtnStatus = false;
-                try
-                {
-                    //be sure the device is in remote mode before sending a command
-                    pwrSupDev.WriteLine("system:remote");
-                    pwrSupDev.WriteLine(cmd);
-                    if (NoError())
-                        rtnStatus = true;
-                    else
-                        pwrSupReturnData.Add("Error occurred in power supply 'Command' method");
-                }
-                catch(Exception ex)
-                {
-                    pwrSupReturnData.Add("Exception occurred in 'Command' method\r\n" + ex.Message);
-                }
-                return rtnStatus;
+                pwrSupDev.WriteLine(cmd);
+                rtnData = pwrSupDev.ReadLine();
             }
-
-            static private bool ConfigurePwrSup()
+            catch (TimeoutException)
             {
-                bool rtnStatus = false;
+                pwrSupReturnData.Add("Timeout while waiting for power supply to respond to Query");
+            }
+            catch(Exception ex)
+            {
+                pwrSupReturnData.Add("Exception occurred in 'Query' method\r\n" + ex.Message);
+            }
+            return rtnData;
+        }
+
+        static private bool Command(String cmd)
+        {
+            bool rtnStatus = false;
+            try
+            {
+                //be sure the device is in remote mode before sending a command
+                pwrSupDev.WriteLine("system:remote");
+                pwrSupDev.WriteLine(cmd);
+                if (NoError())
+                    rtnStatus = true;
+                else
+                    pwrSupReturnData.Add("Error occurred in power supply 'Command' method");
+            }
+            catch(Exception ex)
+            {
+                pwrSupReturnData.Add("Exception occurred in 'Command' method\r\n" + ex.Message);
+            }
+            return rtnStatus;
+        }
+
+        static private bool ConfigurePwrSup()
+        {
+            bool rtnStatus = false;
             
                 
-                try
-                {
-                    if (Command("*cls"))//clear any errors
-                    if (Command("system:remote"))
-                            rtnStatus = true;
-                }
-                catch(Exception ex)
-                {
-                    pwrSupReturnData.Add("Exception occurred in 'ConfigurePwrSup' method\r\n" + ex.Message);
-                }
-                return rtnStatus;
-            }
-
-            static private bool NoError()
+            try
             {
-                bool rtnStatus = false;
-                try
-                {
-                    String pwrSupError = Query("system:error?");
-                    if (pwrSupError.Contains("No error"))
+                if (Command("*cls"))//clear any errors
+                if (Command("system:remote"))
                         rtnStatus = true;
-                    else
-                    {
-                        pwrSupReturnData.Add("Power Supply Error: " + pwrSupError);
-                        //clear the error
-                        pwrSupDev.WriteLine("*cls");
-                    }
-                }
-                catch(Exception ex)
-                {
-                    pwrSupReturnData.Add("Exception occurred in 'NoError' method\r\n" + ex.Message);
-                }
-                return rtnStatus;
             }
+            catch(Exception ex)
+            {
+                pwrSupReturnData.Add("Exception occurred in 'ConfigurePwrSup' method\r\n" + ex.Message);
+            }
+            return rtnStatus;
+        }
+
+        static private bool NoError()
+        {
+            bool rtnStatus = false;
+            try
+            {
+                String pwrSupError = Query("system:error?");
+                if (pwrSupError.Contains("No error"))
+                    rtnStatus = true;
+                else
+                {
+                    pwrSupReturnData.Add("Power Supply Error: " + pwrSupError);
+                    //clear the error
+                    pwrSupDev.WriteLine("*cls");
+                }
+            }
+            catch(Exception ex)
+            {
+                pwrSupReturnData.Add("Exception occurred in 'NoError' method\r\n" + ex.Message);
+            }
+            return rtnStatus;
+        }
+
+        static public bool OVP_Check()
+        {
+            String tempStr = Query("source:voltage:protection:triped?");
+            if (tempStr.Contains("1"))
+                return true;
+            else
+                return false;
+        }
+
+        static public void ClearOVP()
+        {
+            Command("source:voltage:protection:clear");
+        }
 
         #endregion Private Methods
 

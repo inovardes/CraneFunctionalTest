@@ -36,7 +36,7 @@ namespace HydroFunctionalTest
         /// <summary>
         /// The name of the AutoIt script that will be used to automate the loading of the firmware into the device under test
         /// </summary>
-        private const string autoItExe = "LoadFirmwareViaAutoIt.exe";
+        private const string autoItExe = "_LoadFirmwareViaAutoIt.exe";
 
         #region//ProgramBootloader
 
@@ -51,10 +51,12 @@ namespace HydroFunctionalTest
         /// <param name="mainTestPrgmPath"></param>
         /// <param name="cfgFileName"></param>
         /// <returns></returns>
-        static public Dictionary<bool, String> ProgramBootloader(String bootSourceFilePath, Object cfgFileName, UsbToGpio gpioObj)
+        static public Dictionary<bool, String> ProgramBootloader(String bootSourceFilePath, Object cfgFileName)
         {
             lock (lockJtagRoutine)
             {
+                String configFile = cfgFileName.ToString().Substring(cfgFileName.ToString().IndexOf(".") + 1);
+                
                 JtagIsBusy = true;
                 Dictionary<bool, String> rtnData = new Dictionary<bool, string>();
                 rtnData.Add(false, "ProgramBootloader Method failed to run completely through");
@@ -68,7 +70,7 @@ namespace HydroFunctionalTest
                         {
                             WorkingDirectory = bootSourceFilePath + jtagPrgmrFilePath,
                             FileName = bootSourceFilePath + jtagPrgmrFilePath + "\\" + "openocd-x64-0.8.0.exe",
-                            Arguments = "-f olimex-arm-usb-tiny-h.cfg -f " + cfgFileName.ToString().Substring(cfgFileName.ToString().IndexOf(".") + 1) + ".cfg",
+                            Arguments = "-f olimex-arm-usb-tiny-h.cfg -f " + configFile + ".cfg", //configFilePath
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
@@ -79,8 +81,8 @@ namespace HydroFunctionalTest
                     programmer.Start();
                     //Read all the output (for some reason the programmer outputs to the StandardError Output)
                     output = programmer.StandardError.ReadToEnd();
-                    //Wait for the process to finish
-                    programmer.WaitForExit();
+                    //Wait maximum of 3 seconds for the process to finish
+                    programmer.WaitForExit(5000);
                     //Did it pass?
                     if (output.Contains("** Programming Finished **"))
                     {
@@ -113,10 +115,11 @@ namespace HydroFunctionalTest
         /// <param name="mainTestPrgmPath"></param>
         /// <param name="uutSpecificArguments"></param>
         /// <returns></returns>
-        static public Dictionary<bool, String> LoadFirmwareViaAutoit(String autoItScriptPath, Object uutSpecificArgument)
+        static public Dictionary<bool, String> LoadFirmwareViaAutoit(String autoItScriptPath, Object uutSpecificScript)
         {
             lock (lockAutoItRoutine)
             {
+                String scriptName = uutSpecificScript.ToString().Substring(uutSpecificScript.ToString().IndexOf(".") + 1);
                 AutoItIsBusy = true;
                 Dictionary<bool, String> rtnData = new Dictionary<bool, string>();
                 rtnData.Add(false, "LoadFirmwareViaAutoit Method failed to run completely through");
@@ -129,8 +132,7 @@ namespace HydroFunctionalTest
                         StartInfo = new ProcessStartInfo
                         {
                             WorkingDirectory = autoItScriptPath,
-                            FileName = autoItScriptPath + autoItExe,
-                            Arguments = uutSpecificArgument.ToString().Substring(uutSpecificArgument.ToString().IndexOf(".") + 1),
+                            FileName = autoItScriptPath + scriptName + autoItExe,
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,

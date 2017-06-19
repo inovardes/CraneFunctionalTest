@@ -62,7 +62,13 @@ namespace HydroFunctionalTest
         /// Will be set to true upon successful connection to the power supply serial port.  Initially set to false when the program opens (Form1_Load)
         /// </summary>
         public bool foundPwrSup;
+        /// <summary>
+        /// Will be set to true upon successful connection to the PCAN device with device ID = 1.  Initially set to false when the program opens (Form1_Load)
+        /// </summary>
         public bool foundPcanDev1 = false;
+        /// <summary>
+        /// Will be set to true upon successful connection to the PCAN device with device ID = 2.  Initially set to false when the program opens (Form1_Load)
+        /// </summary>
         public bool foundPcanDev2 = false;
         private const String testPrgmPath = "C:\\CraneFunctionalTest\\";
         private const String progSourceFiles = testPrgmPath + "TestProgramSourceFiles\\";
@@ -84,18 +90,6 @@ namespace HydroFunctionalTest
             { "AIM_90807_Gen3", 28 }, //0111 (P1.2, P1.3, P1.4, P2.5)
             { "LUM_15607_Gen3", 24 }, //0110 (P1.2, P1.3, P1.4, P2.5)
         };
-
-        #region Flip Flop control commands
-        /// <summary>
-        /// Port/Pin info to send to GPIO adapter to set/clear pins.   Key = relay control net name per schematic, value[] = I/O port, I/O pin, control port, control pin
-        /// pass these Dictionary values along with disable/enable command as method parameters
-        /// </summary>
-        Dictionary<string, int[]> flipFlopCtrlCmd = new Dictionary<string, int[]>
-            {
-                { "FIXTURE_ID_EN", new int[] { 0, 4, 2, 5 } },
-            };
-        #endregion Flip Flop control commands
-
 
         public Form1()
         {
@@ -194,6 +188,11 @@ namespace HydroFunctionalTest
                         PwrSup.TurnOutputOnOff(1, false, 0, 0);
                         PwrSup.TurnOutputOnOff(2, false, 0, 0);
                         PwrSup.TurnOutputOnOff(3, true, 5, .6); //set to 5 volts and maximum current (3A)
+                        if (PwrSup.OVP_Check())
+                        {
+                            mainStsTxtBx.AppendText("Power Supply Over Voltage\r\n");
+                            PwrSup.ClearOVP();
+                        }
                     }
                 }
                 if (!stopSearch && !foundDmm)
@@ -253,6 +252,9 @@ namespace HydroFunctionalTest
                 PwrSup.TurnOutputOnOff(1, false, 0, 0);
                 PwrSup.TurnOutputOnOff(2, false, 0, 0);
                 PwrSup.TurnOutputOnOff(3, false, 0, 0);
+                if (PwrSup.OVP_Check())
+                    if (PwrSup.OVP_Check())
+                        PwrSup.ClearOVP();
                 PwrSup.CloseComport();
             }
             if (foundEload)
@@ -346,7 +348,7 @@ namespace HydroFunctionalTest
                         BeginTest(fix1Designator);
                     }
                     else
-                        PrintDataToTxtBox(fix1Designator, gpioObj[uut1_index].gpioReturnData, "Lid Down Not Detected");
+                        PrintDataToTxtBox(fix1Designator, null, "Lid Down Not Detected");
                 }
                 else
                 {
@@ -393,7 +395,7 @@ namespace HydroFunctionalTest
                         BeginTest(fix2Designator);
                     }
                     else
-                        PrintDataToTxtBox(fix2Designator, gpioObj[uut2_index].gpioReturnData, "Lid Down Not Detected");
+                        PrintDataToTxtBox(fix2Designator, null, "Lid Down Not Detected");
                 }
                 else
                 {
@@ -594,6 +596,11 @@ namespace HydroFunctionalTest
                 }
                 PrintDataToTxtBox(fixPos, tmpList);
             }
+            if (PwrSup.OVP_Check())
+            {
+                PrintDataToTxtBox(fixPos, null, "Power Supply Over Voltage");
+                PwrSup.ClearOVP();
+            }
         }
 
         /// <summary>
@@ -611,6 +618,14 @@ namespace HydroFunctionalTest
             PrintDataToTxtBox(fixPos, null, "\r\n*********Test Results*********");
             PrintDataToTxtBox(fixPos, passFailtstSts);
             TxtBxSerInputThreadCtrl(fixPos);
+            AbortBtnThreadCtrl(fixPos, "Abort Test");
+
+            if (PwrSup.OVP_Check())
+                if (PwrSup.OVP_Check())
+                {
+                    PrintDataToTxtBox(fixPos, null, "Power Supply Over Voltage");
+                    PwrSup.ClearOVP();
+                }
         }
 
         /// <summary>
@@ -720,7 +735,40 @@ namespace HydroFunctionalTest
             }
         }
 
-     
+        /// <summary>
+        /// Delegate for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        delegate void abortBtn_ThreadCtrl(int fixPos, String buttonText);
+        /// <summary>
+        /// Method for controlling and updating Main GUI from threads other than the main form
+        /// </summary>
+        /// <param name="fixPos"></param>
+        public void AbortBtnThreadCtrl(int fixPos, String buttonText)
+        {
+            //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
+            if (btnAbort1.InvokeRequired || btnAbort2.InvokeRequired)
+            {
+                abortBtn_ThreadCtrl btnDel = new abortBtn_ThreadCtrl(AbortBtnThreadCtrl);
+                this.Invoke(btnDel, new object[] { fixPos, buttonText });
+            }
+            else
+            {
+                if (fixPos == fix1Designator)
+                {
+                    btnAbort1.Text = buttonText;
+                    btnAbort1.Refresh();
+                }
+                else if (fixPos == fix2Designator)
+                {
+                    btnAbort2.Text = buttonText;
+                    btnAbort2.Refresh();
+                }
+                else
+                    MessageBox.Show("Incorrect fixture number parameter sent to 'AbortBtnThreadCtrl()' method: " + fixPos.ToString());
+            }
+        }
+
         /// <summary>
         /// Delegate for controlling and updating Main GUI from threads other than the main form
         /// </summary>
@@ -888,10 +936,16 @@ namespace HydroFunctionalTest
                 else
                 {
                     if (fixPos == fix1Designator)
+                    {
                         cboBxDbgTst1.Enabled = true;
+                        return cboBxDbgTst1.Text;
+                    }
                     else
+                    {
                         cboBxDbgTst2.Enabled = true;
-                }
+                        return cboBxDbgTst2.Text;
+                    }
+                    }
             }
             return "";
         }
@@ -941,12 +995,18 @@ namespace HydroFunctionalTest
 
         private void btnAbort1_Click(object sender, EventArgs e)
         {
-
+            if (btnStrTst1.Enabled)
+                AbortBtnThreadCtrl(fix1Designator, "Abort Test");
+            else
+                AbortBtnThreadCtrl(fix1Designator, "Please Wait...");
         }
 
         private void btnAbort2_Click(object sender, EventArgs e)
         {
-
+            if (btnStrTst2.Enabled)
+                AbortBtnThreadCtrl(fix2Designator, "Abort Test");
+            else
+                AbortBtnThreadCtrl(fix2Designator, "Please Wait...");
         }
 
         private void rfshEquipBtn_Click(object sender, EventArgs e)

@@ -561,6 +561,7 @@ namespace HydroFunctionalTest
             };
             #endregion Initialize variables holding CAN data Frames for UUT output control
 
+            #region Initialize the output IDs for each auxillary output
             outputIds = new Dictionary<string, uint>
             {
                 { "Aux0", 2 },
@@ -579,25 +580,26 @@ namespace HydroFunctionalTest
                 { "DOUT_7C", 8 },
                 { "24V_Enable", 16 },
             };
+            #endregion Initialize the output ID for each auxillary output
 
             #region Initialize Dictionary containing pass/fail status for all tests
             testRoutineInformation = new Dictionary<string, int>
             {
                 //0 = failure, -1 = untested, anything greater than 1 is a pass, anything less than -1 is skipped.
-                { "FlashBootloader", -1 },
-                { "LoadFirmware", -1 },
-                { "PowerUp", -1 },
-                { "PowerRegulators", -1 },
-                { "NonAdjAuxOutputs", -1 },
-                { "AuxOut26VTst", -1 },
-                { "AuxOut12VTst", -1 },
-                { "AuxOut5VTst", -1 },
-                { "DigitalInputs", -1 },
-                { "DigitalOutputs", -1 },
-                { "PowerLoss", -1 },
-                { "SeatIDSwitch", -1 },
-                { "USBComm", -1 },
-                { "CANID", -1 },  //not implemented - need information from customer
+                { "FlashBootloader", 1 },
+                { "LoadFirmware", 1 },
+                { "PowerUp", 1 },
+                { "PowerRegulators", 1 },
+                { "NonAdjAuxOutputs", 1 },
+                { "AuxOut26VTst", 1 },
+                { "AuxOut12VTst", 1 },
+                { "AuxOut5VTst", 1 },
+                { "DigitalInputs", 1 },
+                { "DigitalOutputs", 1 },
+                { "PowerLoss", 1 },
+                { "SeatIDSwitch", 1 },
+                { "USBComm", 1 },
+                //{ "CANID", -2 },  //not implemented - need information from customer
             };
             #endregion Initialize Dictionary containing all test pass fail status
 
@@ -776,6 +778,7 @@ namespace HydroFunctionalTest
                         List<String> keys = new List<String>(testRoutineInformation.Keys);
                         foreach (String key in keys)
                         {
+                            abortTesting = AbortCheck();
                             //break out of the loop if user has aborted the test
                             if (abortTesting)
                                 break;
@@ -795,9 +798,14 @@ namespace HydroFunctionalTest
                                 //Each function puts test status in the List --> testStatusInfo.Add("test status")
                                 OnInformationAvailable();
                                 testStatusInfo.Clear();
-                                abortTesting = AbortCheck();
                                 if ((testRoutineInformation[key] == -1) && !abortTesting)
                                     testStatusInfo.Add("Resource busy, jumping to next test...\r\n");
+                                if (PwrSup.OVP_Check())
+                                    if (PwrSup.OVP_Check())
+                                    {
+                                        testStatusInfo.Add("\r\nPower Supply Over Voltage\r\n");
+                                        PwrSup.ClearOVP();
+                                    }
                             }
                         }
                     }
@@ -904,7 +912,6 @@ namespace HydroFunctionalTest
                         //testDataCSV.Add(pair.Key + "--> Incomplete");
                 }
             }
-            fileString = fileString + "\r\n****\tDetailed Test Results\t****";
 
             try
             {
@@ -1018,9 +1025,30 @@ namespace HydroFunctionalTest
             String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
             response.Close();
             if (tmpServResponseStr == expectServerResponse)
-                testStatusInfo.Add("\r\nSuccessfully sent pass/fail status to database.\r\n"  + "Server Response: '" + tmpServResponseStr + "'");            
+            {
+                testStatusInfo.Add("\r\nSuccessfully sent pass/fail status to database.\r\n" + "Server Response: '" + tmpServResponseStr + "'");
+                if (uutPassedAll)
+                    WorkCenterTransfer();
+            }
             else
-                testStatusInfo.Add("\r\nResponse from server does not match expected string.\r\nExpected response: '" +  expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
+                testStatusInfo.Add("\r\nResponse from server does not match expected string.\r\nExpected response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
+            OnInformationAvailable();
+            testStatusInfo.Clear();
+        }
+
+        /// <summary>
+        /// For automatic transfer of boards to next work center.  Method is called from the TestResultToDatabase method.
+        /// </summary>
+        private void WorkCenterTransfer()
+        {
+            WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/transferSerial?" + "serial=" + uutSerialNum + "&workcenter=Functional Test&site=Logan&userId=FAEEAFCA-DB92-434E-BE1F-A54AF2CA2955");
+            WebResponse response = request.GetResponse();
+            String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
+            response.Close();
+            if (tmpServResponseStr == expectServerResponse)
+                testStatusInfo.Add("\r\nSuccessfully transfered board to next work center.\r\n" + "Server Response: '" + tmpServResponseStr + "'");
+            else
+                testStatusInfo.Add("\r\nUnable to transfer board to next work center.\r\nExpected Server response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
             OnInformationAvailable();
             testStatusInfo.Clear();
         }
@@ -1464,7 +1492,7 @@ namespace HydroFunctionalTest
 
                 //Initiate a command line script that runs the bootloader routine
                 //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
-                tmpDict = ProgrammingControl.ProgramBootloader(progSourceFiles, this, gpioObj);
+                tmpDict = ProgrammingControl.ProgramBootloader(progSourceFiles, this);
 
                 //turn power off
                 PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
@@ -1830,6 +1858,13 @@ namespace HydroFunctionalTest
                 if (AbortCheck())
                     break;
 
+                if (PwrSup.OVP_Check())
+                    if (PwrSup.OVP_Check())
+                    {
+                        testStatusInfo.Add("\r\nPower Supply Over Voltage\r\n");
+                        PwrSup.ClearOVP();
+                    }
+
                 //get all the tolerance limits for the eload
                 double eLoadV_H = pair.Value[(int)OutputTestParams.measLimitIndex.vHigh];
                 double eLoadI_H = pair.Value[(int)OutputTestParams.measLimitIndex.iHigh];
@@ -2088,6 +2123,13 @@ namespace HydroFunctionalTest
                 if (AbortCheck())
                     break;
 
+                if (PwrSup.OVP_Check())
+                    if (PwrSup.OVP_Check())
+                    {
+                        testStatusInfo.Add("\r\nPower Supply Over Voltage\r\n");
+                        PwrSup.ClearOVP();
+                    }
+
                 //get all the tolerance limits for the eload
                 double eLoadV_H = pair.Value[(int)OutputTestParams.measLimitIndex.vHigh];
                 double eLoadI_H = pair.Value[(int)OutputTestParams.measLimitIndex.iHigh];
@@ -2343,6 +2385,13 @@ namespace HydroFunctionalTest
                 //jump out of the loop if test is aborted
                 if (AbortCheck())
                     break;
+
+                if (PwrSup.OVP_Check())
+                    if (PwrSup.OVP_Check())
+                    {
+                        testStatusInfo.Add("\r\nPower Supply Over Voltage\r\n");
+                        PwrSup.ClearOVP();
+                    }
 
                 //get all the tolerance limits for the eload
                 double eLoadV_H = pair.Value[(int)OutputTestParams.measLimitIndex.vHigh];
@@ -2625,6 +2674,13 @@ namespace HydroFunctionalTest
                 if (AbortCheck())
                     break;
 
+                if (PwrSup.OVP_Check())
+                    if (PwrSup.OVP_Check())
+                    {
+                        testStatusInfo.Add("\r\nPower Supply Over Voltage\r\n");
+                        PwrSup.ClearOVP();
+                    }
+
                 //get all the tolerance limits for the eload
                 double eLoadV_H = pair.Value[(int)OutputTestParams.measLimitIndex.vHigh];
                 double eLoadI_H = pair.Value[(int)OutputTestParams.measLimitIndex.iHigh];
@@ -2790,7 +2846,7 @@ namespace HydroFunctionalTest
                 testStatusInfo.Add("\tFailed to drop power supply voltage below 24V\r\n");
                 RecordTestResults("PowerLoss", "Power Loss Status Set", "Fail", "", "", "", "Failed to drop power supply voltage below 24V");
             }
-            StandardDelay(1000);
+            StandardDelay(3000);
             //look for the CAN Output Status message ID and the 24V_Enable 
             if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
             {
@@ -2818,7 +2874,7 @@ namespace HydroFunctionalTest
                 return;
 
             //look for the CAN Output Status message ID and the 24V_Enable status bit
-            StandardDelay(3000); //wait for the voltage to settle adn the bit to set
+            StandardDelay(4000); //wait for the voltage to settle adn the bit to set
             if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
             {
                 statusBit = CanDataManagement.CanMessage[6];
@@ -3041,12 +3097,12 @@ namespace HydroFunctionalTest
                 {
                     howManyOutputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                     testStatusInfo.Add("\t" + pair.Key + "  Disabled passed\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + "  Disabled", "Pass", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    RecordTestResults("DigitalOutputs", pair.Key + "  Disabled", "Pass", "N/A", pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + "  Disabled is outside tolerance\r\n\tMeasured: " + dmmMeas.ToString() + " Volts(High > " + pair.Value[0].ToString() + ", Low < " + pair.Value[1].ToString() + ")\r\n");
-                    RecordTestResults("DigitalOutputs", pair.Key + "   Disabled", "Fail", pair.Value[0].ToString(), "N/A", dmmMeas.ToString(), "Volts");
+                    RecordTestResults("DigitalOutputs", pair.Key + "   Disabled", "Fail", "N/A", pair.Value[1].ToString(), dmmMeas.ToString(), "Volts");
                 }
                 
                 OnInformationAvailable();
@@ -3135,21 +3191,21 @@ namespace HydroFunctionalTest
             {
                 testRoutineInformation["SeatIDSwitch"] = 1;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Passed***");
-                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X") + "\r\n");
-                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X"));
+                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X") + "\r\n");
+                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X"));
             }
             else
             {
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 if (!statusBit1)
                 {
-                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: " + CanDataManagement.CanId.ToString("X") + "\r\n");
-                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X"));
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: 0x" + CanDataManagement.CanId.ToString("X") + "\r\n");
+                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X"));
                 }
                 if (!statusBit2)
                 {
-                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: " + CanDataManagement.CanId.ToString("X") + "\r\n");
-                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = " + CanDataManagement.CanId.ToString("X"));
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: 0x" + CanDataManagement.CanId.ToString("X") + "\r\n");
+                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X"));
                 }
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Failed***");
@@ -3174,6 +3230,7 @@ namespace HydroFunctionalTest
             bool otherPins = UsbCommSubTest(false);
             if(defaultPins & otherPins)
             {
+                RecordTestResults("USBComm", "USB Communication", "Pass", "", "", "", "", "");
                 //set the method status flag in the testRoutineInformation Dictionary
                 testRoutineInformation["USBComm"] = 1;
                 testStatusInfo.Add("\t***USBComm Test Passed***");
@@ -3185,12 +3242,12 @@ namespace HydroFunctionalTest
                 if (defaultPins)
                 {
                     testStatusInfo.Add("\tNo USB Communication.  Check J3 solderability/contacts\r\n");
-                    RecordTestResults("USBComm", "USB Comm", "Fail", "", "", "", "", "No USB communication @ J3. Check connector solderability/contacts");
+                    RecordTestResults("USBComm", "USB Communication", "Fail", "", "", "", "", "No USB communication @ J3. Check connector solderability/contacts");
                 }
                 else
                 {
                     testStatusInfo.Add("\tNo USB Communication.  Check J4 pin solderability/contacts\r\n");
-                    RecordTestResults("USBComm", "USB Comm", "Fail", "", "", "", "", "No USB communication @ J4. Check connector solderability/contacts");
+                    RecordTestResults("USBComm", "USB Communication", "Fail", "", "", "", "", "No USB communication @ J4. Check connector solderability/contacts");
                 }
                 testStatusInfo.Add("\t***USBComm Test Failed***");
             }
@@ -3251,7 +3308,7 @@ namespace HydroFunctionalTest
             testStatusInfo.Add("\t***CANID Test Passed***");
         }
 
-        #endregion Methods unique to this assembly only
+        #endregion Methods unique to this assembly only.
     }
 
 
