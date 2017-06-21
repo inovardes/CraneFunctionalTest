@@ -21,9 +21,13 @@ namespace HydroFunctionalTest
         static class CanDataManagement
         {
             /// <summary>
-            /// Keeps track of the last size of the CAN data as it grows.  This allows access to only most recent data
+            /// Keeps track of the last size of the CAN data as it grows.  This indicates to the program if the size of the data stops growing (meaning there isn't any new CAN data)
             /// </summary>
-            static public int recentDataCount = 0;
+            static public int dataCount = 0;
+            /// <summary>
+            /// Moves an indexer down the CAN data array after searching so that old data isn't searched twice
+            /// </summary>
+            static public int newZeroIndex = 0;
             /// <summary>
             /// Bool used to exit the thread which continually loops and extracts data from the CAN Adpt.
             /// </summary>
@@ -389,7 +393,8 @@ namespace HydroFunctionalTest
 
             //set/reset the variables that manage the CAN data
             CanDataManagement.exitThread = false;
-            CanDataManagement.recentDataCount = 0;
+            CanDataManagement.dataCount = 0;
+            CanDataManagement.newZeroIndex = 0;
             canDataRepo.Clear();
 
             #region Initialize variables holding UUT current, voltage or other limits
@@ -586,19 +591,19 @@ namespace HydroFunctionalTest
             testRoutineInformation = new Dictionary<string, int>
             {
                 //0 = failure, -1 = untested, anything greater than 1 is a pass, anything less than -1 is skipped.
-                { "FlashBootloader", 1 },
-                { "LoadFirmware", 1 },
-                { "PowerUp", 1 },
-                { "PowerRegulators", 1 },
-                { "NonAdjAuxOutputs", 1 },
-                { "AuxOut26VTst", 1 },
-                { "AuxOut12VTst", 1 },
-                { "AuxOut5VTst", 1 },
-                { "DigitalInputs", 1 },
-                { "DigitalOutputs", 1 },
-                { "PowerLoss", 1 },
-                { "SeatIDSwitch", 1 },
-                { "USBComm", 1 },
+                { "FlashBootloader", -1 },
+                { "LoadFirmware", -1 },
+                { "PowerUp", -1 },
+                { "PowerRegulators", -1 },
+                { "NonAdjAuxOutputs", -1 },
+                { "AuxOut26VTst", -1 },
+                { "AuxOut12VTst", -1 },
+                { "AuxOut5VTst", -1 },
+                { "DigitalInputs", -1 },
+                { "DigitalOutputs", -1 },
+                { "PowerLoss", -1 },
+                { "SeatIDSwitch", -1 },
+                { "USBComm", -1 },
                 //{ "CANID", -2 },  //not implemented - need information from customer
             };
             #endregion Initialize Dictionary containing all test pass fail status
@@ -1020,18 +1025,26 @@ namespace HydroFunctionalTest
         /// <param name="uutPassedAll"></param>
         private void TestResultToDatabase(bool uutPassedAll)
         {
-            WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/testSaveWithWorkCenter?" + "serial=" + uutSerialNum + "&testResult=" + uutPassedAll.ToString() + "&failMode=" + "" + "&workcenter=Functional+Test");
-            WebResponse response = request.GetResponse();
-            String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
-            response.Close();
-            if (tmpServResponseStr == expectServerResponse)
+            try
             {
-                testStatusInfo.Add("\r\nSuccessfully sent pass/fail status to database.\r\n" + "Server Response: '" + tmpServResponseStr + "'");
-                if (uutPassedAll)
-                    WorkCenterTransfer();
+                WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/testSaveWithWorkCenter?" + "serial=" + uutSerialNum + "&testResult=" + uutPassedAll.ToString() + "&failMode=" + "" + "&workcenter=Functional+Test");
+                WebResponse response = request.GetResponse();
+                String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
+                response.Close();
+                if (tmpServResponseStr == expectServerResponse)
+                {
+                    testStatusInfo.Add("\r\nSuccessfully sent pass/fail status to database.\r\n" + "Server Response: '" + tmpServResponseStr + "'");
+                    if (uutPassedAll)
+                        WorkCenterTransfer();
+                }
+                else
+                    testStatusInfo.Add("\r\nResponse from server does not match expected string.\r\nExpected response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
             }
-            else
-                testStatusInfo.Add("\r\nResponse from server does not match expected string.\r\nExpected response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
+            catch(Exception ex)
+            {
+                MessageBox.Show("\r\nException caught while trying to send pass/fail status to database: \r\n" + ex.Message);
+            }
+
             OnInformationAvailable();
             testStatusInfo.Clear();
         }
@@ -1041,14 +1054,22 @@ namespace HydroFunctionalTest
         /// </summary>
         private void WorkCenterTransfer()
         {
-            WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/transferSerial?" + "serial=" + uutSerialNum + "&workcenter=Functional Test&site=Logan&userId=FAEEAFCA-DB92-434E-BE1F-A54AF2CA2955");
-            WebResponse response = request.GetResponse();
-            String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
-            response.Close();
-            if (tmpServResponseStr == expectServerResponse)
-                testStatusInfo.Add("\r\nSuccessfully transfered board to next work center.\r\n" + "Server Response: '" + tmpServResponseStr + "'");
-            else
-                testStatusInfo.Add("\r\nUnable to transfer board to next work center.\r\nExpected Server response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
+            try
+            {
+                WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/transferSerial?" + "serial=" + uutSerialNum + "&workcenter=Functional Test&site=Logan&userId=FAEEAFCA-DB92-434E-BE1F-A54AF2CA2955");
+                WebResponse response = request.GetResponse();
+                String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
+                response.Close();
+                if (tmpServResponseStr == expectServerResponse)
+                    testStatusInfo.Add("\r\nSuccessfully transfered board to next work center.\r\n" + "Server Response: '" + tmpServResponseStr + "'");
+                else
+                    testStatusInfo.Add("\r\nUnable to transfer board to next work center.\r\nExpected Server response: '" + expectServerResponse + "'\r\nActual Server Response '" + tmpServResponseStr + "'");
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("\r\nException caught while trying to transfer board to next work center: \r\n" + ex.Message);
+            }
             OnInformationAvailable();
             testStatusInfo.Clear();
         }
@@ -1309,48 +1330,53 @@ namespace HydroFunctionalTest
                 List<CanDataStruct> tempCanReadData;
                 GetCanData(out tempCanReadData);
 
-                //shift the CAN data indexer down to the most recent data so old data isn't searched
-                CanDataManagement.recentDataCount = tempCanReadData.Count - CanDataManagement.recentDataCount;
-                //search the dictionary in reverse order
-                //start at the end of the list and work back till the count is: total count - the count which represents the most recent chunk of data
-                for (int i = (tempCanReadData.Count - 1); i >= (tempCanReadData.Count - CanDataManagement.recentDataCount); i--)
+                //check for new CAN data (if tempCanReadData.Count > CanDataManagement.dataCount, more CAN data is available)
+                if (CanDataManagement.dataCount < tempCanReadData.Count)
                 {
-                    if (AbortCheck())
-                        break;
-                    //look for the CAN heartbeat ID:
-                    //Strip out the Message ID (bits 9-15) from the CAN ID 
-                    CanDataStruct tempDataStruct = tempCanReadData[i];
-                    UInt32 tempMessageID = tempDataStruct.canID;
-                    tempMessageID = tempMessageID >> 9;     //shift 9 bits - this should now represent
-                    tempMessageID = tempMessageID & 0xFF;  //mask the upper bytes, leaving the first byte, what is left is the Message ID per Crane CAN frame description
-
-                    if (messageID == tempMessageID)
+                    CanDataManagement.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+                    //shift the CAN data indexer down to the most recent data so old data isn't searched
+                    CanDataManagement.newZeroIndex = tempCanReadData.Count - CanDataManagement.newZeroIndex;
+                    //search the dictionary in reverse order
+                    //start at the end of the list and work back till the count is: total count - the count which represents the most recent chunk of data
+                    for (int i = (tempCanReadData.Count - 1); i >= (tempCanReadData.Count - CanDataManagement.dataCount); i--)
                     {
-                        CanDataManagement.CanId = tempDataStruct.canID;
-                        CanDataManagement.CanMessage.Clear();
-                        //save the CAN message length to the CanDataManagment class if needed for analysis
-                        CanDataManagement.timeStamp = tempDataStruct.timeStamp;
-                        for (int j = 0; j < tempDataStruct.canMessage.Length; j++)
+                        if (AbortCheck())
+                            break;
+                        //look for the CAN heartbeat ID:
+                        //Strip out the Message ID (bits 9-15) from the CAN ID 
+                        CanDataStruct tempDataStruct = tempCanReadData[i];
+                        UInt32 tempMessageID = tempDataStruct.canID;
+                        tempMessageID = tempMessageID >> 9;     //shift 9 bits - this should now represent
+                        tempMessageID = tempMessageID & 0xFF;  //mask the upper bytes, leaving the first byte, what is left is the Message ID per Crane CAN frame description
+
+                        if (messageID == tempMessageID)
                         {
-                            CanDataManagement.CanMessage.Add(tempDataStruct.canMessage[j]);
-                        }
-                        if(findOutputID)
-                        {
-                            //continue searching for the output ID
-                            if(tempDataStruct.canMessage[0] == outputId)
+                            CanDataManagement.CanId = tempDataStruct.canID;
+                            CanDataManagement.CanMessage.Clear();
+                            //save the CAN message length to the CanDataManagment class if needed for analysis
+                            CanDataManagement.timeStamp = tempDataStruct.timeStamp;
+                            for (int j = 0; j < tempDataStruct.canMessage.Length; j++)
                             {
-                                //stop searching if the output ID is found
+                                CanDataManagement.CanMessage.Add(tempDataStruct.canMessage[j]);
+                            }
+                            if (findOutputID)
+                            {
+                                //continue searching for the output ID
+                                if (tempDataStruct.canMessage[0] == outputId)
+                                {
+                                    //stop searching if the output ID is found
+                                    foundMessageID = true;
+                                    // break out of loop if the output ID is found 
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                //stop searching if the message ID is found to the Message ID (bits 9 - 15 of CAN ID)
                                 foundMessageID = true;
-                                // break out of loop if the output ID is found 
+                                // break out of loop if the message ID is found 
                                 break;
                             }
-                        }
-                        else
-                        {
-                            //stop searching if the message ID is found to the Message ID (bits 9 - 15 of CAN ID)
-                            foundMessageID = true;
-                            // break out of loop if the message ID is found 
-                            break;
                         }
                     }
                 }
@@ -1841,7 +1867,7 @@ namespace HydroFunctionalTest
             }
 
             //set the Eload max current
-            if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
+            if (!Eload.SetMaxCurrent(1.1))// set max current to 1 amp
                 MessageBox.Show("Eload set max current Error");
 
             //enable relay connecting _28V_RTN_EN to the Eload and DMM negative input
@@ -2108,7 +2134,7 @@ namespace HydroFunctionalTest
             }
 
             //set the Eload max current
-            if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
+            if (!Eload.SetMaxCurrent(0.5))// set max current to 1 amp
                 MessageBox.Show("Eload set max current Error");
 
             //enable relay connecting _28V_RTN_EN to the Eload and DMM negative input
@@ -2371,7 +2397,7 @@ namespace HydroFunctionalTest
             }
 
             //set the Eload max current
-            if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
+            if (!Eload.SetMaxCurrent(0.25))// set max current to 1 amp
                 MessageBox.Show("Eload set max current Error");
 
             //enable relay connecting _28V_RTN_EN to the Eload and DMM negative input
@@ -2659,7 +2685,7 @@ namespace HydroFunctionalTest
             }
 
             //set the Eload max current
-            if (!Eload.SetMaxCurrent(1))// set max current to 1 amp
+            if (!Eload.SetMaxCurrent(0.8))// set max current to 1 amp
                 MessageBox.Show("Eload set max current Error");
 
             //enable relay connecting _28V_RTN_EN to the Eload and DMM negative input
@@ -2840,24 +2866,31 @@ namespace HydroFunctionalTest
         {
             //get the status bit (24V_Enable output ID) for the 24V power loss : 
             Byte statusBit = 0;
-            bool powerLossCheck = false;
+            bool powerLossBitSet = false;
+            bool powerLossBitClear = false;
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 23, 1.5))
             {
                 testStatusInfo.Add("\tFailed to drop power supply voltage below 24V\r\n");
                 RecordTestResults("PowerLoss", "Power Loss Status Set", "Fail", "", "", "", "Failed to drop power supply voltage below 24V");
             }
-            StandardDelay(3000);
-            //look for the CAN Output Status message ID and the 24V_Enable 
-            if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            //look for the CAN Output Status message ID and the 24V_Enable bit to set
+            while ((stopWatch.ElapsedMilliseconds < 5000) && (!powerLossBitSet))
             {
-                statusBit = CanDataManagement.CanMessage[6];
-                statusBit = (Byte)(statusBit >> 2);
-                if (statusBit == 1)
+                if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
                 {
-                    testStatusInfo.Add("\tPower loss status bit set\r\n");
-                    RecordTestResults("PowerLoss", "Power Loss Status Bit Set", "Pass", "N/A", "0", statusBit.ToString(), "Logic-High/Low", "");
-                    powerLossCheck = true;
+                    statusBit = CanDataManagement.CanMessage[6];
+                    statusBit = (Byte)(statusBit >> 2);
+                    if (statusBit == 1)
+                        powerLossBitSet = true;
                 }
+            }
+            stopWatch.Stop();
+            if (powerLossBitSet)
+            {
+                testStatusInfo.Add("\tPower loss status bit set\r\n");
+                RecordTestResults("PowerLoss", "Power Loss Status Bit Set", "Pass", "N/A", "0", statusBit.ToString(), "Logic-High/Low", "");
             }
             else
             {
@@ -2873,30 +2906,30 @@ namespace HydroFunctionalTest
             if (AbortCheck())
                 return;
 
-            //look for the CAN Output Status message ID and the 24V_Enable status bit
-            StandardDelay(4000); //wait for the voltage to settle adn the bit to set
-            if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
+            //look for the CAN Output Status message ID and the 24V_Enable status bit to clear
+            stopWatch.Restart();
+            while ((stopWatch.ElapsedMilliseconds < 5000) && (!powerLossBitClear))
             {
-                statusBit = CanDataManagement.CanMessage[6];
-                if (statusBit == 0)
+                if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
                 {
-                    testStatusInfo.Add("\tPower loss status bit cleared\r\n");
-                    RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Pass", "1", "N/A", statusBit.ToString(), "Logic-High/Low", "");
-                    powerLossCheck = powerLossCheck & true;
+                    statusBit = CanDataManagement.CanMessage[6];
+                    if (statusBit == 0)
+                        powerLossBitClear = true;
                 }
-                else
-                {
-                    testStatusInfo.Add("\tPower loss status bit did not clear after increasing power supply voltage above 24V\r\n");
-                    RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Fail", "1", "N/A", statusBit.ToString(), "Logic-High/Low", "Couldn't find Message ID or Output ID");
-                }
+            }
+            stopWatch.Stop();
+
+            if (powerLossBitClear)
+            {
+                testStatusInfo.Add("\tPower loss status bit cleared\r\n");
+                RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Pass", "1", "N/A", statusBit.ToString(), "Logic-High/Low", "");
             }
             else
             {
-                testStatusInfo.Add("\tUnable to find the power loss status bit (via CAN data) after decreasing the power supply input below 24V\r\n");
-                RecordTestResults("PowerLoss", "Power Loss Status Bit Cleared", "Fail", "", "", "", "Logic-High/Low", "Couldn't find Message ID or Output ID");
+                testStatusInfo.Add("\tUnable to find the power loss status bit (via CAN data) after increasing power supply voltage above 24V\r\n");
             }
 
-            if (powerLossCheck)
+            if (powerLossBitClear & powerLossBitSet)
             {
                 //set the method status flag in the testRoutineInformation Dictionary
                 testRoutineInformation["PowerLoss"] = 1;
@@ -2940,18 +2973,18 @@ namespace HydroFunctionalTest
                     {
                         howManyInputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                         testStatusInfo.Add("\t" + pair.Key + " digital Input High passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " High", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
+                        RecordTestResults("DigitalInputs", pair.Key + " High", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Byte Value");
                     }
                     else
                     {
                         testStatusInfo.Add("\t" + pair.Key + " digital Input High failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/LOW");
+                        RecordTestResults("DigitalInputs", pair.Key + " High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Byte Value");
                     }
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + " digital input High failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
-                    RecordTestResults("DigitalInputs", pair.Key + " High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), "No CAN data found", "Logic-High/LOW\r\n", "Failed to find message ID " + messageIDs.digitalInputsStatus);
+                    RecordTestResults("DigitalInputs", pair.Key + " High", "Fail", pair.Value[0].ToString(), pair.Value[0].ToString(), "No CAN data found", "Byte Value", "Failed to find message ID " + messageIDs.digitalInputsStatus);
                 }
                 OnInformationAvailable();
                 testStatusInfo.Clear();
@@ -2980,18 +3013,18 @@ namespace HydroFunctionalTest
                     {
                         howManyInputFailures--; //subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                         testStatusInfo.Add("\t" + pair.Key + " digital Input Low passed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " Low", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Logic-High/Low");
+                        RecordTestResults("DigitalInputs", pair.Key + " Low", "Pass", pair.Value[0].ToString(), pair.Value[0].ToString(), logicValue.ToString(), "Byte Value");
                     }
                     else
                     {
                         testStatusInfo.Add("\t" + pair.Key + " digital Input Low failed\r\n\tLogic Value returned: " + logicValue.ToString() + ")\r\n");
-                        RecordTestResults("DigitalInputs", pair.Key + " Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), logicValue.ToString(), "Logic-High/LOW");
+                        RecordTestResults("DigitalInputs", pair.Key + " Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), logicValue.ToString(), "Byte Value");
                     }
                 }
                 else
                 {
                     testStatusInfo.Add("\t" + pair.Key + " digital Input Low failed\r\n\tLogic Value returned: " + "No CAN data found\r\n");
-                    RecordTestResults("DigitalInputs", pair.Key + " Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), "No CAN data found", "Logic-High/LOW", "Failed to find message ID " + messageIDs.digitalInputsStatus);
+                    RecordTestResults("DigitalInputs", pair.Key + " Low", "Fail", pair.Value[1].ToString(), pair.Value[1].ToString(), "No CAN data found", "Byte Value", "Failed to find message ID " + messageIDs.digitalInputsStatus);
                 }
 
                 OnInformationAvailable();
@@ -3141,7 +3174,7 @@ namespace HydroFunctionalTest
             bool statusBit2 = false;
 
             //turn power off
-            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0); ////Turn output on, 28Volts, 100mAmp limit
+            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0); 
             UInt32 switchPosition = (UInt32)(CanDataManagement.CanId & 0xFF000000);
             if ((switchPosition != 0x08000000) | (switchPosition != 0x18000000))
             {
@@ -3151,6 +3184,8 @@ namespace HydroFunctionalTest
             }
             //enable the Seat ID relay - SW1 & SW3 closed, SW2 & SW4 open
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.SeatID_EN, gpioConst.setBits);
+            //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched
+            while (AwaitMessageID(messageIDs.heartbeat)) ;
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
             //get the status of the Seat ID
@@ -3168,9 +3203,11 @@ namespace HydroFunctionalTest
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0); ////Turn output on, 28Volts, 100mAmp limit
             //enable the seat ID toggle relay - //enable the Seat ID relay - SW1 & SW3 open, SW2 & SW4 closed
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.TOGL_SeatID, gpioConst.setBits);
+
+            //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched
+            while (AwaitMessageID(messageIDs.heartbeat)) ;
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
-
             //get the status of the Seat ID
             //look for the CAN heartbeat with CAN ID MSB = 0xAF00 0000: 
             if (AwaitMessageID(messageIDs.heartbeat))
