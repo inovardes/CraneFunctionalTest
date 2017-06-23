@@ -14,6 +14,8 @@ namespace HydroFunctionalTest
 {
     class PSM_85307
     {
+        List<String> tempDmmMeas = new List<string>();
+
         /// <summary>
         /// Class used to track the Pcan class data and also contains a bollean which controls when the thread in this program that continuously calls the Pcan class CanRead() method
         /// When CAN data is needed, it must be copied over from the Pcan class into a new Dictionary to avoid corrupting the data
@@ -343,6 +345,10 @@ namespace HydroFunctionalTest
         /// </summary>
         public Dictionary<String, double[]> powerRegTest;
         /// <summary>
+        /// Holds the name of the CAN ID Resistance Value in schematic and the high/low tolerance.  Key --> Resistance Value, Value[] = High limit(ADC Count), Low limit(ADC count)
+        /// </summary>
+        public Dictionary<String, int[]> canIdTest;
+        /// <summary>
         /// An integer value representing a specific output ID - this will match the first byte of the CAN data of message ID 13 (still need to find why it's not message ID 19)
         /// </summary>
         public Dictionary<String, uint> outputIds;
@@ -374,6 +380,8 @@ namespace HydroFunctionalTest
         /// <param name="tmpPcan"></param>
         public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan, bool skipBootloaderMethod, bool skipFirmwareMethod, bool isRma)
         {
+            tempDmmMeas.Clear();
+
             fixPosition = tmpPos;
             pCanObj = tmpPcan;
             gpioObj = tmpGpio;
@@ -402,30 +410,33 @@ namespace HydroFunctionalTest
             auxOut26vTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
                 //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt), 5th Element-->Mux output Byte to enable output
-                { "Aux0", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux0 } }, 
-                { "Aux1", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux1 } },
-                { "Aux2", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux2 } },
-                { "Aux3", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux3 } },
-                { "Aux4", new double[] { .938, .898, 26.3, 25.2, muxOutputEn.aux4 } },
-                { "Aux5", new double[] { 1.070, 1.030, 27.99, 26.86, muxOutputEn.aux5 } },
+                //Due to Wire resistance from UUT to Eload, about 1% loss UUT output to the Eload terminals is expected.  Subtract 1% from each high tolerance value to avoid false passes.
+                { "Aux0", new double[] { .938*(.99), .898, 26.3*(.99), 25.2, muxOutputEn.aux0 } }, 
+                { "Aux1", new double[] { .938*(.99), .898, 26.3*(.99), 25.2, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { .938*(.99), .898, 26.3*(.99), 25.2, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { .938*(.99), .898, 26.3*(.99), 25.2, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { .938*(.99), .898, 26.3*(.99), 25.2, muxOutputEn.aux4 } },
+                { "Aux5", new double[] { 1.070*(.99), 1.030, 27.99*(.99), 26.86, muxOutputEn.aux5 } },
             };
             auxOut12vTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
                 //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt), 5th Element-->Mux output Byte to enable output
-                { "Aux0", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux0 } },
-                { "Aux1", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux1 } },
-                { "Aux2", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux2 } },
-                { "Aux3", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux3 } },
-                { "Aux4", new double[] { .436, .406, 12.22, 11.6, muxOutputEn.aux4 } },
+                //Due to Wire resistance from UUT to Eload, about 1% loss UUT output to the Eload terminals is expected.  Subtract 1% from each high tolerance value to avoid false passes.
+                { "Aux0", new double[] { .436*(.99), .406, 12.22*(.99), 11.6, muxOutputEn.aux0 } },
+                { "Aux1", new double[] { .436*(.99), .406, 12.22*(.99), 11.6, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { .436*(.99), .406, 12.22*(.99), 11.6, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { .436*(.99), .406, 12.22*(.99), 11.6, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { .436*(.99), .406, 12.22*(.99), 11.6, muxOutputEn.aux4 } },
             };
             auxOut5vTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
                 //1st Element-->High limit(amp), 2nd Element-->Low limit(amp), 3rd Element-->High limit(volt), 4th Element-->Low limit(volt), 5th Element-->Mux output Byte to enable output
-                { "Aux0", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux0 } },
-                { "Aux1", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux1 } },
-                { "Aux2", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux2 } },
-                { "Aux3", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux3 } },
-                { "Aux4", new double[] { .191, .15, 5.35, 4.38, muxOutputEn.aux4 } },
+                //Due to Wire resistance from UUT to Eload, about 1% loss UUT output to the Eload terminals is expected.  Subtract 1% from each high tolerance value to avoid false passes.
+                { "Aux0", new double[] { .191*(.99), .15, 5.35*(.99), 4.38, muxOutputEn.aux0 } },
+                { "Aux1", new double[] { .191*(.99), .15, 5.35*(.99), 4.38, muxOutputEn.aux1 } },
+                { "Aux2", new double[] { .191*(.99), .15, 5.35*(.99), 4.38, muxOutputEn.aux2 } },
+                { "Aux3", new double[] { .191*(.99), .15, 5.35*(.99), 4.38, muxOutputEn.aux3 } },
+                { "Aux4", new double[] { .191*(.99), .15, 5.35*(.99), 4.38, muxOutputEn.aux4 } },
             };
             nonAdjOutTst.eLoadMeasLimits = new Dictionary<string, double[]>
             {
@@ -491,6 +502,13 @@ namespace HydroFunctionalTest
                 { "DOUT_5C", new double[] { 4.5, .5, muxOutputEn.DOUT_5C } },
                 { "DOUT_6C", new double[] { 4.5, .5, muxOutputEn.DOUT_6C } },
                 { "DOUT_7C", new double[] { 4.5, .5, muxOutputEn.DOUT_7C } },
+            };
+            canIdTest = new Dictionary<string, int[]>
+            {
+                /// Holds the name of the CAN ID Resistance Value in schematic and the high/low tolerance.  Key --> Resistance Value, Value[] = High limit(ADC Count), Low limit(ADC count), 3rd Element-->Mux output Byte to enable output
+                { "Open", new int[] {3399, 3201, gpioConst.USB_PORT_SLCT } },  //the 3rd element here is required for consistency but not needed for test.  Using gpioConst.USB_PORT_SLCT for the least affect on the test
+                { "3.4K Ohm", new int[] {512, 399, gpioConst.CAN_ID_1_EN } },
+                { "562 Ohm", new int[] {170, 56, gpioConst.CAN_ID_2_EN } },
             };
             #endregion Initialize variables holding UUT current, voltage or other limits
 
@@ -604,7 +622,7 @@ namespace HydroFunctionalTest
                 { "PowerLoss", -1 },
                 { "SeatIDSwitch", -1 },
                 { "USBComm", -1 },
-                //{ "CANID", -2 },  //not implemented - need information from customer
+                { "CANID", -1 },  //not implemented - need information from customer
             };
             #endregion Initialize Dictionary containing all test pass fail status
 
@@ -939,7 +957,7 @@ namespace HydroFunctionalTest
                     foreach (var pair in testDataCSV)
                     {
                         //write the test Method name
-                        String tempString = "****" + pair.Key + "****\r\n";                       
+                        String tempString = "****" + pair.Key + "****\r\n";
                         //now list the comma seperated details about the test
                         for (int i = 0; i < pair.Value.Count; i++)
                         {
@@ -948,10 +966,17 @@ namespace HydroFunctionalTest
                         file.WriteLine(tempString);
                     }
                 }
+                //using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + "DMM_Measurements.txt"))
+                //{
+                //    foreach (String s in tempDmmMeas)
+                //    {
+                //        file.WriteLine(s + "\r\n");
+                //    }
+                //}
             }
             catch (Exception ex)
             {
-                testStatusInfo.Add("File operation error.\r\n" + ex.Message +  "\r\nFailed to send test data to txt file:\r\n" + testDataFilePath + fileName);
+                testStatusInfo.Add("File operation error.\r\n" + ex.Message + "\r\nFailed to send test data to txt file:\r\n" + testDataFilePath + fileName);
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
@@ -1979,6 +2004,7 @@ namespace HydroFunctionalTest
                     }
 
                     //Verify Eload tolerances
+
                     if ((eLoadMeasVoltage_ON >= eLoadV_L) && (eLoadMeasVoltage_ON <= eLoadV_H))
                     {
                         howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
@@ -2006,6 +2032,20 @@ namespace HydroFunctionalTest
                 }
                 else
                     testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
+
+                //**************************************************************
+                //**************************************************************
+                //initial voltage value to force failure if DMM measurement fails
+                double dmmMeas = 0;
+                String tmpDmmStr = null;
+                tmpDmmStr = DmmMeasure();
+                if (tmpDmmStr != null)
+                {
+                    dmmMeas = double.Parse(tmpDmmStr);
+                }
+                tempDmmMeas.Add(tmpDmmStr);
+                //**************************************************************
+                //**************************************************************
 
                 testStatusInfo.Add("\r\n\t26V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
@@ -2270,6 +2310,20 @@ namespace HydroFunctionalTest
                 else
                     testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
+                //**************************************************************
+                //**************************************************************
+                //initial voltage value to force failure if DMM measurement fails
+                double dmmMeas = 0;
+                String tmpDmmStr = null;
+                tmpDmmStr = DmmMeasure();
+                if (tmpDmmStr != null)
+                {
+                    dmmMeas = double.Parse(tmpDmmStr);
+                }
+                tempDmmMeas.Add(tmpDmmStr);
+                //**************************************************************
+                //**************************************************************
+
                 testStatusInfo.Add("\r\n\t12V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
                 tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
@@ -2533,6 +2587,20 @@ namespace HydroFunctionalTest
                 }
                 else
                     testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
+
+                //**************************************************************
+                //**************************************************************
+                //initial voltage value to force failure if DMM measurement fails
+                double dmmMeas = 0;
+                String tmpDmmStr = null;
+                tmpDmmStr = DmmMeasure();
+                if (tmpDmmStr != null)
+                {
+                    dmmMeas = double.Parse(tmpDmmStr);
+                }
+                tempDmmMeas.Add(tmpDmmStr);
+                //**************************************************************
+                //**************************************************************
 
                 testStatusInfo.Add("\r\n\t5V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
@@ -3316,7 +3384,9 @@ namespace HydroFunctionalTest
                 uutUsbCommPort.ReadExisting();
                 //write 5 bytes representing an echo request
                 uutUsbCommPort.Write(echoRequest, 0, 5);
+                System.Threading.Thread.Sleep(500);
                 uutUsbCommPort.Read(echoResponse, 0, 5);
+                uutUsbCommPort.Close();
             }
             catch (Exception ex)
             {
@@ -3340,9 +3410,117 @@ namespace HydroFunctionalTest
 
         public void CANID()
         {
+            int howManyFailures = canIdTest.Count();
+            SerialPort uutUsbCommPort = new SerialPort();
+
+            //the port name should have been discovered in the "LoadFirmware" method
+            uutUsbCommPort.PortName = comPortInfo.CommPortName;
+
+            Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
+            Byte[] echoRequest = { 70, 129, 0, 0, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
+
+            Byte[] response = new byte[209];//bytes to read after writing the echo request
+            Byte[] adcDataRequest = { 80, 129, 0, 5, 0, 0, 5, 0, 23, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
+            List<byte> adcData = new List<byte>();
+
+            //enable USB connection
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);//enable UUT USB port
+
+            StandardDelay(3000);
+
+            try
+            {
+                uutUsbCommPort.Open();
+                //clear out any garbage data in the receive buffer
+                uutUsbCommPort.ReadExisting();
+
+                uutUsbCommPort.Write(adcDataRequest, 0, 10);
+                foreach(var pair in canIdTest)
+                {
+                    int adcCountValue;
+                    if(pair.Key != "Open")//don't enable any relays when CAN ID node is disconnected or "Open"
+                        IC_ChangeOutputState(gpioConst.u2RefDes, (Byte)pair.Value[2], gpioConst.setBits);//Connect res to CAN ID node
+                    System.Threading.Thread.Sleep(500);
+                    if (GetAdcCount(uutUsbCommPort, 3000, pair.Value[0], pair.Value[1], out adcCountValue))
+                    {
+                        howManyFailures--;
+                        testStatusInfo.Add("\r\n\tCAN ID for " + pair.Key + " connection Passed\r\n\t ADC count = " + adcCountValue.ToString() + " (High = " + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
+                        RecordTestResults("CANID", pair.Key, "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), adcCountValue.ToString(), "ADC Count", "");
+                    }
+                    else
+                    {
+                        testStatusInfo.Add("\r\n\tCAN ID for " + pair.Key + " connection Failed\r\n\t ADC count = " + adcCountValue.ToString() + " (High = " + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
+                        RecordTestResults("CANID", pair.Key, "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), adcCountValue.ToString(), "ADC Count", "");
+                    }
+                    if (pair.Key != "Open")//don't disable any relays when CAN ID node is disconnected or "Open"
+                        IC_ChangeOutputState(gpioConst.u2RefDes, (Byte)pair.Value[2], gpioConst.clearBits);//Disconnect res to CAN ID node
+                }
+
+                uutUsbCommPort.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to open UUT Comm. Port\r\n" + ex.Message);
+            }
+
+            //disable USB connection
+            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.clearBits);
+
             //set the method status flag in the testRoutineInformation Dictionary
             testRoutineInformation["CANID"] = 1;
             testStatusInfo.Add("\t***CANID Test Passed***");
+        }
+
+        public bool GetAdcCount(SerialPort uutPort, int timeOutMilliseconds, int highLim, int lowLim, out int adcCount)
+        {
+            Byte[] response = new byte[1045];//extract 4 sets of the CAN ID ADC messages (The return data should be an array of length 209, therefore 209 * 4 = 836)
+            bool withinLimits = false;
+            adcCount = 0;
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            while ((stopWatch.ElapsedMilliseconds < timeOutMilliseconds) && (!withinLimits))
+            {
+                uutPort.Read(response, 0, 1045);  //extract 5 sets of the CAN ID ADC messages (The return data should be an array of length 209, therefore 209 * 5 = 836)
+                int numFrames = 0;  //count how many times a new frame of data (an array of 209) is seen, which is indicated by the Message ID value of 39 in the array
+                int[] dataIndex = new int[5];  //Store the index where the message ID 39 is found.  there shouldn't be any more than 5 frames of data
+                for (int i = 0; i < response.Length; i++)
+                {
+                    if (response[i] == 39)
+                    {
+                        dataIndex[numFrames] = i;
+                        numFrames++;
+                    }
+                }
+                //Take only the last frame of ADC counts data.  all 100 samples of CAN ADC counts data will be added and then averaged
+                int average = 0; 
+                int sampleCount = 0;
+                if (numFrames >= 2)
+                {
+                    for (int j = (dataIndex[numFrames - 2] + 9); j < dataIndex[numFrames - 1]; j++) // add 9 to the initial count value will scoot the index past the frame header into the actual data
+                    {
+                        UInt16 lowByte = response[j]; //first byte should be the LSB (255 for an open)
+                        UInt16 highByte = (UInt16)(response[j + 1] << 8); //second byte should be the MSB
+                        j++;
+                        UInt16 combinedValue = (UInt16)(highByte | lowByte);
+                        sampleCount++;
+                        average = average + combinedValue;
+                    }
+                    adcCount = average / sampleCount;
+                    if ((adcCount < highLim) && (adcCount > lowLim))
+                        withinLimits = true;
+                }
+                using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + "CAN ID Response.txt", true))
+                {
+                    foreach (var v in response)
+                    {
+                        file.Write(v);
+                    }
+                    file.Write("\r\n");
+                }
+                Array.Clear(response, 0, response.Length);
+            }
+            stopWatch.Stop();
+            return withinLimits;
         }
 
         #endregion Methods unique to this assembly only.
