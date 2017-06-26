@@ -138,7 +138,12 @@ namespace HydroFunctionalTest
         /// </summary>
         static public void CloseComport()
         {
-            pwrSupDev.Close();
+            lock (lockRoutine)
+            {
+                IsBusy = true;
+                pwrSupDev.Close();
+                IsBusy = false;
+            }
         }
 
         /// <summary>
@@ -551,16 +556,26 @@ namespace HydroFunctionalTest
 
         static public bool OVP_Check()
         {
-            String tempStr = Query("source:voltage:protection:triped?");
-            if (tempStr.Contains("1"))
-                return true;
-            else
-                return false;
+            lock (lockRoutine)
+            {
+                IsBusy = true;
+                String tempStr = Query("source:voltage:protection:triped?");
+                if (tempStr.Contains("1"))
+                    return true;
+                else
+                    return false;
+                IsBusy = false;
+            }
         }
 
         static public void ClearOVP()
         {
-            Command("source:voltage:protection:clear");
+            lock (lockRoutine)
+            {
+                IsBusy = true;
+                Command("source:voltage:protection:clear");
+                IsBusy = false;
+            }
         }
 
         #endregion Private Methods

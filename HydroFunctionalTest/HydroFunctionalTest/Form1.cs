@@ -187,7 +187,7 @@ namespace HydroFunctionalTest
                         //turn DUT power outputs off and 5V output on
                         PwrSup.TurnOutputOnOff(1, false, 0, 0);
                         PwrSup.TurnOutputOnOff(2, false, 0, 0);
-                        PwrSup.TurnOutputOnOff(3, true, 5, .6); //set to 5 volts and maximum current (3A)
+                        PwrSup.TurnOutputOnOff(3, true, 5, .8); //set to 5 volts and maximum current (3A)
                         if (PwrSup.OVP_Check())
                         {
                             mainStsTxtBx.AppendText("Power Supply Over Voltage\r\n");
@@ -345,7 +345,7 @@ namespace HydroFunctionalTest
                         GrpBxThreadCtrl(fix1Designator, -1);
                         PrintDataToTxtBox(fix1Designator, null, "\r\nLid Down Detected");
                         //begin testing UUT
-                        BeginTest(fix1Designator);
+                        BeginTest(fix1Designator, txtBxSerNum1.Text, this.btnAbort1);
                     }
                     else
                         PrintDataToTxtBox(fix1Designator, null, "Lid Down Not Detected");
@@ -392,7 +392,7 @@ namespace HydroFunctionalTest
                         GrpBxThreadCtrl(fix2Designator, -1);
                         PrintDataToTxtBox(fix2Designator, null, "\r\nLid Down Detected");
                         //begin testing UUT
-                        BeginTest(fix2Designator);
+                        BeginTest(fix2Designator, txtBxSerNum2.Text, this.btnAbort2);
                     }
                     else
                         PrintDataToTxtBox(fix2Designator, null, "Lid Down Not Detected");
@@ -413,10 +413,17 @@ namespace HydroFunctionalTest
             }
         }
 
-        private async void BeginTest(int fixPos)
+        private async void BeginTest(int fixPos, String tempSerialNum, System.Windows.Forms.Button softwAbortEvent)
         {
             //Get the fixture ID (which asssembly is being tested)
-            Byte tempFixID = FixtureID(fixPos);//returns 0 if error occurs                    
+            Byte tempFixID = FixtureID(fixPos);//returns 0 if error occurs  
+            //check operator input options:
+            bool tempSkipBootloader = false;
+            bool tempSkipFirmware = false;
+            bool tempIsRma = false;
+            if (chkBxSkpBoot1.Checked | chkBxSkpBoot2.Checked) tempSkipBootloader = true;
+            if (chkBxSkpFirm1.Checked | chkBxSkpFirm2.Checked) tempSkipFirmware = true;
+            if (chkBxRma1.Checked | chkBxRma2.Checked) tempIsRma = true;
             bool tmpFoundFixture = false;
             foreach (var pair in fxtIDs)
             {
@@ -431,7 +438,7 @@ namespace HydroFunctionalTest
                     if (fxtIDs.ContainsKey("PSM_85307"))
                     {
                         //initialize the uut object
-                        PSM_85307 uutObj = new PSM_85307(fixPos, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index], chkBxSkpBoot1.Checked, chkBxSkpFirm1.Checked, chkBxRma1.Checked);
+                        PSM_85307 uutObj = new PSM_85307(fixPos, tempSerialNum, gpioObj[fixPos-1], pCanObj[fixPos-1], tempSkipBootloader, tempSkipFirmware, tempIsRma);
                         //subscribe to uut events
                         uutObj.InformationAvailable += OnInformationAvailable;
                         uutObj.TestComplete += OnTestComplete;
@@ -451,7 +458,7 @@ namespace HydroFunctionalTest
                             }
                         }
                         //execute uut test(s)
-                        await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                        await Task.Run(() => uutObj.RunTests(softwAbortEvent));
                         //unsubscribe from uut events
                         uutObj.InformationAvailable -= OnInformationAvailable;
                         uutObj.TestComplete -= OnTestComplete;
@@ -465,7 +472,7 @@ namespace HydroFunctionalTest
                         uutObj.InformationAvailable += OnInformationAvailable;
                         uutObj.TestComplete += OnTestComplete;
                         //execute uut tests
-                        await Task.Run(() => uutObj.RunTests(this.btnAbort1));
+                        await Task.Run(() => uutObj.RunTests(softwAbortEvent));
                         //unsubscribe from uut events
                         uutObj.InformationAvailable -= OnInformationAvailable;
                         uutObj.TestComplete -= OnTestComplete;
@@ -612,8 +619,8 @@ namespace HydroFunctionalTest
             //Unsubscribe from events and check that task is complete, kill if still running
             //
             //unlock the GUI so no other input can be received
-            BtnThreadCtrl(fix1Designator, true);
-            SerialBxThreadCtrl(fix1Designator, true);
+            BtnThreadCtrl(fixPos, true);
+            SerialBxThreadCtrl(fixPos, true);
             EndofTestRoutine(fixPos, allTestsPass);
             PrintDataToTxtBox(fixPos, null, "\r\n*********Test Results*********");
             PrintDataToTxtBox(fixPos, passFailtstSts);
@@ -1077,23 +1084,30 @@ namespace HydroFunctionalTest
         private void cboBxDbgTst1_Click(object sender, EventArgs e)
         {
             cboBxDbgTst1.Items.Clear();
-            PopulateDropDownBox(fix1Designator);
+            PopulateDropDownBox(fix1Designator, txtBxSerNum1.Text);
         }
 
         private void cboBxDbgTst2_Click(object sender, EventArgs e)
         {
             cboBxDbgTst2.Items.Clear();
-            PopulateDropDownBox(fix2Designator);
+            PopulateDropDownBox(fix2Designator, txtBxSerNum2.Text);
         }
 
-        private void PopulateDropDownBox(int fixPos)
+        private void PopulateDropDownBox(int fixPos, String tempSerialNum)
         {
             //check for available GPIO devices
             bool foundGpio = gpioObj[fixPos-1].ScanForDevs(fixPos);
+            //check operator input options:
+            bool skipBootloader = false;
+            bool skipFirmware = false;
+            bool isRma = false;
+            if (chkBxSkpBoot1.Checked | chkBxSkpBoot2.Checked) skipBootloader = true;
+            if (chkBxSkpFirm1.Checked | chkBxSkpFirm2.Checked) skipFirmware = true;
+            if (chkBxRma1.Checked | chkBxRma2.Checked) isRma = true;
             if (foundGpio)
             {
                 SetGpioInitValue(fixPos);
-                PrintDataToTxtBox(fixPos, null, "Fixture " + fixPos.ToString() + " connected to GPIO --> " + gpioObj[uut1_index].GetDeviceId());
+                PrintDataToTxtBox(fixPos, null, "Fixture " + fixPos.ToString() + " connected to GPIO --> " + gpioObj[fixPos-1].GetDeviceId());
                 Byte tempFixID = FixtureID(fixPos);//returns 0 if error occurs                    
                 bool tmpFoundFixture = false;
                 foreach (var pair in fxtIDs)
@@ -1106,19 +1120,21 @@ namespace HydroFunctionalTest
                         {
                             //initialize the uut object
 
-                            PSM_85307 uutObj = new PSM_85307(fixPos, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index], chkBxSkpBoot1.Checked, chkBxSkpFirm1.Checked, chkBxRma1.Checked);
+                            PSM_85307 uutObj = new PSM_85307(fixPos, tempSerialNum, gpioObj[fixPos-1], pCanObj[fixPos-1], skipBootloader, skipFirmware, isRma);
                             foreach (var test in uutObj.testRoutineInformation)
                             {
-                                cboBxDbgTst1.Items.Add(test.Key);
+                                if(fixPos == 1) cboBxDbgTst1.Items.Add(test.Key);
+                                else cboBxDbgTst2.Items.Add(test.Key);
                             }
                             break;
                         }
                         else if (fxtIDs.ContainsKey("SAM_55207"))
                         {
-                            SAM_55207 uutObj = new SAM_55207(fixPos, txtBxSerNum1.Text, gpioObj[uut1_index], pCanObj[uut1_index]);
+                            SAM_55207 uutObj = new SAM_55207(fixPos, tempSerialNum, gpioObj[fixPos-1], pCanObj[fixPos-1]);
                             //foreach (var test in uutObj.testRoutineInformation)
                             //{
-                            //    cboBxDbgTst1.Items.Add(test.Key);
+                            //    if(fixPos == 1) cboBxDbgTst1.Items.Add(test.Key);
+                            //    else cboBxDbgTst2.Items.Add(test.Key);
                             //}
                             //break;
                         }

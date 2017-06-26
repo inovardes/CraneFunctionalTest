@@ -139,9 +139,8 @@ namespace HydroFunctionalTest
                 int loopCount = 0;
                 int loopMax = 3;
 
-                //take the received byte and create a new byte that can clear the port pin (2.7) for setting the relay which connectes UUT1 or UUT2
+                
                 //port 2.7 is responsible for changing between UUT1 & UUT2
-                Byte clearBit = (Byte)((~128) & port2CtrlByte);
                 //if UUT2 is calling this routine, enable the relay to UUT2
                 if(select_UUT2)
                     gpioDev.GpioWrite(2, port2CtrlByte);
@@ -180,6 +179,8 @@ namespace HydroFunctionalTest
                     rtnData = null;
                 }
                 //if UUT is selected, disable the DMM connection to UUT2
+                //take the received byte and create a new byte that can clear the port pin (2.7) for setting the relay which connectes UUT1 or UUT2
+                Byte clearBit = (Byte)((~128) & port2CtrlByte);
                 if (select_UUT2)
                     gpioDev.GpioWrite(2, clearBit);
 

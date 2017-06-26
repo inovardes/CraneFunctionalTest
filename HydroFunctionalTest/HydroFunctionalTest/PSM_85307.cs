@@ -133,6 +133,7 @@ namespace HydroFunctionalTest
             public const Byte PWR_EN = 1;
             public const Byte nLED_GRN = 2;
             public const Byte nLED_RED = 4;
+            public const Byte uut2EloadConn_EN = 64;
             public const Byte PWR_CHK_EN = 8;
             public const Byte FXTR_ID_EN = 16;
             public const Byte TOGL_DIN_EN = 32;
@@ -378,7 +379,7 @@ namespace HydroFunctionalTest
         /// </summary>
         /// <param name="tmpGpio"></param>
         /// <param name="tmpPcan"></param>
-        public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan, bool skipBootloaderMethod, bool skipFirmwareMethod, bool isRma)
+        public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan, bool skipBootloaderMethod, bool skipFirmwareMethod, bool tempIsRma)
         {
             tempDmmMeas.Clear();
 
@@ -652,7 +653,7 @@ namespace HydroFunctionalTest
                 testRoutineInformation["LoadFirmware"] = -2;  //Force programm to skip test step
             if (skipBootloader)
                 testRoutineInformation["FlashBootloader"] = -2;  //Force programm to skip test step
-            if (isRma)
+            if (tempIsRma)
                 testRoutineInformation["PowerRegulators"] = -2;  //Force programm to skip test step
             #endregion
         }
@@ -1450,8 +1451,7 @@ namespace HydroFunctionalTest
                     }
                     else
                     {
-                        currentVerifyCount = 0; //reset the count since current went out of tolerance
-                        
+                        currentVerifyCount = 0; //reset the count since current went out of tolerance                        
                         testStatusInfo.Add("\r\n\t" + outputName + " Output Current Measured: " + pcbaMeasCurrent.ToString());
                     }
                 }
@@ -1884,6 +1884,18 @@ namespace HydroFunctionalTest
                 return;
             //Eload is under this thread's control now
 
+            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+            if (fixPosition == 2)
+            {
+                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -2129,6 +2141,14 @@ namespace HydroFunctionalTest
                 testStatusInfo.Clear();
             }
 
+
+            if (fixPosition == 2)
+            {
+                //Disconnect from UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -2165,6 +2185,18 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
+
+            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+            if (fixPosition == 2)
+            {
+                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
@@ -2406,6 +2438,14 @@ namespace HydroFunctionalTest
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
+
+            if (fixPosition == 2)
+            {
+                //Disconnect from UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -2442,6 +2482,18 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
+
+            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+            if (fixPosition == 2)
+            {
+                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
@@ -2684,6 +2736,14 @@ namespace HydroFunctionalTest
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
+
+            if (fixPosition == 2)
+            {
+                //Disconnect from UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -2744,6 +2804,18 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
+
+            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+            if (fixPosition == 2)
+            {
+                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
@@ -2898,6 +2970,13 @@ namespace HydroFunctionalTest
 
                 OnInformationAvailable();
                 testStatusInfo.Clear();
+            }
+
+            if (fixPosition == 2)
+            {
+                //Disconnect from UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
             }
 
             //Release control of the Eload for another thread to use
