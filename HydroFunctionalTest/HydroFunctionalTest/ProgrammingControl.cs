@@ -14,6 +14,7 @@ namespace HydroFunctionalTest
         /// Together they manage access to the ProgramBootloader method, preventing multiple thread simultaneous access.
         /// </summary>
         static private Object lockJtagRoutine = new Object();
+        static private Object lockCheckJtagBusy = new object();
         /// <summary>
         /// this object is used in conjunction with the 'lock()' statement and the AutoItIsBusy property.  
         /// Together they manage access to the LoadFirmwareViaAutoit method, preventing multiple thread simultaneous access.
@@ -26,7 +27,7 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Provides a public read boolean for external classes to allow for efficient access to the LoadFirmwareViaAutoit method
         /// </summary>
-        static public bool JtagIsBusy { get; private set; } = false;
+        static private bool JtagIsBusy { get; set; } = false;
 
         //file path and file names
         /// <summary>
@@ -39,6 +40,24 @@ namespace HydroFunctionalTest
         private const string autoItExe = "_LoadFirmwareViaAutoIt.exe";
 
         #region//ProgramBootloader
+
+        /// <summary>
+        /// Allows multiple threads to check the JtagBusy status flag to avoid race conditions
+        /// </summary>
+        /// <returns></returns>
+        static public bool SetJtagBusyFlag()
+        {
+            lock (lockCheckJtagBusy)
+            {
+                if (ProgrammingControl.JtagIsBusy)
+                    return false;
+                else
+                {
+                    ProgrammingControl.JtagIsBusy = true;
+                    return ProgrammingControl.JtagIsBusy;
+                }
+            }
+        }
 
         /// <summary>
         /// Method uses 'lock' to prevent simultaneous access from multiple threads.  Check 'IsBusy' to avoid having to wait for the device to become available.
@@ -55,9 +74,8 @@ namespace HydroFunctionalTest
         {
             lock (lockJtagRoutine)
             {
+                ProgrammingControl.JtagIsBusy = true;
                 String configFile = cfgFileName.ToString().Substring(cfgFileName.ToString().IndexOf(".") + 1);
-                
-                JtagIsBusy = true;
                 Dictionary<bool, String> rtnData = new Dictionary<bool, string>();
                 rtnData.Add(false, "ProgramBootloader Method failed to run completely through");
                 string output = "";
@@ -98,7 +116,8 @@ namespace HydroFunctionalTest
                 {
                     rtnData[false] = "Exception while programming bootloader\r\n" + ex.Message;
                 }
-                JtagIsBusy = false;
+                System.Threading.Thread.Sleep(1000);
+                ProgrammingControl.JtagIsBusy = false;
                 return rtnData;
             }
         }
@@ -115,12 +134,15 @@ namespace HydroFunctionalTest
         /// <param name="mainTestPrgmPath"></param>
         /// <param name="uutSpecificArguments"></param>
         /// <returns></returns>
-        static public Dictionary<bool, String> LoadFirmwareViaAutoit(String autoItScriptPath, Object uutSpecificScript)
+        static public bool LoadFirmwareViaAutoit(String autoItScriptPath, Object uutSpecificScript, out String testResultData)
         {
             lock (lockAutoItRoutine)
             {
                 String scriptName = uutSpecificScript.ToString().Substring(uutSpecificScript.ToString().IndexOf(".") + 1);
                 AutoItIsBusy = true;
+                bool rtnStatus = false;
+                testResultData = "no Data";
+                System.Threading.Thread.Sleep(250);
                 Dictionary<bool, String> rtnData = new Dictionary<bool, string>();
                 rtnData.Add(false, "LoadFirmwareViaAutoit Method failed to run completely through");
                 string output = "";
@@ -149,19 +171,21 @@ namespace HydroFunctionalTest
                     if (autoit.ExitCode == 1)
                     {
                         rtnData.Clear();
-                        rtnData.Add(true, "Load Test Firmware Pass");
+                        rtnStatus = true;
+                        testResultData = "Load Test Firmware Pass";
                     }
                     else
                     {
-                        rtnData[false] = output + "\r\n\r\nFailed to load test firmware\r\n";
+                        rtnStatus = false;
+                        testResultData =  output + "\r\n\r\nFailed to load test firmware\r\n";
                     }
                 }
                 catch (Exception ex)
                 {
-                    rtnData[false] = "Exception occured while Loading Firmware\r\n" + ex.Message;
+                    testResultData = "Exception occured while Loading Firmware\r\n" + ex.Message;
                 }
                 AutoItIsBusy = false;
-                return rtnData;
+                return rtnStatus;
             }
         }
         #endregion

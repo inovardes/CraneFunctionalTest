@@ -131,6 +131,7 @@
     <Compile Include="SAM_55207.cs" />
     <Compile Include="SAM_55207_Gen3.cs" />
     <Compile Include="UsbToGpio.cs" />
+    <Compile Include="UutComm.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>

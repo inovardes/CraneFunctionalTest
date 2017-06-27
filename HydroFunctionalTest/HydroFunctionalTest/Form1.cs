@@ -187,7 +187,7 @@ namespace HydroFunctionalTest
                         //turn DUT power outputs off and 5V output on
                         PwrSup.TurnOutputOnOff(1, false, 0, 0);
                         PwrSup.TurnOutputOnOff(2, false, 0, 0);
-                        PwrSup.TurnOutputOnOff(3, true, 5, .8); //set to 5 volts and maximum current (3A)
+                        PwrSup.TurnOutputOnOff(3, true, 5, 1.5); //set to 5 volts and maximum current (3A)
                         if (PwrSup.OVP_Check())
                         {
                             mainStsTxtBx.AppendText("Power Supply Over Voltage\r\n");

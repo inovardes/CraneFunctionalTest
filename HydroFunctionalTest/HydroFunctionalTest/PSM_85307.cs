@@ -17,40 +17,41 @@ namespace HydroFunctionalTest
         List<String> tempDmmMeas = new List<string>();
 
         /// <summary>
-        /// Class used to track the Pcan class data and also contains a bollean which controls when the thread in this program that continuously calls the Pcan class CanRead() method
+        /// Class used to track the Pcan class data and also contains a boolean which controls when the thread in this program that continuously calls the Pcan class CanRead() method
         /// When CAN data is needed, it must be copied over from the Pcan class into a new Dictionary to avoid corrupting the data
         /// </summary>
-        static class CanDataManagement
+        public class CanDataManagement
         {
             /// <summary>
             /// Keeps track of the last size of the CAN data as it grows.  This indicates to the program if the size of the data stops growing (meaning there isn't any new CAN data)
             /// </summary>
-            static public int dataCount = 0;
+            public int dataCount = 0;
             /// <summary>
             /// Moves an indexer down the CAN data array after searching so that old data isn't searched twice
             /// </summary>
-            static public int newZeroIndex = 0;
+            public int newZeroIndex = 0;
             /// <summary>
             /// Bool used to exit the thread which continually loops and extracts data from the CAN Adpt.
             /// </summary>
-            static public bool exitThread = false;
+            public bool exitThread = false;
             /// <summary>
             /// After searching for a specific CanID, store it's value here 
             /// </summary>
-            static public UInt32 CanId;
+            public UInt32 CanId;
             /// <summary>
             /// After searching for a specific CanID, store it's message info here 
             /// </summary>
-            static public List<Byte> CanMessage = new List<Byte>();
+            public List<Byte> CanMessage = new List<Byte>();
             /// <summary>
             /// After searching for a specific CanID, store it's message length here 
             /// </summary>
-            static public double timeStamp;
+            public double timeStamp;
             
-            static public Dictionary<UInt32, Dictionary<Byte[], uint>> canReadRtnData = new Dictionary<UInt32, Dictionary<Byte[], uint>>();
+            public Dictionary<UInt32, Dictionary<Byte[], uint>> canReadRtnData = new Dictionary<UInt32, Dictionary<Byte[], uint>>();
             
-            static public Object lockRoutine = new Object();
+            public Object lockRoutine = new Object();
         }
+        CanDataManagement canDataManage = new CanDataManagement();
         /// <summary>
         /// Data type will be implemeted using a List of this data type.  This will make indexing the CAN data code safe and easier to search (hopefully)
         /// </summary>
@@ -66,23 +67,10 @@ namespace HydroFunctionalTest
         /// </summary>
         static public List<CanDataStruct> canDataRepo = new List<CanDataStruct>();
         /// <summary>
-        /// Allows management of UUT USB comport during test.  Will assign the comport name in either the PowerUp or LoadFirmware methods
+        /// Holds the name communiction Port name when the UUT USB device port name is discovered
         /// </summary>
-        public struct ComPortInfo
-        {
-            /// <summary>
-            /// Holds the name communiction Port name when the UUT USB device port name is discovered
-            /// </summary>
-            public String CommPortName;
-            /// <summary>
-            /// Maximum times the program can recursively call itself
-            /// </summary>
-            public const int maxLoadFirmwareMethodCalls = 3;
-            /// <summary>
-            /// counts number of times a method calls itself in order to find the UUT USB com port name
-            /// </summary>
-            public int numMethodCalls;
-        }
+        public String CommPortName;
+        public Object lockDmmMeasure = new object();
 
         #region Structures unique to this assembly
         /// <summary>
@@ -134,6 +122,7 @@ namespace HydroFunctionalTest
             public const Byte nLED_GRN = 2;
             public const Byte nLED_RED = 4;
             public const Byte uut2EloadConn_EN = 64;
+            public const Byte uut2DmmConn_EN = 128;
             public const Byte PWR_CHK_EN = 8;
             public const Byte FXTR_ID_EN = 16;
             public const Byte TOGL_DIN_EN = 32;
@@ -306,10 +295,6 @@ namespace HydroFunctionalTest
         /// </summary>
         OutputTestParams nonAdjOutTst = new OutputTestParams();
         /// <summary>
-        /// for keeping track on details about the UUT comm. port
-        /// </summary>
-        ComPortInfo comPortInfo = new ComPortInfo();
-        /// <summary>
         /// static variable that holds U2 flip flop desired output.  This value is a 8 bit value and must be set for the desired output for Port 0
         /// </summary>
         public Byte u2FlipFlopInputByte;
@@ -388,8 +373,6 @@ namespace HydroFunctionalTest
             gpioObj = tmpGpio;
             uutSerialNum = serNum;
 
-            comPortInfo.numMethodCalls = 0;
-
             //turn the power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
             //turn Eload off
@@ -401,9 +384,9 @@ namespace HydroFunctionalTest
             GpioInitState();
 
             //set/reset the variables that manage the CAN data
-            CanDataManagement.exitThread = false;
-            CanDataManagement.dataCount = 0;
-            CanDataManagement.newZeroIndex = 0;
+            canDataManage.exitThread = false;
+            canDataManage.dataCount = 0;
+            canDataManage.newZeroIndex = 0;
             canDataRepo.Clear();
 
             #region Initialize variables holding UUT current, voltage or other limits
@@ -886,14 +869,36 @@ namespace HydroFunctionalTest
 
         public String DmmMeasure()
         {
-            String tmpDmmStr = null;
-            if (fixPosition == 1)
-                tmpDmmStr = Dmm.Measure("meas:volt:dc?", gpioObj, port2CtrlByte, false);
-            else if(fixPosition == 2)
-                tmpDmmStr = Dmm.Measure("meas:volt:dc?", gpioObj, port2CtrlByte, true);
-            else
-                MessageBox.Show("Incorrect fixture number parameter sent to UUT 'DmmMeasure' method: " + fixPosition.ToString());
-            return tmpDmmStr;
+            lock (lockDmmMeasure)
+            {
+                String tmpDmmStr = null;
+                if (fixPosition == 1)
+                {
+                    //port 2.7 is responsible for changing between UUT1 & UUT2
+                    //if UUT2 is calling this routine, enable the relay to UUT2
+                    //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2DmmConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                    tmpDmmStr = Dmm.Measure("meas:volt:dc?");
+                }
+                else if (fixPosition == 2)
+                {
+                    //port 2.7 is responsible for changing between UUT1 & UUT2
+                    //if UUT2 is calling this routine, enable the relay to UUT2
+                    //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2DmmConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                    tmpDmmStr = Dmm.Measure("meas:volt:dc?");
+                    //disable the DMM connection to UUT2
+                    //take the received byte and create a new byte that can clear the port pin (2.7) for setting the relay which connectes UUT1 or UUT2
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2DmmConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+                else
+                    MessageBox.Show("Incorrect fixture number parameter sent to UUT 'DmmMeasure' method: " + fixPosition.ToString());
+
+                return tmpDmmStr;
+            }
         }
 
         /// <summary>
@@ -986,7 +991,7 @@ namespace HydroFunctionalTest
         private void SendCanDataToFile()
         {
             //stop the thread that loops through and collects CAN data
-            CanDataManagement.exitThread = true;
+            canDataManage.exitThread = true;
             String dateTime = (System.DateTime.Now.ToString().Replace("/", "_")).Replace(":", ".");
             String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) +
                 "\\CAN DATA\\" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) +
@@ -1003,8 +1008,8 @@ namespace HydroFunctionalTest
                 {
                     file.WriteLine("TimeStamp,CAN-ID,Length,Data");
                     //copy the contents of the CAN data to a new variable
-                    List<CanDataStruct> tempCanReadData;
-                    GetCanData(out tempCanReadData);
+                    List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();
+                    GetCanData(ref tempCanReadData);
                     for (int i = 0; i < tempCanReadData.Count; i++)
                     {
                         CanDataStruct tempDataStruct = tempCanReadData[i];
@@ -1302,12 +1307,12 @@ namespace HydroFunctionalTest
             UInt32 tempCanID;
             Byte[] tempCanData;
             double tempTimStamp;
-            while (!CanDataManagement.exitThread)
+            while (!canDataManage.exitThread)
             {
                 if (pCanObj.CanRead(out tempCanID, out tempCanData, out tempTimStamp))
                 {
                     //lock access to the Dictionary that collects data continuously (This prevents inadvertant simultaneous access to the data from different threads)
-                    lock (CanDataManagement.lockRoutine)
+                    lock (canDataManage.lockRoutine)
                     {
                         CanDataStruct canStorage = new CanDataStruct();
                         canStorage.canID = tempCanID;
@@ -1328,10 +1333,10 @@ namespace HydroFunctionalTest
         /// send a List of data type 'CanDataStruct' as a paramater to safely copy the CAN data
         /// </summary>
         /// <param name="tempCanData"></param>
-        private void GetCanData(out List<CanDataStruct> tempCanData)
+        private void GetCanData(ref List<CanDataStruct> tempCanData)
         {
-            lock (CanDataManagement.lockRoutine)
-                tempCanData = new List<CanDataStruct>(canDataRepo);
+            lock (canDataManage.lockRoutine)
+                tempCanData = canDataRepo.ToList();
         }
 
         /// <summary>
@@ -1353,18 +1358,18 @@ namespace HydroFunctionalTest
                 if (AbortCheck())
                     break;
                 //copy the contents of the CAN data to a new variable
-                List<CanDataStruct> tempCanReadData;
-                GetCanData(out tempCanReadData);
+                List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();
+                GetCanData(ref tempCanReadData);
 
-                //check for new CAN data (if tempCanReadData.Count > CanDataManagement.dataCount, more CAN data is available)
-                if (CanDataManagement.dataCount < tempCanReadData.Count)
+                //check for new CAN data (if tempCanReadData.Count > canDataManage.dataCount, more CAN data is available)
+                if (canDataManage.dataCount < tempCanReadData.Count)
                 {
-                    CanDataManagement.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+                    canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
                     //shift the CAN data indexer down to the most recent data so old data isn't searched
-                    CanDataManagement.newZeroIndex = tempCanReadData.Count - CanDataManagement.newZeroIndex;
+                    canDataManage.newZeroIndex = tempCanReadData.Count - canDataManage.newZeroIndex;
                     //search the dictionary in reverse order
                     //start at the end of the list and work back till the count is: total count - the count which represents the most recent chunk of data
-                    for (int i = (tempCanReadData.Count - 1); i >= (tempCanReadData.Count - CanDataManagement.dataCount); i--)
+                    for (int i = (tempCanReadData.Count - 1); i >= (tempCanReadData.Count - canDataManage.dataCount); i--)
                     {
                         if (AbortCheck())
                             break;
@@ -1377,13 +1382,13 @@ namespace HydroFunctionalTest
 
                         if (messageID == tempMessageID)
                         {
-                            CanDataManagement.CanId = tempDataStruct.canID;
-                            CanDataManagement.CanMessage.Clear();
+                            canDataManage.CanId = tempDataStruct.canID;
+                            canDataManage.CanMessage.Clear();
                             //save the CAN message length to the CanDataManagment class if needed for analysis
-                            CanDataManagement.timeStamp = tempDataStruct.timeStamp;
+                            canDataManage.timeStamp = tempDataStruct.timeStamp;
                             for (int j = 0; j < tempDataStruct.canMessage.Length; j++)
                             {
-                                CanDataManagement.CanMessage.Add(tempDataStruct.canMessage[j]);
+                                canDataManage.CanMessage.Add(tempDataStruct.canMessage[j]);
                             }
                             if (findOutputID)
                             {
@@ -1440,8 +1445,8 @@ namespace HydroFunctionalTest
                 {
                     //get the pcba current reported by the CAN data
                     //value is a 16 bit signed integer and Bytes are in little endian order
-                    Int16 firstByte = CanDataManagement.CanMessage[2];
-                    Int16 secondByte = (Int16)((CanDataManagement.CanMessage[3]) << 8);
+                    Int16 firstByte = canDataManage.CanMessage[2];
+                    Int16 secondByte = (Int16)((canDataManage.CanMessage[3]) << 8);
                     Int16 tempCurrentValue = (Int16)(secondByte | firstByte);
                     pcbaMeasCurrent = ((double)tempCurrentValue) / 1000;
                     if ((pcbaMeasCurrent >= currTol_L) && (pcbaMeasCurrent <= currTol_H))
@@ -1493,8 +1498,8 @@ namespace HydroFunctionalTest
                 {
                     //get the pcba current reported by the CAN data
                     //value is a 16 bit signed integer and Bytes are in little endian order
-                    Int16 firstByte = CanDataManagement.CanMessage[2];
-                    Int16 secondByte = (Int16)((CanDataManagement.CanMessage[3]) << 8);
+                    Int16 firstByte = canDataManage.CanMessage[2];
+                    Int16 secondByte = (Int16)((canDataManage.CanMessage[3]) << 8);
                     Int16 tempCurrentValue = (Int16)(secondByte | firstByte);
                     pcbaMeasCurrent = ((double)tempCurrentValue) / 1000;
                     if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
@@ -1523,7 +1528,7 @@ namespace HydroFunctionalTest
         public void FlashBootloader()
         {
             //check to see if resource is busy before enabling the JTAG usb port
-            while (ProgrammingControl.JtagIsBusy)
+            while (!ProgrammingControl.SetJtagBusyFlag())
             {
                 testStatusInfo.Add("Waiting for other JTAG bootloader process to finish...");
                 OnInformationAvailable();
@@ -1574,74 +1579,49 @@ namespace HydroFunctionalTest
 
         public void LoadFirmware()
         {
-            SerialPort uutUsbCommPort = new SerialPort();
-            String[] availPorts = SerialPort.GetPortNames();
+            //check to see if resource is busy before enabling the usb port
+            while (ProgrammingControl.AutoItIsBusy)
+            {
+                testStatusInfo.Add("Waiting for other firmware flash process to finish...");
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                StandardDelay(1500);
+                //jump out of the loop if test is aborted
+                if (AbortCheck())
+                    break;
+            }
+
+            while (!UutComm.GetSetComPortBusyFlag(true))
+            {
+                testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                StandardDelay(1500);
+                //jump out of the loop if test is aborted
+                if (AbortCheck())
+                    break;
+            }
 
             //enable UUT USB port
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .250); //turn output on - 28V .250A
             StandardDelay(1000);
-
-            String[] availPorts_new = SerialPort.GetPortNames();
-            //check for new attached devices
-            int countNewComPorts = 0;
-            if (availPorts_new.Length > availPorts.Length)
-            {
-                for (int i = 0; i < availPorts_new.Length; i++)
-                {
-                    if (!availPorts.Contains(availPorts_new[i]))
-                    {
-                        comPortInfo.CommPortName = availPorts_new[i];
-                        countNewComPorts++;
-                    }
-                }
-            }
-            else if (countNewComPorts > 1)
-            {
-                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
-                {
-                    testStatusInfo.Add("\tFound more than one new connected device.\r\n\t***Attempting to reconnect and Load Firmware...***\r\n");
-                    comPortInfo.numMethodCalls++;
-                    //wait for other devices to disconnect
-                    StandardDelay(3000);
-                    LoadFirmware();
-                }
-                else
-                {
-                    skipFirmware = true;
-                }
-
-            }
-            else
-            {
-                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
-                {
-                    testStatusInfo.Add("\tCouldn't find UUT; no new Comports were found.\r\n\t***Attempting reconnect and Load Firmware...***\r\n");
-                    comPortInfo.numMethodCalls++;
-                    //wait for other devices to disconnect
-                    StandardDelay(3000);
-                    LoadFirmware();
-                }
-                else
-                {
-                    skipFirmware = true;
-                }
-            }
-
-            //the return data should be a dictionary with only one element, the key as a bool and value a string containing any pertinent information
-            Dictionary<bool, String> tmpDict = new Dictionary<bool, string>();
-            if (!skipFirmware) tmpDict = ProgrammingControl.LoadFirmwareViaAutoit(progSourceFiles, this);
-
-            //turn power off
-            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
-            StandardDelay(1000);
+            
+            String methodReturnData = "LoadFirmwareViaAutoit Method failed";
+            bool firmwarePassed = false;
+            if (!skipFirmware) firmwarePassed = ProgrammingControl.LoadFirmwareViaAutoit(progSourceFiles, this, out methodReturnData);
 
             //disable UUT USB port
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.bit2, gpioConst.clearBits);
+            //allow other threads access to comports
+            UutComm.GetSetComPortBusyFlag();
+
+            //turn power off
+            PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
 
             //set the method status flag in the testRoutineInformation Dictionary
-            if (tmpDict.Keys.First())
+            if (firmwarePassed)
             {
                 testRoutineInformation["LoadFirmware"] = 1;  //Successfully programmed
                 RecordTestResults("LoadFirmware", "Load test firmware onto UUT", "Pass");
@@ -1655,7 +1635,7 @@ namespace HydroFunctionalTest
                 //discontinue test by setting softwAbort to true;
                 softwAbort = true;
             }
-            testStatusInfo.Add(tmpDict.Values.First());
+            testStatusInfo.Add(methodReturnData);
 
         }
 
@@ -1713,24 +1693,32 @@ namespace HydroFunctionalTest
                     RecordTestResults("PowerUp", "Board power up sequence & CAN Comm", "Fail", "", "", "", "", "CAN data not found on pins " + whichSetOfPins + ". Check connector solderability/contacts");
                 }                    
             }
-            //Attempt to find UUT communication port
-            UsbCommInitialCheck();
-            //the LoadFirmware method will also try and connect to the UUT USB CDC comport, so clear the numMethodCalls variable
-            comPortInfo.numMethodCalls = 0;
         }
 
         /// <summary>
         /// Method used to get in contact with the UUT USB
         /// The UsbComm method will throw an exception if the UUT comm port name isn't found
         /// </summary>
-        public void UsbCommInitialCheck()
+        public bool UsbCommInitialCheck()
         {
+            bool rtnStatus = false;
+            while(!UutComm.GetSetComPortBusyFlag(true))
+            {
+                testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                StandardDelay(1500);
+                //jump out of the loop if test is aborted
+                if (AbortCheck())
+                    break;
+            }
+
             SerialPort uutUsbCommPort = new SerialPort();
             String[] availPorts = SerialPort.GetPortNames();
 
             //enable UUT USB port
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);
-            StandardDelay(1000);
+            StandardDelay(3000);
 
             String[] availPorts_new = SerialPort.GetPortNames();
             //check for new attached devices
@@ -1741,36 +1729,22 @@ namespace HydroFunctionalTest
                 {
                     if (!availPorts.Contains(availPorts_new[i]))
                     {
-                        comPortInfo.CommPortName = availPorts_new[i];
+                        CommPortName = availPorts_new[i];
                         countNewComPorts++;
                     }
                 }
             }
-            else if (countNewComPorts > 1)
-            {
-                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
-                {
-                    testStatusInfo.Add("\tFound more than one new USB connected device.\r\n\t***Attempting to reconnect UUT...***\r\n");
-                    comPortInfo.numMethodCalls++;
-                    //wait for other devices to disconnect
-                    StandardDelay(3000);
-                    UsbCommInitialCheck();
-                }
-
-            }
+            if (countNewComPorts > 1)
+                testStatusInfo.Add("\tFound more than one new USB connected device.\r\n\t***Attempting to reconnect UUT...***\r\n");
+            else if (countNewComPorts == 0)
+                testStatusInfo.Add("\tCouldn't find UUT USB connection; no new Comm. ports were found.\r\n\t***Attempting to reconnect UUT...***\r\n");
             else
-            {
-                if (comPortInfo.numMethodCalls < ComPortInfo.maxLoadFirmwareMethodCalls)
-                {
-                    testStatusInfo.Add("\tCouldn't find UUT USB connection; no new Comm. ports were found.\r\n\t***Attempting to reconnect UUT...***\r\n");
-                    comPortInfo.numMethodCalls++;
-                    //wait for other devices to disconnect
-                    StandardDelay(3000);
-                    UsbCommInitialCheck();
-                }
-            }
+                rtnStatus = true;
             //disable UUT USB port
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.clearBits);
+            //allow other threads access to comports
+            UutComm.GetSetComPortBusyFlag();
+            return rtnStatus;
         }
 
         public void PowerRegulators()
@@ -1824,7 +1798,7 @@ namespace HydroFunctionalTest
                 if (AwaitMessageID(messageIDs.heartbeat))
                 {
                     //send the last CAN data found w/ heartbeat message id to check that standby current is within tolerance
-                    tempStbyCurrent = CheckStandbyCurrent(CanDataManagement.CanMessage.ToArray());
+                    tempStbyCurrent = CheckStandbyCurrent(canDataManage.CanMessage.ToArray());
                     if ((tempStbyCurrent < standbyCurrent_H) && (tempStbyCurrent > standbyCurrent_L))
                         stbyCurrStableCount++;
                     else
@@ -1884,18 +1858,6 @@ namespace HydroFunctionalTest
                 return;
             //Eload is under this thread's control now
 
-            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
-            if (fixPosition == 2)
-            {
-                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-            else
-            {
-                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -1915,6 +1877,11 @@ namespace HydroFunctionalTest
             StandardDelay();
 
             testStatusInfo.Add("\tVerifying 26V Outputs are within tolerance\r\n");
+            //before starting test, make sure you move through all the old CAN data so upon turning outpu on only new data is searched
+            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
+            GetCanData(ref tempCanReadData);
+            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+            canDataManage.newZeroIndex = tempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
             foreach (var pair in auxOut26vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -1957,6 +1924,18 @@ namespace HydroFunctionalTest
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
 
+                //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                if (fixPosition == 2)
+                {
+                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+                else
+                {
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+
                 testStatusInfo.Add("\t26V Output On\r\n");
 
                 //Set the adjustable output voltage to 28 Volts by sending CAN command
@@ -1981,7 +1960,7 @@ namespace HydroFunctionalTest
                 testStatusInfo.Add("\r\n\t" + pair.Key + " Output, High=" + pcaI_H.ToString() + ", Low=" + pcaI_L.ToString() + "\r\n");
                 //search the CAN data for the message ID that contains output status ID of interest
                 OutputIsOn(pair.Key, pcaI_H, pcaI_L, outputIds[pair.Key], out pcbaMeasCurrent);
-                pcbaMeasVoltage = CanDataManagement.CanMessage[1];
+                pcbaMeasVoltage = canDataManage.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
                 //The Eload.Read() method will set initial value
@@ -1994,13 +1973,13 @@ namespace HydroFunctionalTest
                     if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
                     {
                         howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut26VTst", pair.Key + " On--> Vout", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOut26VTst", pair.Key + " On--> Vout", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     }
                     else
                     {
-                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut26VTst", pair.Key + " On--> Vout", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOut26VTst", pair.Key + " On--> Vout", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     }
 
                     if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
@@ -2074,7 +2053,7 @@ namespace HydroFunctionalTest
 
                 //verify the output is off
                 OutputIsOff(pair.Key, outputIds[pair.Key], out pcbaMeasCurrent);
-                pcbaMeasVoltage = CanDataManagement.CanMessage[1];
+                pcbaMeasVoltage = canDataManage.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
                 double eLoadMeasCurrent_OFF;
@@ -2085,13 +2064,13 @@ namespace HydroFunctionalTest
                     //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
                     //{
                     //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    //    RecordTestResults("AuxOut26VTst", pair.Key + " Off--> Vout", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOut26VTst", pair.Key + " Off--> Vout", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     //}
                     //else
                     //{
-                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    //    RecordTestResults("AuxOut26VTst", pair.Key + " Off--> Vout", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOut26VTst", pair.Key + " Off--> Vout", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     //}
                     if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
                     {
@@ -2185,19 +2164,7 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
-
-            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
-            if (fixPosition == 2)
-            {
-                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-            else
-            {
-                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-
+            
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -2215,6 +2182,11 @@ namespace HydroFunctionalTest
             int howMany12vAdjAuxOutputsFailures = auxOut12vTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
             testStatusInfo.Add("\tVerifying 12V Outputs are within tolerance\r\n");
+            //before starting test, make sure you move through all the old CAN data so upon turning outpu on only new data is searched
+            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
+            GetCanData(ref tempCanReadData);
+            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+            canDataManage.newZeroIndex = tempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
             foreach (var pair in auxOut12vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -2258,6 +2230,19 @@ namespace HydroFunctionalTest
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
 
+                //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                if (fixPosition == 2)
+                {
+                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+                else
+                {
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+
+
                 //Set the adjustable output voltage to 28 Volts by sending CAN command
                 //1st Frame-->(CAN Message ID):(USB Message Length):(USB Message ID);(Source node ID);(Dest. Node ID);(Message length);(Enumeration);(arg 1-->Output ON=9 or OFF=8);(arg2-->output net);0
                 //Followed by 2nd frame-->(CAN message ID):(USB Message Length):(arg3);0
@@ -2280,7 +2265,7 @@ namespace HydroFunctionalTest
                 testStatusInfo.Add("\r\n\t" + pair.Key + " Output, High=" + pcaI_H.ToString() + ", Low=" + pcaI_L.ToString() + "\r\n");
                 //search the CAN data for the message ID that contains output status ID of interest
                 OutputIsOn(pair.Key, pcaI_H, pcaI_L, outputIds[pair.Key], out pcbaMeasCurrent);
-                pcbaMeasVoltage = CanDataManagement.CanMessage[1];
+                pcbaMeasVoltage = canDataManage.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
                 double eLoadMeasCurrent_ON;
@@ -2292,13 +2277,13 @@ namespace HydroFunctionalTest
                     if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
                     {
                         howMany12vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut12VTst", pair.Key + " On--> Vout", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOut12VTst", pair.Key + " On--> Vout", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     }
                     else
                     {
-                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut12VTst", pair.Key + " On--> Vout", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOut12VTst", pair.Key + " On--> Vout", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     }
 
                     if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
@@ -2371,7 +2356,7 @@ namespace HydroFunctionalTest
 
                 //verify the output is off
                 OutputIsOff(pair.Key, outputIds[pair.Key], out pcbaMeasCurrent);
-                pcbaMeasVoltage = CanDataManagement.CanMessage[1];
+                pcbaMeasVoltage = canDataManage.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
                 //The Eload.Read() method will set initial value
@@ -2383,13 +2368,13 @@ namespace HydroFunctionalTest
                     //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
                     //{
                     //    howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    //    RecordTestResults("AuxOut12VTst", pair.Key + " Off--> Vout", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOut12VTst", pair.Key + " Off--> Vout", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     //}
                     //else
                     //{
-                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    //    RecordTestResults("AuxOut12VTst", pair.Key + " Off--> Vout", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOut12VTst", pair.Key + " Off--> Vout", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     //}
                     if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
                     {
@@ -2483,18 +2468,6 @@ namespace HydroFunctionalTest
                 return;
             //Eload is under this thread's control now
 
-            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
-            if (fixPosition == 2)
-            {
-                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-            else
-            {
-                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -2512,6 +2485,11 @@ namespace HydroFunctionalTest
             int howMany5vAdjAuxOutputsFailures = auxOut5vTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
             testStatusInfo.Add("\tVerifying 5V Outputs (via CAN data) are ON & within tolerance\r\n");
+            //before starting test, make sure you move through all the old CAN data so upon turning outpu on only new data is searched
+            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
+            GetCanData(ref tempCanReadData);
+            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+            canDataManage.newZeroIndex = tempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
             foreach (var pair in auxOut5vTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -2553,6 +2531,18 @@ namespace HydroFunctionalTest
 
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
+                //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                if (fixPosition == 2)
+                {
+                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+                else
+                {
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+
 
                 testStatusInfo.Add("\t5V Output On\r\n");
                 //Set the adjustable output voltage to 28 Volts by sending CAN command
@@ -2577,7 +2567,7 @@ namespace HydroFunctionalTest
                 testStatusInfo.Add("\r\n\t" + pair.Key + " Output, High=" + pcaI_H.ToString() + ", Low=" + pcaI_L.ToString() + "\r\n");
                 //search the CAN data for the message ID that contains output status ID of interest
                 OutputIsOn(pair.Key, pcaI_H, pcaI_L, outputIds[pair.Key], out pcbaMeasCurrent);
-                pcbaMeasVoltage = CanDataManagement.CanMessage[1];
+                pcbaMeasVoltage = canDataManage.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
                 //The Eload.Read() method will set initial value
@@ -2590,13 +2580,13 @@ namespace HydroFunctionalTest
                     if ((pcbaMeasVoltage >= pcaV_L) && (pcbaMeasVoltage <= pcaV_H))
                     {
                         howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut5VTst", pair.Key + " On--> Vout", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Passed (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOut5VTst", pair.Key + " On--> Vout", "Pass", pcaV_H.ToString(), pcaV_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     }
                     else
                     {
-                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut5VTst", pair.Key + " On--> Vout", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                        testStatusInfo.Add("\r\n\t" + pair.Key + " Vout On Fail (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + pcaV_H.ToString() + ",Low=" + pcaV_L.ToString() + ")\r\n");
+                        RecordTestResults("AuxOut5VTst", pair.Key + " On--> Vout", "Fail", pcaV_H.ToString(), pcaV_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     }
 
                     if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
@@ -2669,7 +2659,7 @@ namespace HydroFunctionalTest
 
                 //verify the output is off
                 OutputIsOff(pair.Key, outputIds[pair.Key], out pcbaMeasCurrent);
-                pcbaMeasVoltage = CanDataManagement.CanMessage[1];
+                pcbaMeasVoltage = canDataManage.CanMessage[1];
                 //check the Eload voltage and current
                 //store the Eload voltage/current values taken from Eload
                 //The Eload.Read() method will set initial value
@@ -2681,13 +2671,13 @@ namespace HydroFunctionalTest
                     //if ((pcbaMeasVoltage >= auxOutOff_L) && (pcbaMeasVoltage <= auxOutOff_H))
                     //{
                     //    howMany5vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
-                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    //    RecordTestResults("AuxOut5VTst", pair.Key + " Off--> Vout", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Passed (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOut5VTst", pair.Key + " Off--> Vout", "Pass", auxOutOff_H.ToString(), auxOutOff_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     //}
                     //else
                     //{
-                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + CanDataManagement.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
-                    //    RecordTestResults("AuxOutputs", pair.Key + " Off--> Vout", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), CanDataManagement.CanMessage[1].ToString(), "Volts", "via CAN data");
+                    //    testStatusInfo.Add("\r\n\t" + pair.Key + " Vout Off Fail (via CAN data)\r\n\tMeasured: " + canDataManage.CanMessage[1].ToString() + " (High=" + auxOutOff_H.ToString() + ",Low=" + auxOutOff_L.ToString() + ")\r\n");
+                    //    RecordTestResults("AuxOutputs", pair.Key + " Off--> Vout", "Fail", auxOutOff_H.ToString(), auxOutOff_L.ToString(), canDataManage.CanMessage[1].ToString(), "Volts", "via CAN data");
                     //}
                     if ((pcbaMeasCurrent >= auxOutOff_L) && (pcbaMeasCurrent <= auxOutOff_H))
                     {
@@ -2805,18 +2795,6 @@ namespace HydroFunctionalTest
                 return;
             //Eload is under this thread's control now
 
-            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
-            if (fixPosition == 2)
-            {
-                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-            else
-            {
-                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                gpioObj.GpioWrite(2, port2CtrlByte);
-            }
-
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -2834,6 +2812,11 @@ namespace HydroFunctionalTest
             int howManyNonAdjAuxOutputsFailures = nonAdjOutTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
             testStatusInfo.Add("\tVerifying Nonadjustable Outputs are ON & within tolerance\r\n");
+            //before starting test, make sure you move through all the old CAN data so upon turning outpu on only new data is searched
+            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
+            GetCanData(ref tempCanReadData);
+            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+            canDataManage.newZeroIndex = tempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
             foreach (var pair in nonAdjOutTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -2864,6 +2847,18 @@ namespace HydroFunctionalTest
 
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
+
+                //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+                if (fixPosition == 2)
+                {
+                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
+                else
+                {
+                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                    gpioObj.GpioWrite(2, port2CtrlByte);
+                }
 
                 testStatusInfo.Add("\tOutput On\r\n");
                 //turn the adjustable output on by sending the output specific CAN command 
@@ -3027,7 +3022,7 @@ namespace HydroFunctionalTest
             {
                 if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
                 {
-                    statusBit = CanDataManagement.CanMessage[6];
+                    statusBit = canDataManage.CanMessage[6];
                     statusBit = (Byte)(statusBit >> 2);
                     if (statusBit == 1)
                         powerLossBitSet = true;
@@ -3059,7 +3054,7 @@ namespace HydroFunctionalTest
             {
                 if (AwaitMessageID(messageIDs.outputStatus, true, outputIds["24V_Enable"]))
                 {
-                    statusBit = CanDataManagement.CanMessage[6];
+                    statusBit = canDataManage.CanMessage[6];
                     if (statusBit == 0)
                         powerLossBitClear = true;
                 }
@@ -3114,7 +3109,7 @@ namespace HydroFunctionalTest
                 if (AwaitMessageID(messageIDs.digitalInputsStatus))
                 {
                     //Extract the logic value from the CAN data
-                    uint logicValue = CanDataManagement.CanMessage[1];
+                    uint logicValue = canDataManage.CanMessage[1];
                     //verify logic value is high
                     if (logicValue == pair.Value[0])
                     {
@@ -3154,7 +3149,7 @@ namespace HydroFunctionalTest
                 if (AwaitMessageID(messageIDs.digitalInputsStatus))
                 {
                     //Extract the logic value from the CAN data
-                    uint logicValue = CanDataManagement.CanMessage[1];
+                    uint logicValue = canDataManage.CanMessage[1];
                     //verify logic value is low
                     if (logicValue == pair.Value[1])
                     {
@@ -3322,7 +3317,7 @@ namespace HydroFunctionalTest
 
             //turn power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0); 
-            UInt32 switchPosition = (UInt32)(CanDataManagement.CanId & 0xFF000000);
+            UInt32 switchPosition = (UInt32)(canDataManage.CanId & 0xFF000000);
             if ((switchPosition != 0x08000000) | (switchPosition != 0x18000000))
             {
                 //make sure both relays for Seat ID testing are disabled(disconnected)
@@ -3332,14 +3327,18 @@ namespace HydroFunctionalTest
             //enable the Seat ID relay - SW1 & SW3 closed, SW2 & SW4 open
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.SeatID_EN, gpioConst.setBits);
             //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched
-            while (AwaitMessageID(messageIDs.heartbeat)) ;
+            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
+            GetCanData(ref tempCanReadData);
+            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
+            canDataManage.newZeroIndex = tempCanReadData.Count-1;//shift the CAN data indexer down to the most recent data so old data isn't searched
+            //while (AwaitMessageID(messageIDs.heartbeat, false, 0, 500)) ;
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
             //get the status of the Seat ID
             //look for the CAN heartbeat with CAN ID MSB = 0x0900 0000 or 0x1900 0000:
             if (AwaitMessageID(messageIDs.heartbeat))
             {
-                UInt32 tempCanID = CanDataManagement.CanId;
+                UInt32 tempCanID = canDataManage.CanId;
                 //mask the 4 bytes with the bits that should be set with current switch configuration
                 tempCanID = (uint)tempCanID & 0xFF000000;
                 if ((tempCanID == 0x19000000) | (tempCanID == 0x09000000))
@@ -3352,14 +3351,18 @@ namespace HydroFunctionalTest
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.TOGL_SeatID, gpioConst.setBits);
 
             //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched
-            while (AwaitMessageID(messageIDs.heartbeat)) ;
+            List<CanDataStruct> moreTempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
+            GetCanData(ref moreTempCanReadData);
+            canDataManage.dataCount = moreTempCanReadData.Count;  //set the value of the new amount of CAN data
+            canDataManage.newZeroIndex = moreTempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
+            //while (AwaitMessageID(messageIDs.heartbeat, false, 0, 500)) ;
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
             //get the status of the Seat ID
             //look for the CAN heartbeat with CAN ID MSB = 0xAF00 0000: 
             if (AwaitMessageID(messageIDs.heartbeat))
             {
-                UInt32 tempCanID = CanDataManagement.CanId;
+                UInt32 tempCanID = canDataManage.CanId;
                 //mask the 4 bytes with the bits that should be set with current switch configuration
                 tempCanID = (uint)tempCanID & 0xFF000000;
                 if ((tempCanID == 0x1A000000) | (tempCanID == 0x0A000000))
@@ -3375,21 +3378,21 @@ namespace HydroFunctionalTest
             {
                 testRoutineInformation["SeatIDSwitch"] = 1;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Passed***");
-                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X") + "\r\n");
-                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X"));
+                RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Pass", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = 0x" + canDataManage.CanId.ToString("X") + "\r\n");
+                RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Pass", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = 0x" + canDataManage.CanId.ToString("X"));
             }
             else
             {
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 if (!statusBit1)
                 {
-                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: 0x" + CanDataManagement.CanId.ToString("X") + "\r\n");
-                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X"));
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 closed, SW2 & SW4 open.  CAN ID: 0x" + canDataManage.CanId.ToString("X") + "\r\n");
+                    RecordTestResults("SeatIDSwitch", "SW1 & SW3 closed, SW2 & SW4 open", "Fail", "", "", "Expected CAN ID: 0x09000000 or 0x19000000", "", "CAN ID value = 0x" + canDataManage.CanId.ToString("X"));
                 }
                 if (!statusBit2)
                 {
-                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: 0x" + CanDataManagement.CanId.ToString("X") + "\r\n");
-                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = 0x" + CanDataManagement.CanId.ToString("X"));
+                    testStatusInfo.Add("\tUnexpected CAN ID with Seat ID SW1 & SW3 open, SW2 & SW4 closed.  CAN ID: 0x" + canDataManage.CanId.ToString("X") + "\r\n");
+                    RecordTestResults("SeatIDSwitch", "SW1 and SW3 open, SW2 & SW4 closed", "Fail", "", "", "Expected CAN ID: 0x0A000000 of 0x1A000000", "", "CAN ID value = 0x" + canDataManage.CanId.ToString("X"));
                 }
                 testRoutineInformation["SeatIDSwitch"] = 0;
                 testStatusInfo.Add("\r\n\t***SeatIDSwitch Test Failed***");
@@ -3410,9 +3413,29 @@ namespace HydroFunctionalTest
 
         public void USBComm()
         {
-            bool defaultPins = UsbCommSubTest(true);
-            bool otherPins = UsbCommSubTest(false);
-            if(defaultPins & otherPins)
+            while (!UutComm.GetSetComPortBusyFlag())
+            {
+                testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                StandardDelay(1500);
+                //jump out of the loop if test is aborted
+                if (AbortCheck())
+                    break;
+            }
+            bool defaultPins = false;
+            bool otherPins = false;
+            //Attempt to find UUT communication port
+            if (UsbCommInitialCheck())
+            {
+                defaultPins = UsbCommSubTest(true);
+                otherPins = UsbCommSubTest(false);
+            }
+            
+            //allow other threads access to comports
+            UutComm.GetSetComPortBusyFlag();
+
+            if (defaultPins & otherPins)
             {
                 RecordTestResults("USBComm", "USB Communication", "Pass", "", "", "", "", "");
                 //set the method status flag in the testRoutineInformation Dictionary
@@ -3440,8 +3463,8 @@ namespace HydroFunctionalTest
         public bool UsbCommSubTest(bool defaultPinConnection)
         {
             SerialPort uutUsbCommPort = new SerialPort();
-            //the port name should have been discovered in the "LoadFirmware" method
-            uutUsbCommPort.PortName = comPortInfo.CommPortName;
+            //the port name should have been discovered in the "PowerUp" method
+            uutUsbCommPort.PortName = CommPortName;
 
             Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
             Byte[] echoRequest = { 70, 129, 0, 0, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
@@ -3490,60 +3513,76 @@ namespace HydroFunctionalTest
         public void CANID()
         {
             int howManyFailures = canIdTest.Count();
-            SerialPort uutUsbCommPort = new SerialPort();
 
-            //the port name should have been discovered in the "LoadFirmware" method
-            uutUsbCommPort.PortName = comPortInfo.CommPortName;
-
-            Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
-            Byte[] echoRequest = { 70, 129, 0, 0, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
-
-            Byte[] response = new byte[209];//bytes to read after writing the echo request
-            Byte[] adcDataRequest = { 80, 129, 0, 5, 0, 0, 5, 0, 23, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
-            List<byte> adcData = new List<byte>();
-
-            //enable USB connection
-            IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);//enable UUT USB port
-
-            StandardDelay(3000);
-
-            try
+            while (!UutComm.GetSetComPortBusyFlag())
             {
-                uutUsbCommPort.Open();
-                //clear out any garbage data in the receive buffer
-                uutUsbCommPort.ReadExisting();
-
-                uutUsbCommPort.Write(adcDataRequest, 0, 10);
-                foreach(var pair in canIdTest)
-                {
-                    int adcCountValue;
-                    if(pair.Key != "Open")//don't enable any relays when CAN ID node is disconnected or "Open"
-                        IC_ChangeOutputState(gpioConst.u2RefDes, (Byte)pair.Value[2], gpioConst.setBits);//Connect res to CAN ID node
-                    System.Threading.Thread.Sleep(500);
-                    if (GetAdcCount(uutUsbCommPort, 3000, pair.Value[0], pair.Value[1], out adcCountValue))
-                    {
-                        howManyFailures--;
-                        testStatusInfo.Add("\r\n\tCAN ID for " + pair.Key + " connection Passed\r\n\t ADC count = " + adcCountValue.ToString() + " (High = " + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
-                        RecordTestResults("CANID", pair.Key, "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), adcCountValue.ToString(), "ADC Count", "");
-                    }
-                    else
-                    {
-                        testStatusInfo.Add("\r\n\tCAN ID for " + pair.Key + " connection Failed\r\n\t ADC count = " + adcCountValue.ToString() + " (High = " + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
-                        RecordTestResults("CANID", pair.Key, "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), adcCountValue.ToString(), "ADC Count", "");
-                    }
-                    if (pair.Key != "Open")//don't disable any relays when CAN ID node is disconnected or "Open"
-                        IC_ChangeOutputState(gpioConst.u2RefDes, (Byte)pair.Value[2], gpioConst.clearBits);//Disconnect res to CAN ID node
-                }
-
-                uutUsbCommPort.Close();
+                testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
+                OnInformationAvailable();
+                testStatusInfo.Clear();
+                StandardDelay(1500);
+                //jump out of the loop if test is aborted
+                if (AbortCheck())
+                    break;
             }
-            catch (Exception ex)
+            //Attempt to find UUT communication port
+            if (UsbCommInitialCheck())
             {
-                MessageBox.Show("Failed to open UUT Comm. Port\r\n" + ex.Message);
+                SerialPort uutUsbCommPort = new SerialPort();
+                //the port name should have been discovered in the "PowerUp" method
+                uutUsbCommPort.PortName = CommPortName;
+
+                Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
+                Byte[] echoRequest = { 70, 129, 0, 0, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
+
+                Byte[] response = new byte[209];//bytes to read after writing the echo request
+                Byte[] adcDataRequest = { 80, 129, 0, 5, 0, 0, 5, 0, 23, 0 }; //see Crane document "ICD93-700-000-03_Draft_P1.pdf" for info on byte description
+                List<byte> adcData = new List<byte>();
+
+                //enable USB connection
+                IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.setBits);//enable UUT USB port
+
+                StandardDelay(1000);
+
+                try
+                {
+                    uutUsbCommPort.Open();
+                    //clear out any garbage data in the receive buffer
+                    uutUsbCommPort.ReadExisting();
+
+                    uutUsbCommPort.Write(adcDataRequest, 0, 10);
+                    foreach (var pair in canIdTest)
+                    {
+                        int adcCountValue;
+                        if (pair.Key != "Open")//don't enable any relays when CAN ID node is disconnected or "Open"
+                            IC_ChangeOutputState(gpioConst.u2RefDes, (Byte)pair.Value[2], gpioConst.setBits);//Connect res to CAN ID node
+                        System.Threading.Thread.Sleep(500);
+                        if (GetAdcCount(uutUsbCommPort, 3000, pair.Value[0], pair.Value[1], out adcCountValue))
+                        {
+                            howManyFailures--;
+                            testStatusInfo.Add("\r\n\tCAN ID for " + pair.Key + " connection Passed\r\n\t ADC count = " + adcCountValue.ToString() + " (High = " + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
+                            RecordTestResults("CANID", pair.Key, "Pass", pair.Value[0].ToString(), pair.Value[1].ToString(), adcCountValue.ToString(), "ADC Count", "");
+                        }
+                        else
+                        {
+                            testStatusInfo.Add("\r\n\tCAN ID for " + pair.Key + " connection Failed\r\n\t ADC count = " + adcCountValue.ToString() + " (High = " + pair.Value[0].ToString() + ",Low=" + pair.Value[1].ToString() + ")\r\n");
+                            RecordTestResults("CANID", pair.Key, "Fail", pair.Value[0].ToString(), pair.Value[1].ToString(), adcCountValue.ToString(), "ADC Count", "");
+                        }
+                        if (pair.Key != "Open")//don't disable any relays when CAN ID node is disconnected or "Open"
+                            IC_ChangeOutputState(gpioConst.u2RefDes, (Byte)pair.Value[2], gpioConst.clearBits);//Disconnect res to CAN ID node
+                    }
+
+                    uutUsbCommPort.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to open UUT Comm. Port\r\n" + ex.Message);
+                }
             }
 
             //disable USB connection
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.USB_PORT_EN, gpioConst.clearBits);
+            //allow other threads access to comports
+            UutComm.GetSetComPortBusyFlag();
 
             //set the method status flag in the testRoutineInformation Dictionary
             testRoutineInformation["CANID"] = 1;
