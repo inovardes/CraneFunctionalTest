@@ -3727,6 +3727,7 @@ namespace HydroFunctionalTest
             //search the dictionary in reverse order
             //start at the end of the list and work back till the count is: total count - the count which represents the most recent chunk of data
             List<UInt16> bitErrorList = new List<ushort>();
+            List<UInt16> bitErrorsToCatch = new List<ushort>();
             List<double> bitErrorTimestamp = new List<double>();
             for (int i = (tempCanReadData.Count - 1); i > 0; i--)
             {
@@ -3755,6 +3756,14 @@ namespace HydroFunctionalTest
                     eventCode = (UInt16)(eventCode >> 1);
                     bitErrorList.Add(eventCode);
                     bitErrorTimestamp.Add(canDataManage.timeStamp);
+                    if((eventCode == 468) || (eventCode == 493) || ((eventCode >= 487) && (eventCode <= 497)) || ((eventCode >= 563) && ((eventCode <= 565))))
+                    {
+                        if((eventCode != 497) || (eventCode != 493) || (eventCode != 488) || (eventCode != 487))
+                        {
+                            bitErrorsToCatch.Add(eventCode);
+                        }
+                    }
+                        
                 }
                 else
                 {
@@ -3770,7 +3779,7 @@ namespace HydroFunctionalTest
                 System.IO.Directory.CreateDirectory(testDataFilePath +
                     this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) + "\\CAN DATA\\");
 
-                testStatusInfo.Add("Sending CAN Bit Errors to txt file:\r\n" + testDataFilePath + fileName);
+                testStatusInfo.Add("\tSending all CAN Events & Bit Errors to txt file:\r\n" + testDataFilePath + fileName);
                 OnInformationAvailable();
                 testStatusInfo.Clear();
                 using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + fileName))
@@ -3782,13 +3791,22 @@ namespace HydroFunctionalTest
             }
             catch (Exception ex)
             {
-                testStatusInfo.Add("File operation error.\r\n" + ex.Message + "\r\nFailed to send CAN data to txt file:\r\n" + testDataFilePath + fileName);
+                testStatusInfo.Add("\tFile operation error.\r\n" + ex.Message + "\r\nFailed to send CAN data to txt file:\r\n" + testDataFilePath + fileName);
                 OnInformationAvailable();
                 testStatusInfo.Clear();
             }
-            //set the method status flag in the testRoutineInformation Dictionary
-            testRoutineInformation["CanBitErrorCheck"] = 1;
-            testStatusInfo.Add("\t***CanBitErrorCheck Test Passed***");
+            if (bitErrorsToCatch.Count == 0)
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["CanBitErrorCheck"] = 1;
+                testStatusInfo.Add("\t***CanBitErrorCheck Test Passed***");
+            }
+            else
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["CanBitErrorCheck"] = 0;
+                testStatusInfo.Add("\t***CanBitErrorCheck Test Failed***");
+            }
         }
 
         #endregion Methods unique to this assembly only.
