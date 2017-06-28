@@ -15,11 +15,6 @@ namespace HydroFunctionalTest
         /// </summary>
         static private Object lockRoutine = new Object();
         /// <summary>
-        /// this object is used in conjunction with the 'lock()' statement and the AutoItIsBusy property.  
-        /// Together they manage access to the LoadFirmwareViaAutoit method, preventing multiple thread simultaneous access.
-        /// </summary>
-        static private Object lockComPortBusy = new Object();
-        /// <summary>
         /// Provides a public read boolean for external classes to allow for efficient access to the ProgramBootloader method
         /// </summary>
         static public bool ComPortBusy { get; private set; } = false;
@@ -39,7 +34,7 @@ namespace HydroFunctionalTest
                     else
                     {
                         ComPortBusy = true;
-                        return ComPortBusy;
+                        return true;
                     }
                 }
                 //clear the status flag

@@ -65,12 +65,13 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Create the List that will contain the struct holding all CAN data with different data types
         /// </summary>
-        static public List<CanDataStruct> canDataRepo = new List<CanDataStruct>();
+        public List<CanDataStruct> canDataRepo = new List<CanDataStruct>();
         /// <summary>
         /// Holds the name communiction Port name when the UUT USB device port name is discovered
         /// </summary>
         public String CommPortName;
         public Object lockDmmMeasure = new object();
+        String dateTime;
 
         #region Structures unique to this assembly
         /// <summary>
@@ -367,6 +368,7 @@ namespace HydroFunctionalTest
         public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan, bool skipBootloaderMethod, bool skipFirmwareMethod, bool tempIsRma)
         {
             tempDmmMeas.Clear();
+            dateTime = (System.DateTime.Now.ToString().Replace("/", "_")).Replace(":", ".");
 
             fixPosition = tmpPos;
             pCanObj = tmpPcan;
@@ -665,6 +667,27 @@ namespace HydroFunctionalTest
         }
 
         /// <summary>
+        /// Delegates which the UI subscribes to and can be used to update the GUI when information for the user is available/needed
+        /// Delegates determine the method signature (method return type & arguments) that subscribers will need to use in their methods
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="tstStsInfo"></param>
+        /// <param name="fxPos"></param>
+        public delegate void StartButtonTextEventHandler(object source, string txtToSendToStrtButton, int fxPos);
+        /// <summary>
+        /// Create the actual event key word (pointer) that subscribers will use when subscribing to the event
+        /// </summary>
+        public event StartButtonTextEventHandler StartButtonText_Change;
+        /// <summary>
+        /// Event handler method - sends text regarding test progress with fixture position to the subscriber
+        /// </summary>
+        protected virtual void OnStartButtonText_Change(string textToSendToStrtButton = "Begin Test")
+        {
+            if (StartButtonText_Change != null)
+                StartButtonText_Change(this, textToSendToStrtButton, this.fixPosition);
+        }
+
+        /// <summary>
         /// Delegates which the UI subscribes to and can be used to update the GUI when tests are complete
         /// Delegates determine the method signature (method return type & arguments) that subscribers will need to use in their methods
         /// </summary>
@@ -772,6 +795,11 @@ namespace HydroFunctionalTest
                 bool abortTesting = false;
                 testStatusInfo.Add("\r\n**********Begin Testing " + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "**********\r\n");
                 //loop until all tests have been complete or test is aborted.
+                int totalTestsToExecute = 0;
+                foreach (var pair in testRoutineInformation)
+                    if (pair.Value == -1)
+                        totalTestsToExecute++;
+                int testNumCount = 0;
                 while (!allTestsDone && (!abortTesting))
                 {
                     //if test routine contains a value of -1, the test is incomplete
@@ -791,6 +819,8 @@ namespace HydroFunctionalTest
                                 break;
                             if (testRoutineInformation[key] == -1)
                             {
+                                OnStartButtonText_Change("Tests Remaining: " + (totalTestsToExecute - testNumCount).ToString());
+                                testNumCount++;                                
                                 testStatusInfo.Add(key.ToString() + "..."); //update the GUI with the next test to run
                                 OnInformationAvailable();
                                 testStatusInfo.Clear();
@@ -907,10 +937,12 @@ namespace HydroFunctionalTest
         /// <returns></returns>
         private void OutputTestResultsToFile(bool tmpAllTestsPass)
         {
-            String dateTime =  (System.DateTime.Now.ToString().Replace("/","_")).Replace(":",".");
+            String passFailStatus = "Fail";
+            if(tmpAllTestsPass)
+                passFailStatus = "Pass";
             String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) + 
                 "\\" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) + 
-                "~" + uutSerialNum.ToString() + "~" + dateTime + "~" + tmpAllTestsPass.ToString() + ".txt";
+                "~" + uutSerialNum.ToString() + "~" + dateTime + "~" + passFailStatus + ".txt";
 
             //add information about the UUT at the top of the file
             String fileString = "";
@@ -992,7 +1024,6 @@ namespace HydroFunctionalTest
         {
             //stop the thread that loops through and collects CAN data
             canDataManage.exitThread = true;
-            String dateTime = (System.DateTime.Now.ToString().Replace("/", "_")).Replace(":", ".");
             String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) +
                 "\\CAN DATA\\" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) +
                 "~" + uutSerialNum.ToString() + "~" + dateTime + ".txt";
@@ -1006,7 +1037,6 @@ namespace HydroFunctionalTest
                 testStatusInfo.Clear();
                 using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + fileName))
                 {
-                    file.WriteLine("TimeStamp,CAN-ID,Length,Data");
                     //copy the contents of the CAN data to a new variable
                     List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();
                     GetCanData(ref tempCanReadData);
@@ -1337,6 +1367,39 @@ namespace HydroFunctionalTest
         {
             lock (canDataManage.lockRoutine)
                 tempCanData = canDataRepo.ToList();
+        }
+
+        private void ClearCanData()
+        {
+            lock (canDataManage.lockRoutine)
+            {
+                //print the data and clear the list so it doesn't get too large
+                System.IO.Directory.CreateDirectory(testDataFilePath +
+                   this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) + "\\CAN DATA\\");
+                String fileName = this.ToString().Substring(this.ToString().IndexOf(".") + 1) + "\\" + uutSerialNum.Remove(5) +
+                    "\\CAN DATA\\" + this.ToString().Substring(this.ToString().IndexOf(".") + 1) +
+                    "~" + uutSerialNum.ToString() + "~" + dateTime + ".txt";
+                using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + fileName))
+                {
+                    //copy the contents of the CAN data to a new variable
+                    //copy the contents of the CAN data to a new variable
+                    List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();
+                    GetCanData(ref tempCanReadData);
+                    for (int i = 0; i < tempCanReadData.Count; i++)
+                    {
+                        CanDataStruct tempDataStruct = tempCanReadData[i];
+                        String canID = tempDataStruct.canID.ToString("X");
+                        String canMessage = "";
+                        for (int j = 0; j < tempDataStruct.canMessage.Length; j++)
+                            canMessage = canMessage + tempDataStruct.canMessage[j].ToString("X") + " ";
+                        canID = tempDataStruct.timeStamp.ToString() + "," + canID + "," + tempDataStruct.canMessage.Length.ToString() + "," + canMessage;
+                        file.WriteLine(canID);
+                    }
+                }
+                canDataRepo.Clear();
+                canDataManage.dataCount = canDataRepo.Count;  //set the value of the new amount of CAN data
+                canDataManage.newZeroIndex = 0;//shift the CAN data indexer down to the most recent data so old data isn't searched
+            }
         }
 
         /// <summary>
@@ -1685,7 +1748,7 @@ namespace HydroFunctionalTest
                     if(defaultPins)
                         whichSetOfPins = whichSetOfPins + " & J5, P9 & P4";
                     //abort test if no CAN data was found
-                    if(defaultPins && otherPins)
+                    if(!defaultPins && !otherPins)
                         softwAbort = true;
                     //set the method status flag in the testRoutineInformation Dictionary
                     testRoutineInformation["PowerUp"] = 0;
@@ -1857,6 +1920,8 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
+            //clear the CAN Data list of old data
+            ClearCanData();
 
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
@@ -2164,7 +2229,10 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
-            
+
+            //clear the CAN Data list of old data
+            ClearCanData();
+
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -2467,6 +2535,9 @@ namespace HydroFunctionalTest
             if (!Eload.ReserveEload(true))
                 return;
             //Eload is under this thread's control now
+
+            //clear the CAN Data list of old data
+            ClearCanData();
 
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
@@ -2812,11 +2883,7 @@ namespace HydroFunctionalTest
             int howManyNonAdjAuxOutputsFailures = nonAdjOutTst.eLoadMeasLimits.Count() * 7; //multiply number of tests by 7: Output enable --->pcba Current, pcba Voltage, eLoad current, eLoad voltage & output disable-->pcba Current, eLoad current, eLoad voltage
 
             testStatusInfo.Add("\tVerifying Nonadjustable Outputs are ON & within tolerance\r\n");
-            //before starting test, make sure you move through all the old CAN data so upon turning outpu on only new data is searched
-            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
-            GetCanData(ref tempCanReadData);
-            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
-            canDataManage.newZeroIndex = tempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
+
             foreach (var pair in nonAdjOutTst.eLoadMeasLimits)
             {
                 //jump out of the loop if test is aborted
@@ -3103,7 +3170,7 @@ namespace HydroFunctionalTest
 
                 //Mux output - Select output node and enable mux output                
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[2], gpioConst.setBits);//muxOutputEn.outputOff value is a disconnected from all nets, gpioConst.setBits commands the contol lines to their high disabled state
-                StandardDelay();
+                StandardDelay(500);
 
                 //find the digital input High status in the CAN data
                 if (AwaitMessageID(messageIDs.digitalInputsStatus))
@@ -3326,12 +3393,9 @@ namespace HydroFunctionalTest
             }
             //enable the Seat ID relay - SW1 & SW3 closed, SW2 & SW4 open
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.SeatID_EN, gpioConst.setBits);
-            //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched
-            List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
-            GetCanData(ref tempCanReadData);
-            canDataManage.dataCount = tempCanReadData.Count;  //set the value of the new amount of CAN data
-            canDataManage.newZeroIndex = tempCanReadData.Count-1;//shift the CAN data indexer down to the most recent data so old data isn't searched
-            //while (AwaitMessageID(messageIDs.heartbeat, false, 0, 500)) ;
+
+            //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched            
+            ClearCanData();//clear the CAN Data list of old data
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
             //get the status of the Seat ID
@@ -3351,11 +3415,7 @@ namespace HydroFunctionalTest
             IC_ChangeOutputState(gpioConst.u2RefDes, gpioConst.TOGL_SeatID, gpioConst.setBits);
 
             //before turning power on, make sure you move through all the old CAN data so upon power up only new data is searched
-            List<CanDataStruct> moreTempCanReadData = new List<CanDataStruct>();//copy the contents of the CAN data to a new variable
-            GetCanData(ref moreTempCanReadData);
-            canDataManage.dataCount = moreTempCanReadData.Count;  //set the value of the new amount of CAN data
-            canDataManage.newZeroIndex = moreTempCanReadData.Count - 1;//shift the CAN data indexer down to the most recent data so old data isn't searched
-            //while (AwaitMessageID(messageIDs.heartbeat, false, 0, 500)) ;
+            ClearCanData();//clear the CAN Data list of old data
             //turn power on
             PwrSup.TurnOutputOnOff(fixPosition, true, 28, .1); ////Turn output on, 28Volts, 100mAmp limit
             //get the status of the Seat ID
@@ -3413,27 +3473,26 @@ namespace HydroFunctionalTest
 
         public void USBComm()
         {
-            while (!UutComm.GetSetComPortBusyFlag())
-            {
-                testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
-                OnInformationAvailable();
-                testStatusInfo.Clear();
-                StandardDelay(1500);
-                //jump out of the loop if test is aborted
-                if (AbortCheck())
-                    break;
-            }
             bool defaultPins = false;
             bool otherPins = false;
             //Attempt to find UUT communication port
             if (UsbCommInitialCheck())
             {
+                while (!UutComm.GetSetComPortBusyFlag(true))
+                {
+                    testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
+                    OnInformationAvailable();
+                    testStatusInfo.Clear();
+                    StandardDelay(1500);
+                    //jump out of the loop if test is aborted
+                    if (AbortCheck())
+                        break;
+                }
                 defaultPins = UsbCommSubTest(true);
                 otherPins = UsbCommSubTest(false);
+                //allow other threads access to comports
+                UutComm.GetSetComPortBusyFlag();
             }
-            
-            //allow other threads access to comports
-            UutComm.GetSetComPortBusyFlag();
 
             if (defaultPins & otherPins)
             {
@@ -3514,21 +3573,21 @@ namespace HydroFunctionalTest
         {
             int howManyFailures = canIdTest.Count();
 
-            while (!UutComm.GetSetComPortBusyFlag())
-            {
-                testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
-                OnInformationAvailable();
-                testStatusInfo.Clear();
-                StandardDelay(1500);
-                //jump out of the loop if test is aborted
-                if (AbortCheck())
-                    break;
-            }
             //Attempt to find UUT communication port
             if (UsbCommInitialCheck())
             {
                 SerialPort uutUsbCommPort = new SerialPort();
                 //the port name should have been discovered in the "PowerUp" method
+                while (!UutComm.GetSetComPortBusyFlag(true))
+                {
+                    testStatusInfo.Add("Waiting for other process to finish with serial communication ports...");
+                    OnInformationAvailable();
+                    testStatusInfo.Clear();
+                    StandardDelay(1500);
+                    //jump out of the loop if test is aborted
+                    if (AbortCheck())
+                        break;
+                }
                 uutUsbCommPort.PortName = CommPortName;
 
                 Byte[] echoResponse = new byte[5];//bytes to read after writing the echo request
@@ -3584,9 +3643,18 @@ namespace HydroFunctionalTest
             //allow other threads access to comports
             UutComm.GetSetComPortBusyFlag();
 
-            //set the method status flag in the testRoutineInformation Dictionary
-            testRoutineInformation["CANID"] = 1;
-            testStatusInfo.Add("\t***CANID Test Passed***");
+            if(howManyFailures <= 0)
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["CANID"] = 1;
+                testStatusInfo.Add("\t***CANID Test Passed***");
+            }
+            else
+            {
+                //set the method status flag in the testRoutineInformation Dictionary
+                testRoutineInformation["CANID"] = 0;
+                testStatusInfo.Add("\t***CANID Test Failed***");
+            }
         }
 
         public bool GetAdcCount(SerialPort uutPort, int timeOutMilliseconds, int highLim, int lowLim, out int adcCount)
@@ -3627,14 +3695,14 @@ namespace HydroFunctionalTest
                     if ((adcCount < highLim) && (adcCount > lowLim))
                         withinLimits = true;
                 }
-                using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + "CAN ID Response.txt", true))
-                {
-                    foreach (var v in response)
-                    {
-                        file.Write(v);
-                    }
-                    file.Write("\r\n");
-                }
+                //using (System.IO.StreamWriter file = new System.IO.StreamWriter(testDataFilePath + "CAN ID Response.txt", true))
+                //{
+                //    foreach (var v in response)
+                //    {
+                //        file.Write(v);
+                //    }
+                //    file.Write("\r\n");
+                //}
                 Array.Clear(response, 0, response.Length);
             }
             stopWatch.Stop();

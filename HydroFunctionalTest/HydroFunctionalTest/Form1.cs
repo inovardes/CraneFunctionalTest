@@ -109,6 +109,8 @@ namespace HydroFunctionalTest
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            eqStsLbl.Text = "Closing Application...";
+            eqStsLbl.Refresh();
             DisconnectHardw();
         }
 
@@ -345,7 +347,7 @@ namespace HydroFunctionalTest
                         GrpBxThreadCtrl(fix1Designator, -1);
                         PrintDataToTxtBox(fix1Designator, null, "\r\nLid Down Detected");
                         //begin testing UUT
-                        BeginTest(fix1Designator, txtBxSerNum1.Text, this.btnAbort1);
+                        BeginTest(fix1Designator, txtBxSerNum1.Text, this.btnAbort1, this.btnStrTst1);
                     }
                     else
                         PrintDataToTxtBox(fix1Designator, null, "Lid Down Not Detected");
@@ -392,7 +394,7 @@ namespace HydroFunctionalTest
                         GrpBxThreadCtrl(fix2Designator, -1);
                         PrintDataToTxtBox(fix2Designator, null, "\r\nLid Down Detected");
                         //begin testing UUT
-                        BeginTest(fix2Designator, txtBxSerNum2.Text, this.btnAbort2);
+                        BeginTest(fix2Designator, txtBxSerNum2.Text, this.btnAbort2, this.btnStrTst2);
                     }
                     else
                         PrintDataToTxtBox(fix2Designator, null, "Lid Down Not Detected");
@@ -413,7 +415,7 @@ namespace HydroFunctionalTest
             }
         }
 
-        private async void BeginTest(int fixPos, String tempSerialNum, System.Windows.Forms.Button softwAbortEvent)
+        private async void BeginTest(int fixPos, String tempSerialNum, System.Windows.Forms.Button softwAbortEvent, System.Windows.Forms.Button beginTestButton)
         {
             //Get the fixture ID (which asssembly is being tested)
             Byte tempFixID = FixtureID(fixPos);//returns 0 if error occurs  
@@ -442,6 +444,7 @@ namespace HydroFunctionalTest
                         //subscribe to uut events
                         uutObj.InformationAvailable += OnInformationAvailable;
                         uutObj.TestComplete += OnTestComplete;
+                        uutObj.StartButtonText_Change += OnStartButtonText_Change;
                         //check to see if opertator has opted to run specific test
                         if ((chkBxTstSelectThreadCtrl(fixPos)) && (uutObj.testRoutineInformation.ContainsKey(cboBxDbgTstThreadCtrl(fixPos, false))))
                         {
@@ -462,6 +465,7 @@ namespace HydroFunctionalTest
                         //unsubscribe from uut events
                         uutObj.InformationAvailable -= OnInformationAvailable;
                         uutObj.TestComplete -= OnTestComplete;
+                        uutObj.StartButtonText_Change -= OnStartButtonText_Change;
                         //jump out of foreach loop
                         break;
                     }
@@ -471,11 +475,13 @@ namespace HydroFunctionalTest
                         //subscribe to uut events
                         uutObj.InformationAvailable += OnInformationAvailable;
                         uutObj.TestComplete += OnTestComplete;
+                        //uutObj.StartButtonText_Change += OnStartButtonText_Change;
                         //execute uut tests
                         await Task.Run(() => uutObj.RunTests(softwAbortEvent));
                         //unsubscribe from uut events
                         uutObj.InformationAvailable -= OnInformationAvailable;
                         uutObj.TestComplete -= OnTestComplete;
+                        //uutObj.StartButtonText_Change -= OnStartButtonText_Change;
                         //jump out of foreach loop
                         break;
                     }
@@ -654,6 +660,18 @@ namespace HydroFunctionalTest
             }
         }
 
+        private void OnStartButtonText_Change(object source, string buttonText, int fixPos)
+        {
+            if ((fixPos == fix1Designator) || (fixPos == fix2Designator))
+            {
+                BtnThreadCtrl(fixPos, false, buttonText);
+            }
+            else
+            {
+                MessageBox.Show("Incorrect fixture number parameter sent to 'OnStartButtonText_Change()' method: " + fixPos.ToString());
+            }
+        }
+
         /// <summary>
         /// Delegate for controlling and updating Main GUI from threads other than the main form
         /// </summary>
@@ -707,35 +725,47 @@ namespace HydroFunctionalTest
         /// </summary>
         /// <param name="fixPos"></param>
         /// <param name="en"></param>
-        delegate void btn_ThreadCtrl(int fixPos, bool en);
+        delegate void btn_ThreadCtrl(int fixPos, bool en, String txtToDisplay);
         /// <summary>
         /// Method for controlling and updating Main GUI from threads other than the main form
         /// </summary>
         /// <param name="fixPos"></param>
         /// <param name="en"></param>
-        public void BtnThreadCtrl(int fixPos, bool en)
+        public void BtnThreadCtrl(int fixPos, bool en, String txtToDisplay = "Begin Test")
         {
             //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
             if (btnStrTst1.InvokeRequired || btnStrTst2.InvokeRequired)
             {
                 btn_ThreadCtrl btnDel = new btn_ThreadCtrl(BtnThreadCtrl);
-                this.Invoke(btnDel, new object[] { fixPos, en });
+                this.Invoke(btnDel, new object[] { fixPos, en, txtToDisplay});
             }
             else
             {
                 if (fixPos == fix1Designator)
                 {
                     if (en)
+                    {
                         btnStrTst1.Enabled = true;
+                        btnStrTst1.Text = txtToDisplay;
+                    }
                     else
+                    {
                         btnStrTst1.Enabled = false;
+                        btnStrTst1.Text = txtToDisplay;
+                    }
                 }
                 else if (fixPos == fix2Designator)
                 {
                     if (en)
+                    {
                         btnStrTst2.Enabled = true;
+                        btnStrTst2.Text = txtToDisplay;
+                    }
                     else
+                    {
                         btnStrTst2.Enabled = false;
+                        btnStrTst2.Text = txtToDisplay;
+                    }
                 }
                 else
                     MessageBox.Show("Incorrect fixture number parameter sent to 'BtnThreadCtrl()' method: " + fixPos.ToString());
@@ -1224,7 +1254,6 @@ namespace HydroFunctionalTest
                 PrintDataToTxtBox(fixPos, gpioObj[fixPos-1].gpioReturnData, "Problem communicating with GPIO adapter");
             }
         }
-
     }
 
 }

@@ -128,7 +128,7 @@ namespace HydroFunctionalTest
                     if (pwrSupDev.IsOpen)
                         pwrSupDev.Close();
                 }
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return rtnStatus;
             }
@@ -143,7 +143,7 @@ namespace HydroFunctionalTest
             {
                 IsBusy = true;
                 pwrSupDev.Close();
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
             }
         }
@@ -179,7 +179,7 @@ namespace HydroFunctionalTest
                             }
                         }
                     }
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return rtnStatus;
             }
@@ -284,7 +284,7 @@ namespace HydroFunctionalTest
                 }
                 else
                     pwrSupReturnData.Add("Invalid Channel parameter: " + outputChan.ToString() + "\r\nMust be an integer value 1, 2 or 3");
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return (outputCorrectlySet & voltSlowRampSuccess);
             }
@@ -302,7 +302,7 @@ namespace HydroFunctionalTest
                     {
                         PowerSupCurrent = Query("measure:current?");
                     }
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return PowerSupCurrent;
             }
@@ -320,7 +320,7 @@ namespace HydroFunctionalTest
                     {
                         PowerSupVoltage = Query("measure:voltage?");
                     }
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return PowerSupVoltage;
             }
@@ -359,7 +359,7 @@ namespace HydroFunctionalTest
                     String tmpVolt = Query("measure:voltage?");
                     pwrSupReturnData.Add("Failed to set voltage/current\r\nChannel #" + outputChan.ToString() + " output voltage set to: " + tmpVolt + "V, " + setCurrLimit.ToString() + "A");
                 }
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return rtnData;
             }
@@ -428,7 +428,7 @@ namespace HydroFunctionalTest
                 {
                     pwrSupReturnData.Add("Exception occurred in 'SetPwrSupVoltLimits' method\r\n" + ex.Message);
                 }
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return (ch1RtnStatus & ch2RtnStatus & ch3RtnStatus);
             }
@@ -569,11 +569,13 @@ namespace HydroFunctionalTest
                 IsBusy = true;
                 bool rtnStatus = false;
                 String tempStr = Query("source:voltage:protection:triped?");
-                if (tempStr.Contains("1"))
+                if (tempStr == null)
+                    rtnStatus = false;
+                else if (tempStr.Contains("1"))
                     rtnStatus = true;
                 else
                     rtnStatus = false;
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
                 return rtnStatus;
             }
@@ -586,7 +588,7 @@ namespace HydroFunctionalTest
                 IsBusy = true;
                 System.Threading.Thread.Sleep(250);
                 Command("source:voltage:protection:clear");
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(1500);
                 IsBusy = false;
             }
         }

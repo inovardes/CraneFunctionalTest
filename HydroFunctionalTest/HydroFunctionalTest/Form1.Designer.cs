@@ -32,11 +32,20 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabTest = new System.Windows.Forms.TabPage();
             this.grpBxTst2 = new System.Windows.Forms.GroupBox();
+            this.chkBxSkpBoot2 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpFirm2 = new System.Windows.Forms.CheckBox();
+            this.txtBxTst2 = new System.Windows.Forms.TextBox();
             this.btnAbort2 = new System.Windows.Forms.Button();
             this.chkBxRma2 = new System.Windows.Forms.CheckBox();
             this.btnStrTst2 = new System.Windows.Forms.Button();
             this.txtBxSerNum2 = new System.Windows.Forms.TextBox();
+            this.chkBxTstSelect2 = new System.Windows.Forms.CheckBox();
+            this.cboBxDbgTst2 = new System.Windows.Forms.ComboBox();
             this.grpBxTst1 = new System.Windows.Forms.GroupBox();
+            this.chkBxSkpBoot1 = new System.Windows.Forms.CheckBox();
+            this.chkBxSkpFirm1 = new System.Windows.Forms.CheckBox();
+            this.txtBxTst1 = new System.Windows.Forms.TextBox();
+            this.chkBxTstSelect1 = new System.Windows.Forms.CheckBox();
             this.cboBxDbgTst1 = new System.Windows.Forms.ComboBox();
             this.btnAbort1 = new System.Windows.Forms.Button();
             this.chkBxRma1 = new System.Windows.Forms.CheckBox();
@@ -53,15 +62,6 @@
             this.btnAsgnDevId = new System.Windows.Forms.Button();
             this.pictureBox3 = new System.Windows.Forms.PictureBox();
             this.eqStsLbl = new System.Windows.Forms.Label();
-            this.chkBxTstSelect1 = new System.Windows.Forms.CheckBox();
-            this.txtBxTst1 = new System.Windows.Forms.TextBox();
-            this.txtBxTst2 = new System.Windows.Forms.TextBox();
-            this.cboBxDbgTst2 = new System.Windows.Forms.ComboBox();
-            this.chkBxTstSelect2 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpBoot2 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpFirm2 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpBoot1 = new System.Windows.Forms.CheckBox();
-            this.chkBxSkpFirm1 = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabTest.SuspendLayout();
             this.grpBxTst2.SuspendLayout();
@@ -112,6 +112,35 @@
             this.grpBxTst2.TabStop = false;
             this.grpBxTst2.Text = "Fixture # 2";
             // 
+            // chkBxSkpBoot2
+            // 
+            this.chkBxSkpBoot2.AutoSize = true;
+            this.chkBxSkpBoot2.Location = new System.Drawing.Point(216, 38);
+            this.chkBxSkpBoot2.Name = "chkBxSkpBoot2";
+            this.chkBxSkpBoot2.Size = new System.Drawing.Size(101, 17);
+            this.chkBxSkpBoot2.TabIndex = 16;
+            this.chkBxSkpBoot2.Text = "Skip Bootloader";
+            this.chkBxSkpBoot2.UseVisualStyleBackColor = true;
+            // 
+            // chkBxSkpFirm2
+            // 
+            this.chkBxSkpFirm2.AutoSize = true;
+            this.chkBxSkpFirm2.Location = new System.Drawing.Point(216, 61);
+            this.chkBxSkpFirm2.Name = "chkBxSkpFirm2";
+            this.chkBxSkpFirm2.Size = new System.Drawing.Size(92, 17);
+            this.chkBxSkpFirm2.TabIndex = 15;
+            this.chkBxSkpFirm2.Text = "Skip Firmware";
+            this.chkBxSkpFirm2.UseVisualStyleBackColor = true;
+            // 
+            // txtBxTst2
+            // 
+            this.txtBxTst2.Location = new System.Drawing.Point(6, 139);
+            this.txtBxTst2.Multiline = true;
+            this.txtBxTst2.Name = "txtBxTst2";
+            this.txtBxTst2.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtBxTst2.Size = new System.Drawing.Size(338, 306);
+            this.txtBxTst2.TabIndex = 14;
+            // 
             // btnAbort2
             // 
             this.btnAbort2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -138,7 +167,7 @@
             this.btnStrTst2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnStrTst2.Location = new System.Drawing.Point(6, 98);
             this.btnStrTst2.Name = "btnStrTst2";
-            this.btnStrTst2.Size = new System.Drawing.Size(122, 35);
+            this.btnStrTst2.Size = new System.Drawing.Size(191, 35);
             this.btnStrTst2.TabIndex = 5;
             this.btnStrTst2.Text = "Begin Test";
             this.btnStrTst2.UseVisualStyleBackColor = true;
@@ -152,6 +181,26 @@
             this.txtBxSerNum2.TabIndex = 2;
             this.txtBxSerNum2.Text = "Enter 10 Digit Serial";
             this.txtBxSerNum2.MouseClick += new System.Windows.Forms.MouseEventHandler(this.txtBxSerNum2_MouseClick);
+            // 
+            // chkBxTstSelect2
+            // 
+            this.chkBxTstSelect2.AutoSize = true;
+            this.chkBxTstSelect2.Location = new System.Drawing.Point(9, 48);
+            this.chkBxTstSelect2.Name = "chkBxTstSelect2";
+            this.chkBxTstSelect2.Size = new System.Drawing.Size(115, 17);
+            this.chkBxTstSelect2.TabIndex = 13;
+            this.chkBxTstSelect2.Text = "Run Selected Test";
+            this.chkBxTstSelect2.UseVisualStyleBackColor = true;
+            // 
+            // cboBxDbgTst2
+            // 
+            this.cboBxDbgTst2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBxDbgTst2.FormattingEnabled = true;
+            this.cboBxDbgTst2.Location = new System.Drawing.Point(6, 71);
+            this.cboBxDbgTst2.Name = "cboBxDbgTst2";
+            this.cboBxDbgTst2.Size = new System.Drawing.Size(122, 21);
+            this.cboBxDbgTst2.TabIndex = 12;
+            this.cboBxDbgTst2.Click += new System.EventHandler(this.cboBxDbgTst2_Click);
             // 
             // grpBxTst1
             // 
@@ -170,6 +219,46 @@
             this.grpBxTst1.TabIndex = 4;
             this.grpBxTst1.TabStop = false;
             this.grpBxTst1.Text = "Fixture # 1";
+            // 
+            // chkBxSkpBoot1
+            // 
+            this.chkBxSkpBoot1.AutoSize = true;
+            this.chkBxSkpBoot1.Location = new System.Drawing.Point(216, 61);
+            this.chkBxSkpBoot1.Name = "chkBxSkpBoot1";
+            this.chkBxSkpBoot1.Size = new System.Drawing.Size(101, 17);
+            this.chkBxSkpBoot1.TabIndex = 15;
+            this.chkBxSkpBoot1.Text = "Skip Bootloader";
+            this.chkBxSkpBoot1.UseVisualStyleBackColor = true;
+            // 
+            // chkBxSkpFirm1
+            // 
+            this.chkBxSkpFirm1.AutoSize = true;
+            this.chkBxSkpFirm1.Location = new System.Drawing.Point(216, 38);
+            this.chkBxSkpFirm1.Name = "chkBxSkpFirm1";
+            this.chkBxSkpFirm1.Size = new System.Drawing.Size(92, 17);
+            this.chkBxSkpFirm1.TabIndex = 14;
+            this.chkBxSkpFirm1.Text = "Skip Firmware";
+            this.chkBxSkpFirm1.UseVisualStyleBackColor = true;
+            // 
+            // txtBxTst1
+            // 
+            this.txtBxTst1.Cursor = System.Windows.Forms.Cursors.PanSW;
+            this.txtBxTst1.Location = new System.Drawing.Point(6, 139);
+            this.txtBxTst1.Multiline = true;
+            this.txtBxTst1.Name = "txtBxTst1";
+            this.txtBxTst1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtBxTst1.Size = new System.Drawing.Size(338, 306);
+            this.txtBxTst1.TabIndex = 13;
+            // 
+            // chkBxTstSelect1
+            // 
+            this.chkBxTstSelect1.AutoSize = true;
+            this.chkBxTstSelect1.Location = new System.Drawing.Point(9, 48);
+            this.chkBxTstSelect1.Name = "chkBxTstSelect1";
+            this.chkBxTstSelect1.Size = new System.Drawing.Size(115, 17);
+            this.chkBxTstSelect1.TabIndex = 12;
+            this.chkBxTstSelect1.Text = "Run Selected Test";
+            this.chkBxTstSelect1.UseVisualStyleBackColor = true;
             // 
             // cboBxDbgTst1
             // 
@@ -207,7 +296,7 @@
             this.btnStrTst1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnStrTst1.Location = new System.Drawing.Point(6, 98);
             this.btnStrTst1.Name = "btnStrTst1";
-            this.btnStrTst1.Size = new System.Drawing.Size(122, 35);
+            this.btnStrTst1.Size = new System.Drawing.Size(191, 35);
             this.btnStrTst1.TabIndex = 4;
             this.btnStrTst1.Text = "Begin Test";
             this.btnStrTst1.UseVisualStyleBackColor = true;
@@ -338,95 +427,6 @@
             this.eqStsLbl.Size = new System.Drawing.Size(206, 20);
             this.eqStsLbl.TabIndex = 3;
             this.eqStsLbl.Text = "Initializing Test Equipment...";
-            // 
-            // chkBxTstSelect1
-            // 
-            this.chkBxTstSelect1.AutoSize = true;
-            this.chkBxTstSelect1.Location = new System.Drawing.Point(9, 48);
-            this.chkBxTstSelect1.Name = "chkBxTstSelect1";
-            this.chkBxTstSelect1.Size = new System.Drawing.Size(115, 17);
-            this.chkBxTstSelect1.TabIndex = 12;
-            this.chkBxTstSelect1.Text = "Run Selected Test";
-            this.chkBxTstSelect1.UseVisualStyleBackColor = true;
-            // 
-            // txtBxTst1
-            // 
-            this.txtBxTst1.Cursor = System.Windows.Forms.Cursors.PanSW;
-            this.txtBxTst1.Location = new System.Drawing.Point(6, 139);
-            this.txtBxTst1.Multiline = true;
-            this.txtBxTst1.Name = "txtBxTst1";
-            this.txtBxTst1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtBxTst1.Size = new System.Drawing.Size(338, 306);
-            this.txtBxTst1.TabIndex = 13;
-            // 
-            // txtBxTst2
-            // 
-            this.txtBxTst2.Location = new System.Drawing.Point(6, 139);
-            this.txtBxTst2.Multiline = true;
-            this.txtBxTst2.Name = "txtBxTst2";
-            this.txtBxTst2.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtBxTst2.Size = new System.Drawing.Size(338, 306);
-            this.txtBxTst2.TabIndex = 14;
-            // 
-            // cboBxDbgTst2
-            // 
-            this.cboBxDbgTst2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboBxDbgTst2.FormattingEnabled = true;
-            this.cboBxDbgTst2.Location = new System.Drawing.Point(6, 71);
-            this.cboBxDbgTst2.Name = "cboBxDbgTst2";
-            this.cboBxDbgTst2.Size = new System.Drawing.Size(122, 21);
-            this.cboBxDbgTst2.TabIndex = 12;
-            this.cboBxDbgTst2.Click += new System.EventHandler(this.cboBxDbgTst2_Click);
-            // 
-            // chkBxTstSelect2
-            // 
-            this.chkBxTstSelect2.AutoSize = true;
-            this.chkBxTstSelect2.Location = new System.Drawing.Point(9, 48);
-            this.chkBxTstSelect2.Name = "chkBxTstSelect2";
-            this.chkBxTstSelect2.Size = new System.Drawing.Size(115, 17);
-            this.chkBxTstSelect2.TabIndex = 13;
-            this.chkBxTstSelect2.Text = "Run Selected Test";
-            this.chkBxTstSelect2.UseVisualStyleBackColor = true;
-            // 
-            // chkBxSkpBoot2
-            // 
-            this.chkBxSkpBoot2.AutoSize = true;
-            this.chkBxSkpBoot2.Location = new System.Drawing.Point(216, 38);
-            this.chkBxSkpBoot2.Name = "chkBxSkpBoot2";
-            this.chkBxSkpBoot2.Size = new System.Drawing.Size(101, 17);
-            this.chkBxSkpBoot2.TabIndex = 16;
-            this.chkBxSkpBoot2.Text = "Skip Bootloader";
-            this.chkBxSkpBoot2.UseVisualStyleBackColor = true;
-            // 
-            // chkBxSkpFirm2
-            // 
-            this.chkBxSkpFirm2.AutoSize = true;
-            this.chkBxSkpFirm2.Location = new System.Drawing.Point(216, 61);
-            this.chkBxSkpFirm2.Name = "chkBxSkpFirm2";
-            this.chkBxSkpFirm2.Size = new System.Drawing.Size(92, 17);
-            this.chkBxSkpFirm2.TabIndex = 15;
-            this.chkBxSkpFirm2.Text = "Skip Firmware";
-            this.chkBxSkpFirm2.UseVisualStyleBackColor = true;
-            // 
-            // chkBxSkpBoot1
-            // 
-            this.chkBxSkpBoot1.AutoSize = true;
-            this.chkBxSkpBoot1.Location = new System.Drawing.Point(216, 61);
-            this.chkBxSkpBoot1.Name = "chkBxSkpBoot1";
-            this.chkBxSkpBoot1.Size = new System.Drawing.Size(101, 17);
-            this.chkBxSkpBoot1.TabIndex = 15;
-            this.chkBxSkpBoot1.Text = "Skip Bootloader";
-            this.chkBxSkpBoot1.UseVisualStyleBackColor = true;
-            // 
-            // chkBxSkpFirm1
-            // 
-            this.chkBxSkpFirm1.AutoSize = true;
-            this.chkBxSkpFirm1.Location = new System.Drawing.Point(216, 38);
-            this.chkBxSkpFirm1.Name = "chkBxSkpFirm1";
-            this.chkBxSkpFirm1.Size = new System.Drawing.Size(92, 17);
-            this.chkBxSkpFirm1.TabIndex = 14;
-            this.chkBxSkpFirm1.Text = "Skip Firmware";
-            this.chkBxSkpFirm1.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
