@@ -14,8 +14,6 @@ namespace HydroFunctionalTest
 {
     class PSM_85307
     {
-        List<String> tempDmmMeas = new List<string>();
-
         /// <summary>
         /// Class used to track the Pcan class data and also contains a boolean which controls when the thread in this program that continuously calls the Pcan class CanRead() method
         /// When CAN data is needed, it must be copied over from the Pcan class into a new Dictionary to avoid corrupting the data
@@ -368,7 +366,6 @@ namespace HydroFunctionalTest
         /// <param name="tmpPcan"></param>
         public PSM_85307(int tmpPos, string serNum, UsbToGpio tmpGpio, Pcan tmpPcan, bool skipBootloaderMethod, bool skipFirmwareMethod, bool tempIsRma)
         {
-            tempDmmMeas.Clear();
             dateTime = (System.DateTime.Now.ToString().Replace("/", "_")).Replace(":", ".");
 
             fixPosition = tmpPos;
@@ -610,7 +607,7 @@ namespace HydroFunctionalTest
                 { "SeatIDSwitch", -1 },
                 { "USBComm", -1 },
                 { "CANID", -1 },
-                { "CanBitErrorCheck", -1 },
+                { "CanEventErrorCheck", -1 },
             };
             #endregion Initialize Dictionary containing all test pass fail status
 
@@ -632,7 +629,7 @@ namespace HydroFunctionalTest
                 { "SeatIDSwitch",  new List<String> { "" } },
                 { "USBComm",  new List<String> { "" } },
                 { "CANID",  new List<String> { "" } },
-                { "CanBitErrorCheck",  new List<String> { "" } },
+                { "CanEventErrorCheck",  new List<String> { "" } },
             };
 
             skipFirmware = skipFirmwareMethod;
@@ -786,7 +783,7 @@ namespace HydroFunctionalTest
             try
             {
                 testRoutineInformation["PowerUp"] = -1;  //Force programm to run this test method
-                testRoutineInformation["CanBitErrorCheck"] = -1;  //Force programm to run this test method
+                testRoutineInformation["CanEventErrorCheck"] = -1;  //Force programm to run this test method
                 //subscribe to the main UI abort button event
                 softwAbortEvent.Click += new System.EventHandler(btnAbort_Click);
                 //Start task that continously collects CAN data
@@ -1985,12 +1982,6 @@ namespace HydroFunctionalTest
                 //Compute the constant resistance value for the eload setting
                 float constResSetting = (float)(((eLoadV_H + eLoadV_L) / 2) / ((eLoadI_H + eLoadI_L) / 2));
 
-                //Turn on the Eload to set it to constant resistance mode
-                if (Eload.Setup("cr", constResSetting))
-                    MessageBox.Show("Eload Setup Error");
-                StandardDelay(500);
-                Eload.Toggle("on");
-
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
 
@@ -2005,6 +1996,12 @@ namespace HydroFunctionalTest
                     port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
                     gpioObj.GpioWrite(2, port2CtrlByte);
                 }
+
+                //Turn on the Eload to set it to constant resistance mode
+                if (Eload.Setup("cr", constResSetting))
+                    MessageBox.Show("Eload Setup Error");
+                StandardDelay(500);
+                Eload.Toggle("on");
 
                 testStatusInfo.Add("\t26V Output On\r\n");
 
@@ -2054,14 +2051,23 @@ namespace HydroFunctionalTest
 
                     if ((pcbaMeasCurrent >= pcaI_L) && (pcbaMeasCurrent <= pcaI_H))
                     {
-                        howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
                         testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Passed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
                         RecordTestResults("AuxOut26VTst", pair.Key + " On--> Iout", "Pass", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                        double systemCurrent;
+                        double systemCurrent_H = (pcaI_H + (standbyCurrent_H/1000)) * 1.05;
+                        double systemCurrent_L = (pcaI_L + (standbyCurrent_L / 1000)) * .95;
+                        if (CheckSystemCurrent(systemCurrent_H, systemCurrent_L, out systemCurrent))
+                        {
+                            howMany26vAdjAuxOutputsFailures--;//subtract from the number of tests, if eventually reaching 0 or < 0, then no tests failed
+                            RecordTestResults("AuxOut26VTst", pair.Key + " On System Current", "Pass", systemCurrent_H.ToString(), systemCurrent_L.ToString(), systemCurrent.ToString(), "Amps", "via CAN data");
+                        }
+                        else
+                            RecordTestResults("AuxOut26VTst", pair.Key + " On System Current", "Fail", systemCurrent_H.ToString(), systemCurrent_L.ToString(), systemCurrent.ToString(), "Amps", "via CAN data");
                     }
                     else
                     {
                         testStatusInfo.Add("\r\n\t" + pair.Key + " Iout On Failed (via CAN data)\r\n\tMeasured: " + pcbaMeasCurrent.ToString() + " (High=" + pcaI_H.ToString() + ",Low=" + pcaI_L.ToString() + ")\r\n");
-                        RecordTestResults("AuxOut26VTst", pair.Key + " On--> Iout", "Fail", pcaI_H.ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
+                        RecordTestResults("AuxOut26VTst", pair.Key + " On--> Iout", "Fail", (pcaI_H + standbyCurrent_H).ToString(), pcaI_L.ToString(), pcbaMeasCurrent.ToString(), "Amps", "via CAN data");
                     }
 
                     //Verify Eload tolerances
@@ -2093,20 +2099,6 @@ namespace HydroFunctionalTest
                 }
                 else
                     testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
-
-                //**************************************************************
-                //**************************************************************
-                //initial voltage value to force failure if DMM measurement fails
-                double dmmMeas = 0;
-                String tmpDmmStr = null;
-                tmpDmmStr = DmmMeasure();
-                if (tmpDmmStr != null)
-                {
-                    dmmMeas = double.Parse(tmpDmmStr);
-                }
-                tempDmmMeas.Add(tmpDmmStr);
-                //**************************************************************
-                //**************************************************************
 
                 testStatusInfo.Add("\r\n\t26V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
@@ -2226,6 +2218,58 @@ namespace HydroFunctionalTest
                     testStatusInfo.Add("\r\n\t***AuxOut26VTst Test Failed***");
                 }
             }
+        }
+        public bool CheckSystemCurrent(double upperCurrToler, double lowerCurrToler, out double systCurrentToReturn)
+        {
+            //watch the CAN bus heartbeat and verify that the system current has stablized to a specific value for 5 consecutive status updates
+            bool systCurrentVerifyPass = false;
+            double tempSystCurrent = 0;
+            int systCurrStableCount = 0;
+            int countCANReadFailures = 0;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            while ((systCurrStableCount < 5) && (countCANReadFailures < 3) && (stopwatch.ElapsedMilliseconds < 5000))
+            {
+                //look for the CAN heartbeat ID: 
+                if (AwaitMessageID(messageIDs.heartbeat))
+                {
+                    //send the last CAN data found w/ heartbeat message id to check that system current is within tolerance
+                    tempSystCurrent = (CheckStandbyCurrent(canDataManage.CanMessage.ToArray()));
+                    tempSystCurrent = tempSystCurrent / 1000;
+                    if ((tempSystCurrent < upperCurrToler) && (tempSystCurrent > lowerCurrToler))
+                        systCurrStableCount++;
+                    else
+                        systCurrStableCount--;
+                    testStatusInfo.Add("\r\n\tSystem Current: " + tempSystCurrent.ToString() + "mA\r\n");
+                }
+                else
+                    countCANReadFailures++;
+            }
+            stopwatch.Stop();
+            //See how the power supply current reading compares
+            String tempPwrSupCurrent = PwrSup.CheckCurrent(fixPosition);
+            if (tempPwrSupCurrent != null)
+            {
+                double tempDouble = (double.Parse(tempPwrSupCurrent)) * 1000;
+                if ((tempDouble < standbyCurrent_H) && (tempDouble > standbyCurrent_L))
+                    testStatusInfo.Add("\tPower Supply Current: " + tempPwrSupCurrent + "\r\n");
+            }
+            else
+                testStatusInfo.Add("\tPower Supply Current returned NULL: " + tempPwrSupCurrent + "\r\n");
+
+            if (systCurrStableCount >= 5)
+            {
+                testStatusInfo.Add("\tSystem current within tolerance");
+                systCurrentVerifyPass = true;
+                //RecordTestResults("PowerRegulators", "System Current Verify", "Pass", upperCurrToler.ToString(), lowerCurrToler.ToString(), tempSystCurrent.ToString(), "mA");
+            }
+            else
+            {
+                testStatusInfo.Add("\tSystem current outside tolerance (High=" + upperCurrToler.ToString() + "; Low=" + lowerCurrToler.ToString() + ")\r\n\r\n");
+                //RecordTestResults("PowerRegulators", "System Current Verify", "Fail", upperCurrToler.ToString(), lowerCurrToler.ToString(), tempSystCurrent.ToString(), "mA");
+            }
+            systCurrentToReturn = tempSystCurrent;
+            return systCurrentVerifyPass;
         }
 
         public void AuxOut12VTst()
@@ -2396,20 +2440,6 @@ namespace HydroFunctionalTest
                 }
                 else
                     testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
-
-                //**************************************************************
-                //**************************************************************
-                //initial voltage value to force failure if DMM measurement fails
-                double dmmMeas = 0;
-                String tmpDmmStr = null;
-                tmpDmmStr = DmmMeasure();
-                if (tmpDmmStr != null)
-                {
-                    dmmMeas = double.Parse(tmpDmmStr);
-                }
-                tempDmmMeas.Add(tmpDmmStr);
-                //**************************************************************
-                //**************************************************************
 
                 testStatusInfo.Add("\r\n\t12V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
@@ -2700,20 +2730,6 @@ namespace HydroFunctionalTest
                 else
                     testStatusInfo.Add("Unable to retrieve Votlage and Current status from Eload.");
 
-                //**************************************************************
-                //**************************************************************
-                //initial voltage value to force failure if DMM measurement fails
-                double dmmMeas = 0;
-                String tmpDmmStr = null;
-                tmpDmmStr = DmmMeasure();
-                if (tmpDmmStr != null)
-                {
-                    dmmMeas = double.Parse(tmpDmmStr);
-                }
-                tempDmmMeas.Add(tmpDmmStr);
-                //**************************************************************
-                //**************************************************************
-
                 testStatusInfo.Add("\r\n\t5V Output Off\r\n");
                 //turn the adjustable output off by sending the output specific CAN command                
                 tempCanFrame1 = nEnOutput[pair.Key][0]; //the first frame
@@ -2832,30 +2848,6 @@ namespace HydroFunctionalTest
                     testStatusInfo.Add("\r\n\t***AuxOut5VTst Test Failed***");
                 }
             }
-        }
-
-        public bool SendCanFrame(String tempCanFrame)
-        {
-            //parse the CAN frame
-            int index = tempCanFrame.IndexOf(":");
-            UInt32 tempCanId = UInt32.Parse(tempCanFrame.Remove(index));
-            tempCanFrame = tempCanFrame.Substring(index + 1);
-            index = tempCanFrame.IndexOf(":");
-            UInt32 tempMessageLength = UInt32.Parse(tempCanFrame.Remove(index));
-            tempCanFrame = tempCanFrame.Substring(index + 1);
-            List<Byte> tempCanMessage1 = new List<Byte>();
-            while (index > 0)
-            {
-                index = tempCanFrame.IndexOf(";");
-                if (index > 0)
-                {
-                    tempCanMessage1.Add(Byte.Parse(tempCanFrame.Remove(index)));
-                    tempCanFrame = tempCanFrame.Substring(index + 1);
-                }
-                else
-                    tempCanMessage1.Add(Byte.Parse(tempCanFrame));
-            }
-            return pCanObj.CanWrite(tempCanMessage1.ToArray(), tempCanId, (Byte)tempMessageLength);
         }
 
         public void NonAdjAuxOutputs()
@@ -3068,6 +3060,30 @@ namespace HydroFunctionalTest
                     testStatusInfo.Add("\r\n\t***NonAdjAuxOutputs Test Failed***");
                 }
             }
+        }
+
+        public bool SendCanFrame(String tempCanFrame)
+        {
+            //parse the CAN frame
+            int index = tempCanFrame.IndexOf(":");
+            UInt32 tempCanId = UInt32.Parse(tempCanFrame.Remove(index));
+            tempCanFrame = tempCanFrame.Substring(index + 1);
+            index = tempCanFrame.IndexOf(":");
+            UInt32 tempMessageLength = UInt32.Parse(tempCanFrame.Remove(index));
+            tempCanFrame = tempCanFrame.Substring(index + 1);
+            List<Byte> tempCanMessage1 = new List<Byte>();
+            while (index > 0)
+            {
+                index = tempCanFrame.IndexOf(";");
+                if (index > 0)
+                {
+                    tempCanMessage1.Add(Byte.Parse(tempCanFrame.Remove(index)));
+                    tempCanFrame = tempCanFrame.Substring(index + 1);
+                }
+                else
+                    tempCanMessage1.Add(Byte.Parse(tempCanFrame));
+            }
+            return pCanObj.CanWrite(tempCanMessage1.ToArray(), tempCanId, (Byte)tempMessageLength);
         }
 
         public void PowerLoss()
@@ -3716,7 +3732,7 @@ namespace HydroFunctionalTest
             return withinLimits;
         }
 
-        public void CanBitErrorCheck()
+        public void CanEventErrorCheck()
         {
             //copy the contents of the CAN data to a new variable
             List<CanDataStruct> tempCanReadData = new List<CanDataStruct>();
@@ -3798,14 +3814,18 @@ namespace HydroFunctionalTest
             if (bitErrorsToCatch.Count == 0)
             {
                 //set the method status flag in the testRoutineInformation Dictionary
-                testRoutineInformation["CanBitErrorCheck"] = 1;
-                testStatusInfo.Add("\t***CanBitErrorCheck Test Passed***");
+                testRoutineInformation["CanEventErrorCheck"] = 1;
+                testStatusInfo.Add("\t***CanEventErrorCheck Test Passed***");
+                RecordTestResults("CanEventErrorCheck", "CAN Event Error Check", "Pass", "N/A", "N/A", "N/A", "Error Code", "None Found");
             }
             else
             {
                 //set the method status flag in the testRoutineInformation Dictionary
-                testRoutineInformation["CanBitErrorCheck"] = 0;
-                testStatusInfo.Add("\t***CanBitErrorCheck Test Failed***");
+                String errorsFound = string.Join(",", bitErrorsToCatch.ToArray());
+                testStatusInfo.Add("CAN Event Errors Found: " + errorsFound);
+                testRoutineInformation["CanEventErrorCheck"] = 0;
+                testStatusInfo.Add("\t***CanEventErrorCheck Test Failed***");
+                RecordTestResults("CanEventErrorCheck", "CAN Event Error Check", "Fail", "N/A", "N/A", "N/A", "Error Code", "CAN Errors Found: " + errorsFound);
             }
         }
 
