@@ -443,6 +443,7 @@
             this.Text = "Functional Test";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
+            this.Shown += new System.EventHandler(this.Form1_Shown);
             this.tabControl1.ResumeLayout(false);
             this.tabTest.ResumeLayout(false);
             this.grpBxTst2.ResumeLayout(false);

@@ -57,7 +57,6 @@ namespace HydroFunctionalTest
         /// Will be set to true upon successful connection to the ELoad serial port.  Initially set to false when the program opens (Form1_Load)
         /// </summary>
         public bool foundEload;
-
         /// <summary>
         /// Will be set to true upon successful connection to the power supply serial port.  Initially set to false when the program opens (Form1_Load)
         /// </summary>
@@ -70,6 +69,9 @@ namespace HydroFunctionalTest
         /// Will be set to true upon successful connection to the PCAN device with device ID = 2.  Initially set to false when the program opens (Form1_Load)
         /// </summary>
         public bool foundPcanDev2 = false;
+        public bool fix1TestInProgress = false;
+        public bool fix2TestInProgress = false;
+
         private const String testPrgmPath = "C:\\CraneFunctionalTest\\";
         private const String progSourceFiles = testPrgmPath + "TestProgramSourceFiles\\";
 
@@ -103,7 +105,10 @@ namespace HydroFunctionalTest
             foundPwrSup = false;
             foundPcanDev1 = false;
             foundPcanDev2 = false;
+        }
 
+        private void Form1_Shown(object sender, EventArgs e)
+        {
             SetupHardware();
         }
 
@@ -126,51 +131,6 @@ namespace HydroFunctionalTest
             eqStsLbl.Refresh();
             //disconnect from any hardware before scanning for attached devices/equipment
             DisconnectHardw();
-            //Instantiate hardware object array elements
-            for (int i = 0; i < 2; i++)
-            {
-                gpioObj[i] = new UsbToGpio();
-                pCanObj[i] = new Pcan();
-            }
-
-            //Scan for PCAN Devices (if found, the device has been activated)
-            if (pCanObj[uut1_index].ScanForDev(fix1Designator))
-            {
-                foundPcanDev1 = true;
-                foreach (String s in pCanObj[uut1_index].pcanReturnData)
-                {
-                    mainStsTxtBx.AppendText(s);
-                }
-                mainStsTxtBx.AppendText("--->PCAN-USB Active for Fixture #1");
-            }
-            else
-            {
-                foreach (String s in pCanObj[uut1_index].pcanReturnData)
-                {
-                    mainStsTxtBx.AppendText(s);
-                }
-                mainStsTxtBx.AppendText("--->Use the PCAN-USB Adapter Fixture Association Tool to resolve connection error with fixture #1.");
-            }
-            mainStsTxtBx.AppendText(Environment.NewLine);
-
-            if (pCanObj[uut2_index].ScanForDev(fix2Designator))
-            {
-                foundPcanDev2 = true;
-                foreach (String s in pCanObj[uut2_index].pcanReturnData)
-                {
-                    mainStsTxtBx.AppendText(s);
-                }
-                mainStsTxtBx.AppendText("--->PCAN-USB Active for Fixture #2");
-            }
-            else
-            {
-                foreach (String s in pCanObj[uut2_index].pcanReturnData)
-                {
-                    mainStsTxtBx.AppendText(s);
-                }
-                mainStsTxtBx.AppendText("--->Use the PCAN-USB Adapter Fixture Association Tool to resolve connection error with fixture #2.");
-            }
-            mainStsTxtBx.AppendText(Environment.NewLine);
 
             //Scan and identify hardware/equipment that use the COM ports
             String[] tmpPortNames = SerialPort.GetPortNames();
@@ -217,6 +177,8 @@ namespace HydroFunctionalTest
                         mainStsTxtBx.AppendText("Eload attached to: " + s + Environment.NewLine);
                         //turn Eload off
                         Eload.Toggle("off");
+                        //Set Eload Max Voltage
+                        Eload.SetMaxVoltage(30.0);
                     }
                 }
             }
@@ -226,6 +188,62 @@ namespace HydroFunctionalTest
                 mainStsTxtBx.AppendText("Problem commun. w/ Power Supply\r\nVerify RS232 settings.\r\n" + PwrSup.pwrSupSettings + "\r\n");
             if (!foundEload)
                 mainStsTxtBx.AppendText("Problem commun. w/ Electronic Load\r\n" + string.Join(" ", Eload.returnData.ToArray()));
+
+            //Instantiate hardware object array elements
+            for (int i = 0; i < 2; i++)
+            {
+                gpioObj[i] = new UsbToGpio();
+                pCanObj[i] = new Pcan();
+            }
+
+            //Design flaw on the base station which allows only UUT2 GPIO to control connection to Eload and DMM
+            //If the UUT2 GPIO adapter is connected, upon power up the device sets all I/O to high imp. causing all inputs to go high
+            //this results in UUT2 GPIO setting the Eload and DMM connections to itself and UUT1 has no way of gaining control until
+            //The GPIO I/O are set to there default values.
+            if (gpioObj[uut1_index].ScanForDevs(fix1Designator))
+                SetGpioInitValue(fix1Designator);
+
+            if (gpioObj[uut2_index].ScanForDevs(fix2Designator))
+                SetGpioInitValue(fix2Designator);
+
+            //Scan for PCAN Devices (if found, the device has been activated)
+            if (pCanObj[uut1_index].ScanForDev(fix1Designator))
+            {
+                foundPcanDev1 = true;
+                foreach (String s in pCanObj[uut1_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->PCAN-USB Active for Fixture #1");
+            }
+            else
+            {
+                foreach (String s in pCanObj[uut1_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->Use the PCAN-USB Adapter Fixture Association Tool to resolve connection error with fixture #1.");
+            }
+            mainStsTxtBx.AppendText(Environment.NewLine);
+
+            if (pCanObj[uut2_index].ScanForDev(fix2Designator))
+            {
+                foundPcanDev2 = true;
+                foreach (String s in pCanObj[uut2_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->PCAN-USB Active for Fixture #2");
+            }
+            else
+            {
+                foreach (String s in pCanObj[uut2_index].pcanReturnData)
+                {
+                    mainStsTxtBx.AppendText(s);
+                }
+                mainStsTxtBx.AppendText("--->Use the PCAN-USB Adapter Fixture Association Tool to resolve connection error with fixture #2.");
+            }
+
 
             if (foundPwrSup & foundEload & foundDmm & foundPcanDev1 & foundPcanDev2)
             {
@@ -331,6 +349,7 @@ namespace HydroFunctionalTest
             {
 
                 //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
+
                 bool foundGpio = gpioObj[uut1_index].ScanForDevs(fix1Designator);
                 if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev1)
                 {
@@ -347,7 +366,9 @@ namespace HydroFunctionalTest
                         GrpBxThreadCtrl(fix1Designator, -1);
                         PrintDataToTxtBox(fix1Designator, null, "\r\nLid Down Detected");
                         //begin testing UUT
+                        fix1TestInProgress = true;
                         BeginTest(fix1Designator, txtBxSerNum1.Text, this.btnAbort1, this.btnStrTst1);
+                        fix1TestInProgress = false;
                     }
                     else
                         PrintDataToTxtBox(fix1Designator, null, "Lid Down Not Detected");
@@ -394,7 +415,9 @@ namespace HydroFunctionalTest
                         GrpBxThreadCtrl(fix2Designator, -1);
                         PrintDataToTxtBox(fix2Designator, null, "\r\nLid Down Detected");
                         //begin testing UUT
+                        fix2TestInProgress = true;
                         BeginTest(fix2Designator, txtBxSerNum2.Text, this.btnAbort2, this.btnStrTst2);
+                        fix2TestInProgress = false;
                     }
                     else
                         PrintDataToTxtBox(fix2Designator, null, "Lid Down Not Detected");
@@ -1126,7 +1149,7 @@ namespace HydroFunctionalTest
         private void PopulateDropDownBox(int fixPos, String tempSerialNum)
         {
             //check for available GPIO devices
-            bool foundGpio = gpioObj[fixPos-1].ScanForDevs(fixPos);
+            bool foundGpio = gpioObj[fixPos - 1].ScanForDevs(fixPos);
             //check operator input options:
             bool skipBootloader = false;
             bool skipFirmware = false;
@@ -1138,7 +1161,7 @@ namespace HydroFunctionalTest
             {
                 SetGpioInitValue(fixPos);
                 PrintDataToTxtBox(fixPos, null, "Fixture " + fixPos.ToString() + " connected to GPIO --> " + gpioObj[fixPos-1].GetDeviceId());
-                Byte tempFixID = FixtureID(fixPos);//returns 0 if error occurs                    
+                Byte tempFixID = 60; // FixtureID(fixPos);//returns 0 if error occurs                    
                 bool tmpFoundFixture = false;
                 foreach (var pair in fxtIDs)
                 {

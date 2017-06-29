@@ -375,10 +375,6 @@ namespace HydroFunctionalTest
 
             //turn the power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
-            //turn Eload off
-            Eload.Toggle("off");
-            //Set Eload Max Voltage
-            Eload.SetMaxVoltage(30.0);
 
             //deactivate all relays/controls, i.e., assert GPIO lines to put relays/controls in passive or non-active state
             GpioInitState();
@@ -710,8 +706,6 @@ namespace HydroFunctionalTest
             GpioInitState();
             //turn the power off
             PwrSup.TurnOutputOnOff(fixPosition, false, 0, 0);
-            //turn Eload off
-            Eload.Toggle("off");
 
             //************************************************************
             //Stop the task that collects CAN data
@@ -1925,6 +1919,18 @@ namespace HydroFunctionalTest
                 return;
             //Eload is under this thread's control now
 
+            //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
+            if (fixPosition == 2)
+            {
+                port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
+
             //increase the power supply output
             if (!PwrSup.ChangeVoltAndOrCurrOutput(fixPosition, 28, 1.5))
             {
@@ -1984,18 +1990,6 @@ namespace HydroFunctionalTest
 
                 //Enable the relay connecting the UUT output to the Eload and DMM positive input
                 IC_ChangeOutputState(gpioConst.u1RefDes, (Byte)pair.Value[4], gpioConst.setBits);
-
-                //if UUT2 is calling this routine, enable the relay to UUT2 (port 2.6 is responsible for changing between UUT1 & UUT2)
-                if (fixPosition == 2)
-                {
-                    port2CtrlByte = SetBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                    gpioObj.GpioWrite(2, port2CtrlByte);
-                }
-                else
-                {
-                    port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
-                    gpioObj.GpioWrite(2, port2CtrlByte);
-                }
 
                 //Turn on the Eload to set it to constant resistance mode
                 if (Eload.Setup("cr", constResSetting))
@@ -2189,7 +2183,14 @@ namespace HydroFunctionalTest
                 port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
                 gpioObj.GpioWrite(2, port2CtrlByte);
             }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
+            //turn Eload off 
+            Eload.Toggle("off");
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -2530,7 +2531,15 @@ namespace HydroFunctionalTest
                 port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
                 gpioObj.GpioWrite(2, port2CtrlByte);
             }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
+
+            //turn Eload off 
+            Eload.Toggle("off");
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -2819,7 +2828,14 @@ namespace HydroFunctionalTest
                 port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
                 gpioObj.GpioWrite(2, port2CtrlByte);
             }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
+            //turn Eload off 
+            Eload.Toggle("off");
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 
@@ -3031,7 +3047,14 @@ namespace HydroFunctionalTest
                 port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
                 gpioObj.GpioWrite(2, port2CtrlByte);
             }
+            else
+            {
+                port2CtrlByte = ClearBits(port2CtrlByte, gpioConst.uut2EloadConn_EN);
+                gpioObj.GpioWrite(2, port2CtrlByte);
+            }
 
+            //turn Eload off 
+            Eload.Toggle("off");
             //Release control of the Eload for another thread to use
             Eload.ReserveEload(false);
 

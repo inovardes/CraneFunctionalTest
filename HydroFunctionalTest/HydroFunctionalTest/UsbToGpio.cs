@@ -17,7 +17,7 @@ namespace HydroFunctionalTest
         /// <summary>
         /// Once 
         /// </summary>
-        private string DeviceId { get; set; }
+        private string DeviceId { get; set; } = "";
         /// <summary>
         /// Stores method operation results to List elements for the Main UI to view
         /// </summary>
@@ -60,8 +60,8 @@ namespace HydroFunctionalTest
                         NationalInstruments.DAQmx.Device deviceObject = DaqSystem.Local.LoadDevice(attachedDevices[index]);
                         //string devID = deviceObject.DeviceID;
                         //long serialNum = deviceObject.SerialNumber;
-                        
-                        string prodNum = deviceObject.ProductType;                       
+
+                        string prodNum = deviceObject.ProductType;
                         if (prodNum.Contains(gpioProdType))
                         {
                             gpioDeviceIds.Add(attachedDevices[index]);
