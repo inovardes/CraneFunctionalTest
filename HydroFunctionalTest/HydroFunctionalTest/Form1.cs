@@ -69,8 +69,92 @@ namespace HydroFunctionalTest
         /// Will be set to true upon successful connection to the PCAN device with device ID = 2.  Initially set to false when the program opens (Form1_Load)
         /// </summary>
         public bool foundPcanDev2 = false;
+
+        /// <summary>
+        /// Keeps track of when fixture is disconnected from cable.  Works in conjunction with the 'fixtureInstalCheck' task and test fixTestInProgress boolean
+        /// </summary>
+        private bool foundFix1 = false;
+        /// <summary>
+        /// Keeps track of when fixture is disconnected from cable.  Works in conjunction with the 'fixtureInstalCheck' task and test fixTestInProgress boolean
+        /// </summary>
+        public bool FoundFix1
+        {
+            get
+            {
+                return foundFix1;
+            }
+
+            set
+            {
+                foundFix1 = value;
+                if (!foundFix1)
+                {
+                    //Start task that continously searches for GPIO device
+                    fixture1InstallCheck = new Task(new Action(CheckForFixt1Install));
+                    fixture1InstallCheck.Start();
+                }
+                else
+                {
+                    //Start task that continously checks the limit switch
+                    fixture1LimitSwitchCheck = new Task(new Action(CheckLimitSw1Enable));
+                    fixture1LimitSwitchCheck.Start();
+                }
+            }
+        }
+        /// <summary>
+        /// Keeps track of when fixture is disconnected from cable.  Works in conjunction with the 'fixtureInstalCheck' task and test fixTestInProgress boolean
+        /// </summary>
+        private bool foundFix2 = false;
+        /// <summary>
+        /// Keeps track of when fixture is disconnected from cable.  Works in conjunction with the 'fixtureInstalCheck' task and test fixTestInProgress boolean
+        /// </summary>
+        public bool FoundFix2
+        {
+            get
+            {
+                return foundFix2;
+            }
+
+            set
+            {
+                foundFix2 = value;
+                if (!foundFix2)
+                {
+                    //Start task that continously searches for GPIO device
+                    fixture2InstallCheck = new Task(new Action(CheckForFixt2Install));
+                    fixture2InstallCheck.Start();
+                }
+                else
+                {
+                    //Start task that continously checks the limit switch
+                    fixture2LimitSwitchCheck = new Task(new Action(CheckLimitSw2Enable));
+                    fixture2LimitSwitchCheck.Start();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Task that continously checks for GPIO devices (fixture connection)
+        /// </summary>
+        Task fixture1InstallCheck;
+        /// <summary>
+        /// Task that continously checks for GPIO devices (fixture connection)
+        /// </summary>
+        Task fixture2InstallCheck;
+
+        /// <summary>
+        /// Task that continously checks for GPIO I/O attached to limit switch
+        /// </summary>
+        Task fixture1LimitSwitchCheck;
+        /// <summary>
+        /// Task that continously checks for GPIO I/O attached to limit switch
+        /// </summary>
+        Task fixture2LimitSwitchCheck;
+
         public bool fix1TestInProgress = false;
         public bool fix2TestInProgress = false;
+        public bool btnAbort1Clicked = false;
+        public bool btnAbort2Clicked = false;
 
         private const String testPrgmPath = "C:\\CraneFunctionalTest\\";
         private const String progSourceFiles = testPrgmPath + "TestProgramSourceFiles\\";
@@ -200,10 +284,10 @@ namespace HydroFunctionalTest
             //If the UUT2 GPIO adapter is connected, upon power up the device sets all I/O to high imp. causing all inputs to go high
             //this results in UUT2 GPIO setting the Eload and DMM connections to itself and UUT1 has no way of gaining control until
             //The GPIO I/O are set to there default values.
-            if (gpioObj[uut1_index].ScanForDevs(fix1Designator))
+            if (gpioObj[uut1_index].ScanForDevs(fix1Designator, "Reset Devices"))
                 SetGpioInitValue(fix1Designator);
 
-            if (gpioObj[uut2_index].ScanForDevs(fix2Designator))
+            if (gpioObj[uut2_index].ScanForDevs(fix2Designator, "Reset Devices"))
                 SetGpioInitValue(fix2Designator);
 
             //Scan for PCAN Devices (if found, the device has been activated)
@@ -255,7 +339,82 @@ namespace HydroFunctionalTest
                 eqStsLbl.Text = "Equipment Initialization Not Complete (see equip. status info in tools tab)\r\nOne or both fixtures may not operate without resolving.";
                 eqStsLbl.ForeColor = System.Drawing.Color.Red;
             }
+            //start searching for fixtures that are installed:
+            FoundFix1 = false;
+            FoundFix2 = false;
             return (foundPwrSup & foundEload & foundDmm & foundPcanDev1 & foundPcanDev2);
+        }
+
+        private void CheckForFixt1Install()
+        {
+            while (!FoundFix1)
+            {
+                System.Threading.Thread.Sleep(1000);
+                if (gpioObj[uut1_index].ScanForDevs(fix1Designator, gpioObj[uut2_index].GetDeviceId()))
+                {
+                    SetGpioInitValue(fix1Designator);
+                    FoundFix1 = true;
+                }
+                if(fix1TestInProgress)
+                    FoundFix1 = true;
+            }
+        }
+
+        private void CheckForFixt2Install()
+        {
+            while (!FoundFix2)
+            {
+                System.Threading.Thread.Sleep(1000);
+                if (gpioObj[uut2_index].ScanForDevs(fix2Designator, gpioObj[uut1_index].GetDeviceId()))
+                {
+                    SetGpioInitValue(fix2Designator);
+                    FoundFix2 = true;
+                }
+                if (fix2TestInProgress)
+                    FoundFix2 = true;
+            }
+        }
+
+        private void CheckLimitSw1Enable()
+        {
+            bool limitSwEn = false;
+            if (!fix1TestInProgress)
+            {
+                while (!btnAbort1Clicked && !limitSwEn)
+                {
+                    System.Threading.Thread.Sleep(500);
+                    SetGpioInitValue(fix1Designator);
+                    //check to see limit switch is activated
+                    UInt32 readValue = gpioObj[uut1_index].GpioRead(1, 1);
+                    if (readValue == 0)
+                        limitSwEn = true;
+                    else if (gpioObj[uut1_index].gpioReturnData.Contains("ERROR"))
+                        btnAbort1Clicked = true;
+                }
+                if(limitSwEn)
+                    BtnStrPerformClick(fix1Designator);
+            }
+        }
+
+        private void CheckLimitSw2Enable()
+        {
+            bool limitSwEn = false;
+            if (!fix2TestInProgress)
+            {
+                while (!btnAbort2Clicked && !limitSwEn)
+                {
+                    System.Threading.Thread.Sleep(500);
+                    SetGpioInitValue(fix2Designator);
+                    //check to see limit switch is activated
+                    UInt32 readValue = gpioObj[uut2_index].GpioRead(1, 1);
+                    if (readValue == 0)
+                        limitSwEn = true;
+                    else if (gpioObj[uut2_index].gpioReturnData.Contains("ERROR"))
+                        btnAbort2Clicked = true;
+                }
+                if (limitSwEn)
+                    BtnStrPerformClick(fix2Designator);
+            }
         }
 
         public void DisconnectHardw()
@@ -340,6 +499,7 @@ namespace HydroFunctionalTest
 
         private void btnStrTst1_Click(object sender, EventArgs e)
         {
+            btnAbort1Clicked = false;
             //clear the txtbox
             TxtBxThreadCtrl(fix1Designator);//clear the text box of old data
             //reset background color, any integer other than 0 or 1 will work
@@ -347,10 +507,13 @@ namespace HydroFunctionalTest
 
             if ((txtBxSerNum1.Text != "Enter 10 Digit Serial") && (txtBxSerNum1.Text.Length >= 10))
             {
-
                 //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
+                bool foundGpio = false;
+                if (!FoundFix1)
+                    foundGpio = gpioObj[uut1_index].ScanForDevs(fix1Designator, gpioObj[uut2_index].GetDeviceId());
+                else
+                    foundGpio = true;
 
-                bool foundGpio = gpioObj[uut1_index].ScanForDevs(fix1Designator);
                 if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev1)
                 {
                     SetGpioInitValue(fix1Designator);
@@ -383,14 +546,13 @@ namespace HydroFunctionalTest
             }
             else
             {
-                txtBxSerNum1.Text = "Enter 10 Digit Serial";
-                txtBxSerNum1.SelectAll();
-                txtBxSerNum1.Focus();
+                SerialBxThreadCtrl(fix1Designator, true);
             }
         }
 
         private void btnStrTst2_Click(object sender, EventArgs e)
         {
+            btnAbort2Clicked = false;
             //clear the txtbox
             TxtBxThreadCtrl(fix2Designator);//clear the text box of old data
             //reset background color, any integer other than 0 or 1 will work
@@ -399,7 +561,11 @@ namespace HydroFunctionalTest
             if ((txtBxSerNum2.Text != "Enter 10 Digit Serial") && (txtBxSerNum2.Text.Length >= 10))
             {
                 //check to be sure all necessary test equipment is active and begin checking for available GPIO devices
-                bool foundGpio = gpioObj[uut2_index].ScanForDevs(fix2Designator);
+                bool foundGpio = false;
+                if (!FoundFix1)
+                    foundGpio = gpioObj[uut2_index].ScanForDevs(fix2Designator, gpioObj[uut1_index].GetDeviceId());
+                else
+                    foundGpio = true;
                 if (foundGpio & foundDmm & foundPwrSup & foundEload & foundPcanDev2)
                 {
                     SetGpioInitValue(fix2Designator);
@@ -432,9 +598,7 @@ namespace HydroFunctionalTest
             }
             else
             {
-                txtBxSerNum2.Text = "Enter 10 Digit Serial";
-                txtBxSerNum2.SelectAll();
-                txtBxSerNum2.Focus();
+                SerialBxThreadCtrl(fix2Designator, true);
             }
         }
 
@@ -446,9 +610,18 @@ namespace HydroFunctionalTest
             bool tempSkipBootloader = false;
             bool tempSkipFirmware = false;
             bool tempIsRma = false;
-            if (chkBxSkpBoot1.Checked | chkBxSkpBoot2.Checked) tempSkipBootloader = true;
-            if (chkBxSkpFirm1.Checked | chkBxSkpFirm2.Checked) tempSkipFirmware = true;
-            if (chkBxRma1.Checked | chkBxRma2.Checked) tempIsRma = true;
+            if (fixPos == fix1Designator)
+            {
+                if (chkBxSkpBoot1.Checked) tempSkipBootloader = true;
+                if (chkBxSkpFirm1.Checked) tempSkipFirmware = true;
+                if (chkBxRma1.Checked) tempIsRma = true;
+            }
+            else
+            {
+                if (chkBxSkpBoot2.Checked) tempSkipBootloader = true;
+                if (chkBxSkpFirm2.Checked) tempSkipFirmware = true;
+                if (chkBxRma2.Checked) tempIsRma = true;
+            }
             bool tmpFoundFixture = false;
             foreach (var pair in fxtIDs)
             {
@@ -469,14 +642,14 @@ namespace HydroFunctionalTest
                         uutObj.TestComplete += OnTestComplete;
                         uutObj.StartButtonText_Change += OnStartButtonText_Change;
                         //check to see if opertator has opted to run specific test
-                        if ((chkBxTstSelectThreadCtrl(fixPos)) && (uutObj.testRoutineInformation.ContainsKey(cboBxDbgTstThreadCtrl(fixPos, false))))
+                        if ((chkBxTstSelectThreadCtrl(fixPos)) && (uutObj.testRoutineInformation.ContainsKey(cboBxDbgTstThreadCtrl(fixPos, true))))
                         {
                             //find the specific test the operator has selected to run
                             //if the test is found, unselect the other tests
                             String[] testRoutines = uutObj.testRoutineInformation.Keys.ToArray();
                             foreach (string s in testRoutines)
                             {
-                                if (cboBxDbgTstThreadCtrl(fixPos, false) != s)
+                                if (cboBxDbgTstThreadCtrl(fixPos, true) != s)
                                 {
                                     //unselect the test by assigning a value of -2 (0 = failure, -1 = untested, anything greater than 1 is a pass, anything less than -1 is skipped.
                                     uutObj.testRoutineInformation[s] = -2;
@@ -648,13 +821,45 @@ namespace HydroFunctionalTest
             //Unsubscribe from events and check that task is complete, kill if still running
             //
             //unlock the GUI so no other input can be received
-            BtnThreadCtrl(fixPos, true);
-            SerialBxThreadCtrl(fixPos, true);
-            EndofTestRoutine(fixPos, allTestsPass);
+
             PrintDataToTxtBox(fixPos, null, "\r\n*********Test Results*********");
             PrintDataToTxtBox(fixPos, passFailtstSts);
-            TxtBxSerInputThreadCtrl(fixPos);
             AbortBtnThreadCtrl(fixPos, "Abort Test");
+            if (allTestsPass)
+            {
+                GrpBxThreadCtrl(fixPos, 1);
+            }
+            else
+            {
+                GrpBxThreadCtrl(fixPos, 0);
+            }
+
+            //wait for the operator to disable the limit switch
+            bool exitLoop = false;
+            while ((gpioObj[fixPos - 1].GpioRead(1, 1)) != 1 && (!exitLoop))
+            {
+                if (fixPos == 1)
+                {
+                    if (btnAbort1Clicked)
+                        exitLoop = true;
+                }
+                else
+                {
+                    if (btnAbort2Clicked)
+                        exitLoop = true;
+                }
+            }
+            //start searching for fixtures that are installed only if the limit switch is in a known state:
+            if (!exitLoop)
+            {
+                FoundFix1 = false;
+                FoundFix2 = false;
+            }
+
+            cboBxDbgTstThreadCtrl(fixPos, false);
+            BtnThreadCtrl(fixPos, true);
+            SerialBxThreadCtrl(fixPos, true);            
+            TxtBxSerInputThreadCtrl(fixPos);
 
             if (PwrSup.OVP_Check())
                 if (PwrSup.OVP_Check())
@@ -695,6 +900,28 @@ namespace HydroFunctionalTest
             }
         }
 
+        delegate void btnStrPerformClick_ThreadCtrl(int fixPos);
+        public void BtnStrPerformClick(int fixPos)
+        {
+            //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
+            if (btnStrTst1.InvokeRequired || btnStrTst2.InvokeRequired)
+            {
+                btnStrPerformClick_ThreadCtrl btnStr = new btnStrPerformClick_ThreadCtrl(BtnStrPerformClick);
+                this.Invoke(btnStr, new object[] { fixPos });
+            }
+            else
+            {
+                if (fixPos == fix1Designator)
+                {
+                    btnStrTst1.PerformClick();
+                }
+                else if (fixPos == fix2Designator)
+                {
+                    btnStrTst2.PerformClick();
+                }
+            }
+        }
+
         /// <summary>
         /// Delegate for controlling and updating Main GUI from threads other than the main form
         /// </summary>
@@ -709,7 +936,7 @@ namespace HydroFunctionalTest
         public void GrpBxThreadCtrl(int fixPos, int passFailClear)
         {
             //If method caller comes from a thread other than main UI, access the main UI's members using 'Invoke'
-            if (grpBxTst1.InvokeRequired || grpBxTst1.InvokeRequired)
+            if (grpBxTst1.InvokeRequired || grpBxTst2.InvokeRequired)
             {
                 grpBx_ThreadCtrl btnDel = new grpBx_ThreadCtrl(GrpBxThreadCtrl);
                 this.Invoke(btnDel, new object[] { fixPos, passFailClear });
@@ -853,14 +1080,24 @@ namespace HydroFunctionalTest
                 if (fixPos == fix1Designator)
                 {
                     if (en)
+                    {
                         txtBxSerNum1.Enabled = true;
+                        txtBxSerNum1.Text = "Enter 10 Digit Serial";
+                        txtBxSerNum1.SelectAll();
+                        txtBxSerNum1.Focus();
+                    }
                     else
                         txtBxSerNum1.Enabled = false;
                 }
                 else if (fixPos == fix2Designator)
                 {
                     if (en)
+                    {
                         txtBxSerNum2.Enabled = true;
+                        txtBxSerNum2.Text = "Enter 10 Digit Serial";
+                        txtBxSerNum2.SelectAll();
+                        txtBxSerNum2.Focus();
+                    }
                     else
                         txtBxSerNum2.Enabled = false;
                 }
@@ -1033,28 +1270,20 @@ namespace HydroFunctionalTest
             return false;
         }
 
-        /// <summary>
-        /// Method for performing any common tasks or end of test cleanup work needed before the task ends and object is destroyed.
-        /// e.g., enable GUI controls or otherwise setup the UI for user input
-        /// </summary>
-        /// <param name="fixPos"></param>
-        /// <param name="allTestsPass"></param>
-        public void EndofTestRoutine(int fixPos, bool allTestsPass)
-        {
-            BtnThreadCtrl(fixPos, true);
-            cboBxDbgTstThreadCtrl(fixPos, false);
-            if (allTestsPass)
-            {
-                GrpBxThreadCtrl(fixPos, 1);
-            }
-            else
-            {
-                GrpBxThreadCtrl(fixPos, 0);
-            }
-        }
+        ///// <summary>
+        ///// Method for performing any common tasks or end of test cleanup work needed before the task ends and object is destroyed.
+        ///// e.g., enable GUI controls or otherwise setup the UI for user input
+        ///// </summary>
+        ///// <param name="fixPos"></param>
+        ///// <param name="allTestsPass"></param>
+        //public void EndofTestRoutine(int fixPos, bool allTestsPass)
+        //{
+
+        //}
 
         private void btnAbort1_Click(object sender, EventArgs e)
         {
+            btnAbort1Clicked = true;
             if (btnStrTst1.Enabled)
                 AbortBtnThreadCtrl(fix1Designator, "Abort Test");
             else
@@ -1063,6 +1292,7 @@ namespace HydroFunctionalTest
 
         private void btnAbort2_Click(object sender, EventArgs e)
         {
+            btnAbort2Clicked = true;
             if (btnStrTst2.Enabled)
                 AbortBtnThreadCtrl(fix2Designator, "Abort Test");
             else
@@ -1149,7 +1379,16 @@ namespace HydroFunctionalTest
         private void PopulateDropDownBox(int fixPos, String tempSerialNum)
         {
             //check for available GPIO devices
-            bool foundGpio = gpioObj[fixPos - 1].ScanForDevs(fixPos);
+            bool foundGpio = false;
+            int otherUUT = 1;
+            if (fixPos == 1)
+                otherUUT = 1;
+            else
+                otherUUT = 0;
+            if (!FoundFix1)
+                foundGpio = gpioObj[fixPos - 1].ScanForDevs(fixPos, gpioObj[(otherUUT)].GetDeviceId());
+            else
+                foundGpio = true;
             //check operator input options:
             bool skipBootloader = false;
             bool skipFirmware = false;
@@ -1276,6 +1515,16 @@ namespace HydroFunctionalTest
             {
                 PrintDataToTxtBox(fixPos, gpioObj[fixPos-1].gpioReturnData, "Problem communicating with GPIO adapter");
             }
+        }
+
+        private void txtBxSerNum1_Click(object sender, EventArgs e)
+        {
+            txtBxSerNum1.SelectAll();
+        }
+
+        private void txtBxSerNum2_Click(object sender, EventArgs e)
+        {
+            txtBxSerNum2.SelectAll();
         }
     }
 

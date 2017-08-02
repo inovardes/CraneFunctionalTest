@@ -180,7 +180,7 @@
             this.txtBxSerNum2.Size = new System.Drawing.Size(100, 20);
             this.txtBxSerNum2.TabIndex = 2;
             this.txtBxSerNum2.Text = "Enter 10 Digit Serial";
-            this.txtBxSerNum2.MouseClick += new System.Windows.Forms.MouseEventHandler(this.txtBxSerNum2_MouseClick);
+            this.txtBxSerNum2.Click += new System.EventHandler(this.txtBxSerNum2_Click);
             // 
             // chkBxTstSelect2
             // 
@@ -309,7 +309,7 @@
             this.txtBxSerNum1.Size = new System.Drawing.Size(104, 20);
             this.txtBxSerNum1.TabIndex = 1;
             this.txtBxSerNum1.Text = "Enter 10 Digit Serial";
-            this.txtBxSerNum1.MouseClick += new System.Windows.Forms.MouseEventHandler(this.txtBxSerNum1_MouseClick);
+            this.txtBxSerNum1.Click += new System.EventHandler(this.txtBxSerNum1_Click);
             // 
             // tabDebug
             // 
