@@ -1175,7 +1175,7 @@ namespace HydroFunctionalTest
         {
             try
             {
-                WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/transferSerial?" + "serial=" + uutSerialNum + "&workcenter=Functional Test&site=Logan&userId=FAEEAFCA-DB92-434E-BE1F-A54AF2CA2955");
+                WebRequest request = WebRequest.Create("http://api.theino.net/custTest.asmx/transferSerial?" + "serial=" + uutSerialNum + "&workcenter=Functional Test&site=Logan&userId=3c35edfa-1d63-4c65-bf02-08bf2fe3135e");
                 WebResponse response = request.GetResponse();
                 String tmpServResponseStr = ((HttpWebResponse)response).StatusDescription.ToString();
                 response.Close();
